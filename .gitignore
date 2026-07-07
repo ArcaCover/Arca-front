@@ -1,0 +1,19 @@
+# dependencias
+/node_modules
+
+# next.js
+/.next
+/out
+
+# variables de entorno (NUNCA subir secretos a git)
+.env
+.env.local
+.env.*.local
+
+# sistema
+.DS_Store
+*.log
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

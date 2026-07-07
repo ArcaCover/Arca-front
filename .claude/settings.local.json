@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(git init)",
+      "PowerShell(git branch -m main)",
+      "PowerShell(npm install next react react-dom @supabase/supabase-js)",
+      "PowerShell(npm install -D typescript @types/react @types/react-dom @types/node)",
+      "PowerShell(npm audit)",
+      "PowerShell(npm run build)",
+      "PowerShell(git check-ignore .env.local)",
+      "PowerShell(git add -A)"
+    ]
+  }
+}
