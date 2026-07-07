@@ -62,9 +62,9 @@ export default function Testimonials() {
   }, [paused]);
 
   return (
-    <section className="bg-white px-6 py-20">
+    <section className="bg-bruma px-6 py-20 md:py-24">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center font-heading text-3xl font-bold text-marino md:text-4xl">
+        <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-5xl">
           What our clients say.
         </h2>
         <div
@@ -81,9 +81,9 @@ export default function Testimonials() {
             {TESTIMONIALS.map((testimonial) => (
               <figure
                 key={testimonial.name}
-                className="min-w-[85%] snap-start rounded-2xl bg-bruma p-8 sm:min-w-[60%] lg:min-w-[45%]"
+                className="min-w-[85%] snap-start rounded-[1.75rem] bg-white p-9 sm:min-w-[60%] lg:min-w-[45%]"
               >
-                <blockquote className="text-lg leading-relaxed text-marino">
+                <blockquote className="font-heading text-xl font-medium leading-snug tracking-tight text-marino">
                   &ldquo;{testimonial.quote}&rdquo;
                 </blockquote>
                 <figcaption className="mt-6 flex items-center gap-4">
@@ -110,7 +110,7 @@ export default function Testimonials() {
               type="button"
               aria-label="Previous testimonial"
               onClick={() => scrollByCard(-1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-marino/20 text-marino transition-colors hover:bg-bruma"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-marino/20 text-marino transition-colors hover:bg-white"
             >
               <svg viewBox="0 0 12 12" aria-hidden="true" className="h-3 w-3">
                 <path
@@ -127,7 +127,7 @@ export default function Testimonials() {
               type="button"
               aria-label="Next testimonial"
               onClick={() => scrollByCard(1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-marino/20 text-marino transition-colors hover:bg-bruma"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-marino/20 text-marino transition-colors hover:bg-white"
             >
               <svg viewBox="0 0 12 12" aria-hidden="true" className="h-3 w-3">
                 <path

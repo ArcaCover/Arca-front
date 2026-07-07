@@ -19,14 +19,14 @@ const BLOCKS = [
 
 export default function HowWeOperate() {
   return (
-    <section className="bg-marino px-6 py-14">
-      <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
+    <section className="bg-white px-3 pb-6 md:px-4 md:pb-8">
+      <div className="mx-auto grid max-w-6xl gap-10 rounded-[2rem] bg-marino p-10 md:grid-cols-3 md:rounded-[2.5rem] md:p-16">
         {BLOCKS.map((block) => (
           <div key={block.title}>
-            <h3 className="font-heading text-lg font-bold text-white">
+            <h3 className="font-heading text-lg font-medium tracking-tight text-white">
               {block.title}
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-white/70">
+            <p className="mt-3 text-sm leading-relaxed text-white/70">
               {block.description}
             </p>
           </div>

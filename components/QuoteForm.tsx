@@ -28,7 +28,7 @@ function validate(values: FormValues): FormErrors {
 }
 
 const INPUT_CLASSES =
-  "w-full rounded-lg border bg-white px-4 py-3 text-marino outline-none transition-colors focus:border-cielo";
+  "w-full rounded-xl border bg-white px-4 py-3 text-marino outline-none transition-colors focus:border-cielo";
 
 export default function QuoteForm() {
   const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
@@ -52,13 +52,13 @@ export default function QuoteForm() {
   }
 
   function borderClass(field: FieldName) {
-    return errors[field] ? "border-rojo" : "border-marino/20";
+    return errors[field] ? "border-rojo" : "border-marino/10";
   }
 
   return (
-    <section id="get-a-quote" className="bg-white px-6 py-20">
-      <div className="mx-auto max-w-xl">
-        <h2 className="text-center font-heading text-3xl font-bold text-marino md:text-4xl">
+    <section id="get-a-quote" className="bg-white px-6 py-20 md:py-24">
+      <div className="mx-auto max-w-2xl rounded-[2rem] bg-bruma p-8 md:p-12">
+        <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-4xl">
           Get a quote.
         </h2>
         <p className="mt-4 text-center leading-relaxed text-marino/80">
@@ -66,7 +66,7 @@ export default function QuoteForm() {
         </p>
         <div aria-live="polite" className="mt-10">
           {submitted ? (
-            <div className="rounded-2xl bg-bruma p-8 text-center">
+            <div className="rounded-[1.75rem] bg-white p-8 text-center">
               <p className="font-heading text-xl font-bold text-marino">
                 Thanks — we got your message.
               </p>

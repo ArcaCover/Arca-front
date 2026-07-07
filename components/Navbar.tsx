@@ -33,7 +33,11 @@ export default function Navbar() {
         scrolled ? "bg-white shadow-md" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto grid h-16 max-w-6xl grid-cols-3 items-center px-4 md:px-8">
+      <nav
+        className={`mx-auto grid h-16 max-w-6xl grid-cols-3 items-center px-4 transition-colors duration-300 md:px-8 ${
+          scrolled ? "text-marino" : "text-white"
+        }`}
+      >
         {/* Left zone: dropdown menus (desktop) / hamburger (mobile) */}
         <div className="hidden items-center gap-6 md:flex">
           <NavDropdown label="Coverages">
@@ -79,7 +83,7 @@ export default function Navbar() {
           aria-expanded={mobileOpen}
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="justify-self-start text-marino md:hidden"
+          className="justify-self-start text-current md:hidden"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6">
             {mobileOpen ? (
@@ -103,7 +107,7 @@ export default function Navbar() {
         {/* Center zone: logo — large and floating over the hero, shrinks up on scroll */}
         <a
           href="#top"
-          className={`justify-self-center font-heading font-bold tracking-tight text-marino transition-all duration-300 ${
+          className={`justify-self-center font-heading font-bold tracking-tight text-current transition-all duration-300 ${
             scrolled ? "translate-y-0 text-2xl" : "translate-y-5 text-4xl md:translate-y-7 md:text-5xl"
           }`}
         >
@@ -114,7 +118,7 @@ export default function Navbar() {
         <div className="flex items-center justify-self-end">
           <a
             href="#"
-            className="hidden whitespace-nowrap text-sm font-semibold text-marino transition-colors hover:text-oro-oscuro md:block"
+            className="hidden whitespace-nowrap text-sm font-semibold text-current transition-opacity hover:opacity-75 md:block"
           >
             My account
           </a>

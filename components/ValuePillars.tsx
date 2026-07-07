@@ -16,15 +16,18 @@ const PILLARS = [
 
 export default function ValuePillars() {
   return (
-    <section className="bg-bruma px-6 py-20">
+    <section id="what-we-do" className="bg-white px-6 py-20 md:py-24">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-center font-heading text-3xl font-bold text-marino md:text-4xl">
+        <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-5xl">
           What we do.
         </h2>
-        <div className="mt-12 grid gap-10 text-center md:grid-cols-3">
-          {PILLARS.map((pillar) => (
-            <div key={pillar.title}>
-              <h3 className="font-heading text-2xl font-bold text-marino">
+        <div className="mt-14 grid gap-6 md:grid-cols-3">
+          {PILLARS.map((pillar, index) => (
+            <div key={pillar.title} className="rounded-[1.75rem] bg-bruma p-8">
+              <p className="font-heading text-sm font-medium text-marino/40">
+                0{index + 1}
+              </p>
+              <h3 className="mt-6 font-heading text-2xl font-medium tracking-tight text-marino">
                 {pillar.title}
               </h3>
               <p className="mt-3 leading-relaxed text-marino/80">

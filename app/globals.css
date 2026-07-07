@@ -11,6 +11,29 @@
 
   --font-heading: var(--font-space-grotesk);
   --font-body: var(--font-mulish);
+
+  --animate-fade-up: fade-up 0.7s ease-out both;
+  --animate-marquee: marquee 30s linear infinite;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
 }
 
 html {
@@ -19,4 +42,13 @@ html {
 
 body {
   @apply bg-white font-body text-marino;
+}
+
+/* Entrance and marquee animations are decorative only:
+   disable them when the user prefers reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-marquee {
+    animation: none;
+  }
 }

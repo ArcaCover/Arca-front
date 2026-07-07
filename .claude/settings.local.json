@@ -12,7 +12,9 @@
       "PowerShell(git check-ignore .env.local)",
       "PowerShell(git add -A)",
       "PowerShell(git add CLAUDE.md)",
-      "PowerShell(npm install -D tailwindcss @tailwindcss/postcss)"
+      "PowerShell(npm install -D tailwindcss @tailwindcss/postcss)",
+      "PowerShell(npm install lucide-react)",
+      "PowerShell(Remove-Item -Recurse -Force .next -Confirm:$false)"
     ]
   }
 }

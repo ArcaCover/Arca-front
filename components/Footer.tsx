@@ -3,10 +3,10 @@ const COMPANY = ["Partners", "Blog", "Careers"];
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-marino px-6 pb-8 pt-14">
+    <footer className="bg-marino px-6 pb-10 pt-16">
       <div className="mx-auto grid max-w-5xl gap-10 sm:grid-cols-2 md:grid-cols-4">
         <div>
-          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-white">
+          <h3 className="font-heading text-xs font-medium uppercase tracking-widest text-white/50">
             Contact
           </h3>
           {/* TODO: replace placeholder email before launch */}
@@ -20,13 +20,13 @@ export default function Footer() {
           </p>
         </div>
         <div>
-          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-white">
+          <h3 className="font-heading text-xs font-medium uppercase tracking-widest text-white/50">
             Resources
           </h3>
           <ul className="mt-4 space-y-2">
             {RESOURCES.map((link) => (
               <li key={link}>
-                <a href="#" className="text-sm text-white/70 hover:text-white">
+                <a href="#" className="text-sm text-white/75 transition-colors hover:text-white">
                   {link}
                 </a>
               </li>
@@ -34,13 +34,13 @@ export default function Footer() {
           </ul>
         </div>
         <div>
-          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-white">
+          <h3 className="font-heading text-xs font-medium uppercase tracking-widest text-white/50">
             Company
           </h3>
           <ul className="mt-4 space-y-2">
             {COMPANY.map((link) => (
               <li key={link}>
-                <a href="#" className="text-sm text-white/70 hover:text-white">
+                <a href="#" className="text-sm text-white/75 transition-colors hover:text-white">
                   {link}
                 </a>
               </li>
@@ -48,7 +48,7 @@ export default function Footer() {
           </ul>
         </div>
         <div>
-          <h3 className="font-heading text-sm font-bold uppercase tracking-wide text-white">
+          <h3 className="font-heading text-xs font-medium uppercase tracking-widest text-white/50">
             Follow us
           </h3>
           <div className="mt-4 flex gap-4">
@@ -65,7 +65,7 @@ export default function Footer() {
           </div>
         </div>
       </div>
-      <div className="mx-auto mt-12 max-w-5xl border-t border-white/10 pt-6">
+      <div className="mx-auto mt-14 max-w-5xl border-t border-white/10 pt-8">
         <p className="text-center text-sm text-white/50">
           &copy; 2026 Arca. All rights reserved.
         </p>

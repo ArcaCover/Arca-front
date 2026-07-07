@@ -42,7 +42,7 @@ export default function NavDropdown({
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-sm font-semibold text-marino transition-colors hover:text-oro-oscuro"
+        className="flex items-center gap-1 text-sm font-semibold text-current transition-opacity hover:opacity-75"
       >
         {label}
         <svg
