@@ -1,0 +1,191 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import NavDropdown from "./NavDropdown";
+
+const COVERAGES = [
+  { label: "SLA", href: "#products" },
+  { label: "Liability", href: "#products" },
+];
+
+const INDUSTRIES = [
+  { group: "Legal", items: ["Law firms", "Independent lawyers"] },
+  { group: "Accounting", items: ["Accounting firms", "Independent accountants"] },
+  { group: "Consulting", items: ["Consulting firms", "Independent consultants"] },
+];
+
+export default function Navbar() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 30);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  return (
+    <header
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+        scrolled ? "bg-white shadow-md" : "bg-transparent"
+      }`}
+    >
+      <nav className="mx-auto grid h-16 max-w-6xl grid-cols-3 items-center px-4 md:px-8">
+        {/* Left zone: dropdown menus (desktop) / hamburger (mobile) */}
+        <div className="hidden items-center gap-6 md:flex">
+          <NavDropdown label="Coverages">
+            <ul className="space-y-3">
+              {COVERAGES.map((coverage) => (
+                <li key={coverage.label}>
+                  <a
+                    href={coverage.href}
+                    className="text-sm font-semibold text-marino hover:text-oro-oscuro"
+                  >
+                    {coverage.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
+          <NavDropdown label="Industries">
+            <div className="grid w-max grid-cols-1 gap-5 sm:grid-cols-3">
+              {INDUSTRIES.map((industry) => (
+                <div key={industry.group}>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marino/50">
+                    {industry.group}
+                  </p>
+                  <ul className="space-y-2">
+                    {industry.items.map((item) => (
+                      <li key={item}>
+                        <a
+                          href="#"
+                          className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
+                        >
+                          {item}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </NavDropdown>
+        </div>
+        <button
+          type="button"
+          aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="justify-self-start text-marino md:hidden"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6">
+            {mobileOpen ? (
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            ) : (
+              <path
+                d="M4 7h16M4 12h16M4 17h16"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            )}
+          </svg>
+        </button>
+
+        {/* Center zone: logo — large and floating over the hero, shrinks up on scroll */}
+        <a
+          href="#top"
+          className={`justify-self-center font-heading font-bold tracking-tight text-marino transition-all duration-300 ${
+            scrolled ? "translate-y-0 text-2xl" : "translate-y-5 text-4xl md:translate-y-7 md:text-5xl"
+          }`}
+        >
+          arca
+        </a>
+
+        {/* Right zone: [My account] [Get a quote (appears on scroll)] */}
+        <div className="flex items-center justify-self-end">
+          <a
+            href="#"
+            className="hidden whitespace-nowrap text-sm font-semibold text-marino transition-colors hover:text-oro-oscuro md:block"
+          >
+            My account
+          </a>
+          <a
+            href="#get-a-quote"
+            aria-hidden={!scrolled}
+            tabIndex={scrolled ? 0 : -1}
+            className={`overflow-hidden whitespace-nowrap rounded-full bg-oro text-sm font-bold text-marino transition-all duration-300 hover:bg-oro-oscuro ${
+              scrolled
+                ? "ml-0 max-w-40 px-4 py-2 opacity-100 md:ml-4"
+                : "pointer-events-none ml-0 max-w-0 px-0 py-2 opacity-0"
+            }`}
+          >
+            Get a quote
+          </a>
+        </div>
+      </nav>
+
+      {/* Mobile panel */}
+      {mobileOpen && (
+        <div className="border-t border-marino/10 bg-white px-6 py-4 shadow-md md:hidden">
+          <details className="py-2">
+            <summary className="cursor-pointer text-sm font-bold text-marino">
+              Coverages
+            </summary>
+            <ul className="mt-2 space-y-2 pl-4">
+              {COVERAGES.map((coverage) => (
+                <li key={coverage.label}>
+                  <a
+                    href={coverage.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-semibold text-marino"
+                  >
+                    {coverage.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
+          <details className="py-2">
+            <summary className="cursor-pointer text-sm font-bold text-marino">
+              Industries
+            </summary>
+            <div className="mt-2 space-y-4 pl-4">
+              {INDUSTRIES.map((industry) => (
+                <div key={industry.group}>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marino/50">
+                    {industry.group}
+                  </p>
+                  <ul className="space-y-2">
+                    {industry.items.map((item) => (
+                      <li key={item}>
+                        <a href="#" className="text-sm font-semibold text-marino">
+                          {item}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </details>
+          <a
+            href="#"
+            className="block py-2 text-sm font-bold text-marino"
+            onClick={() => setMobileOpen(false)}
+          >
+            My account
+          </a>
+        </div>
+      )}
+    </header>
+  );
+}

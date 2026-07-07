@@ -10,7 +10,9 @@
       "PowerShell(npm audit)",
       "PowerShell(npm run build)",
       "PowerShell(git check-ignore .env.local)",
-      "PowerShell(git add -A)"
+      "PowerShell(git add -A)",
+      "PowerShell(git add CLAUDE.md)",
+      "PowerShell(npm install -D tailwindcss @tailwindcss/postcss)"
     ]
   }
 }

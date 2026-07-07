@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+/* Brand tokens (single source of truth — never write raw hex in components) */
+@theme {
+  --color-marino: #1c2c5b;
+  --color-cielo: #6cabdd;
+  --color-oro: #ffc659;
+  --color-oro-oscuro: #d4a12a;
+  --color-bruma: #e4f4f7;
+  --color-rojo: #ec3325;
+
+  --font-heading: var(--font-space-grotesk);
+  --font-body: var(--font-mulish);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white font-body text-marino;
+}
