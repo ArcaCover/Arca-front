@@ -57,11 +57,42 @@ canales distintos hacia la misma lógica.
   **Postgres**). Se aprovechan su autenticación de usuarios y su **seguridad a nivel de
   fila (Row Level Security)** para aislar los datos de cada asegurado. La lógica de
   suscripción compleja puede vivir en una capa de backend propia dentro de Next.js.
+- **Estilos (CSS):** **Tailwind CSS**. Se usa para todo el diseño de la interfaz.
+- **Tipografías (gratuitas, vía Google Fonts / next/font):** **Space Grotesk** para
+  títulos y **Mulish** para textos. No usar fuentes de pago.
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando la lógica y las
   validaciones ya escritas en TypeScript para mantener paridad con la web.
 - **Hosting inicial:** **Vercel** para la web; Supabase gestiona su propia infra.
 - **Convención:** las validaciones y tipos de datos se escriben **una sola vez** y se
   comparten entre capas; no reescribir la misma regla en dos lugares.
+
+### Identidad de marca
+
+**Dirección de diseño:** claro, calmado y confiable (inspirado en Lemonade en la forma
+de comunicar: lenguaje simple, mucho aire, "cómo funciona" fácil de entender), con un
+acabado moderno y algo "tech". Tono para **empresas (B2B)**: cercano pero serio, sin
+letra chica. Nunca copiar a Lemonade ni a ninguna marca real: Arca tiene identidad propia.
+
+**Paleta de color y sus roles** (usar exactamente estos hex):
+
+- **Marino `#1C2C5B`** — color ancla. Textos, títulos, secciones oscuras, barra de
+  navegación. Es la voz seria de la marca.
+- **Cielo `#6CABDD`** — calma y confianza. Fondos suaves, etiquetas, detalles,
+  ilustraciones. Casi nunca lleva texto encima.
+- **Oro `#FFC659`** — acento cálido. SOLO para lo importante: botones principales
+  (CTA) y algún dato destacado. Con cuentagotas para que no pierda fuerza. El texto
+  sobre oro va en Marino, no en blanco.
+- **Oro oscuro `#D4A12A`** — variante del oro para texto dorado sobre fondo claro y
+  para estados hover.
+- **Blanco `#FFFFFF`** — lienzo principal. Mucho espacio en blanco.
+- **Bruma `#E4F4F7`** (azul casi blanco) — fondos alternos de sección, para dar
+  variedad sin romper la calma.
+- **Rojo `#EC3325`** — RESERVADO. Solo para alertas y errores (ej: validación de
+  formularios). Casi nunca.
+
+**Convención de tokens:** estos colores y fuentes se definen **una sola vez** como
+tokens en la configuración de Tailwind, y se usan por su nombre en todo el proyecto.
+Nunca escribir un color hex suelto en un componente.
 
 ## 3. Decisiones AÚN NO tomadas (no las inventes)
 
@@ -69,7 +100,7 @@ Hasta que el fundador las confirme explícitamente, **no asumas** ni des por hec
 
 - Diseño detallado del modelo de datos (entidades, tablas, relaciones).
 - Proveedores externos adicionales (email transaccional, pagos, firma electrónica, etc.).
-- Librerías concretas de UI, formularios o validación (proponer y confirmar antes de fijar).
+- Librerías concretas de formularios o validación (proponer y confirmar antes de fijar).
 
 Si una tarea necesita una de estas decisiones, **detente y pregúntalo** antes de codear.
 
@@ -162,5 +193,9 @@ prácticas, no asesoría legal.)*
 - *(2025) Arquitectura: API-first (lógica en backend central; web y móvil consumen la API).*
 - *(2025) Stack: TypeScript en todo. Web con Next.js. Datos/auth/almacenamiento con
   Supabase (Postgres). Móvil con Expo/React Native (fase posterior). Hosting en Vercel.*
+- *(2025) Estilos: Tailwind CSS.*
+- *(2025) Identidad de marca: paleta Marino #1C2C5B, Cielo #6CABDD, Oro #FFC659 (+ Oro
+  oscuro #D4A12A y Rojo #EC3325 de apoyo), Blanco y Bruma #E4F4F7. Tipografías gratuitas:
+  Space Grotesk (títulos) + Mulish (texto). Dirección: claro/calmado/confiable, B2B.*
 - *(pendiente) Modelo de datos detallado.*
 - *(pendiente) Proveedores externos (email, pagos, firma electrónica).*
