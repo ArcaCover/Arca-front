@@ -151,36 +151,6 @@ export default function Products() {
                   {product.description}
                 </p>
 
-                {/* The fold keeps its height at all times so revealing the chips
-                    never pushes the call to action down. */}
-                <div className="product-fold flex flex-col gap-3.5 pt-2">
-                  <span
-                    className={`h-px w-full ${
-                      product.dark ? "bg-cielo/30" : "bg-marino/15"
-                    }`}
-                  />
-                  <span className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-cielo">
-                    What this covers
-                  </span>
-                  <div className="flex flex-wrap gap-2.5">
-                    {product.covers.map((cover, chipIndex) => (
-                      <span
-                        key={cover}
-                        style={{
-                          transitionDelay: `${(chipIndex + 1) * 50}ms`,
-                        }}
-                        className={`product-chip rounded-full border px-[18px] py-2 text-[15px] font-semibold ${
-                          product.dark
-                            ? "border-cielo/45 bg-cielo/15 text-white"
-                            : "border-cielo/50 bg-white text-marino"
-                        }`}
-                      >
-                        {cover}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
                 <a
                   href="#get-a-quote"
                   className="mt-2 inline-flex items-center gap-3.5 self-start rounded-full bg-oro py-2 pl-6 pr-2 font-heading text-base font-bold tracking-tight text-marino transition-colors duration-300 hover:bg-oro-oscuro"
@@ -193,6 +163,41 @@ export default function Products() {
                     <ArrowRight className="h-4 w-4" />
                   </span>
                 </a>
+
+                {/* Sits last so it can collapse to nothing without moving the
+                    button above it. The negative margin cancels the column gap
+                    while closed; the spacing lives inside the folding area. */}
+                <div className="product-fold -mt-5">
+                  <div className="overflow-hidden">
+                    <div className="flex flex-col gap-3.5 pt-6">
+                      <span
+                        className={`h-px w-full ${
+                          product.dark ? "bg-cielo/30" : "bg-marino/15"
+                        }`}
+                      />
+                      <span className="font-heading text-xs font-bold uppercase tracking-[0.16em] text-cielo">
+                        What this covers
+                      </span>
+                      <div className="flex flex-wrap gap-2.5">
+                        {product.covers.map((cover, chipIndex) => (
+                          <span
+                            key={cover}
+                            style={{
+                              transitionDelay: `${(chipIndex + 1) * 50}ms`,
+                            }}
+                            className={`product-chip rounded-full border px-[18px] py-2 text-[15px] font-semibold ${
+                              product.dark
+                                ? "border-cielo/45 bg-cielo/15 text-white"
+                                : "border-cielo/50 bg-white text-marino"
+                            }`}
+                          >
+                            {cover}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </article>
           ))}
