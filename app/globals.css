@@ -96,6 +96,84 @@ body {
   );
 }
 
+/* Product cards. The covered-risk fold always occupies its full height, so
+   revealing the chips never shifts the call to action: only opacity and the
+   per-chip offset animate. */
+.product-card {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.55s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.7s ease;
+}
+
+.product-card--light {
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--color-marino) 8%, transparent);
+}
+
+.product-card--dark {
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--color-marino) 20%, transparent);
+  /* Staggers the pair on entrance; cleared on hover so the card reacts at once. */
+  transition-delay: 0.12s;
+}
+
+.product-card--dark:hover,
+.product-card--dark:focus-within {
+  transition-delay: 0s;
+}
+
+.product-card.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* The reference lifts the whole card on hover, which drags the call to action
+   up with it. Depth is conveyed with the shadow alone so the button holds
+   exactly its position. */
+.product-card--light.is-in:hover,
+.product-card--light.is-in:focus-within {
+  box-shadow: 0 30px 60px color-mix(in srgb, var(--color-marino) 16%, transparent);
+}
+
+.product-card--dark.is-in:hover,
+.product-card--dark.is-in:focus-within {
+  box-shadow: 0 30px 60px color-mix(in srgb, var(--color-marino) 34%, transparent);
+}
+
+.product-fold {
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.product-card:hover .product-fold,
+.product-card:focus-within .product-fold {
+  opacity: 1;
+}
+
+.product-chip {
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 0.4s ease,
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.product-card:hover .product-chip,
+.product-card:focus-within .product-chip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Narrow screens and touch devices have no hover: show the chips outright. */
+@media (max-width: 860px), (hover: none) {
+  .product-fold,
+  .product-chip {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .cta-glow {
   box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--color-oro) 90%, transparent);
 }
@@ -117,6 +195,14 @@ body {
   .orb-sphere,
   .orb-highlight,
   .orb-ring {
+    transform: none !important;
+  }
+
+  .product-card,
+  .product-fold,
+  .product-chip {
+    opacity: 1;
+    transition: none;
     transform: none !important;
   }
 }
