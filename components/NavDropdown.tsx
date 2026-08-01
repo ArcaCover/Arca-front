@@ -61,7 +61,7 @@ export default function NavDropdown({
         </svg>
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-3 min-w-56 rounded-xl bg-white p-5 shadow-lg">
+        <div className="absolute left-0 top-full z-10 mt-3 min-w-48 rounded-xl bg-white p-5 shadow-lg">
           {children}
         </div>
       )}

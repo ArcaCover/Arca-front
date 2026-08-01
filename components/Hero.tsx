@@ -1,59 +1,186 @@
-import { ArrowRight } from "lucide-react";
+"use client";
 
-const INDUSTRIES = [
-  "Law firms",
-  "Independent lawyers",
-  "Accounting firms",
-  "Independent accountants",
-  "Consulting firms",
-  "Independent consultants",
-];
+import { useEffect, useRef } from "react";
+import { ArrowRight } from "lucide-react";
+import { INDUSTRIES } from "@/lib/industries";
+
+// Each marquee half must be wider than the screen or the loop shows a gap,
+// so the short list repeats several times per half.
+const MARQUEE_REPEATS = 6;
 
 export default function Hero() {
+  const heroRef = useRef<HTMLElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
+  const haloRef = useRef<HTMLDivElement>(null);
+  const orbRef = useRef<HTMLDivElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
+  const ringOuterRef = useRef<HTMLDivElement>(null);
+  const ringFarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return;
+    }
+
+    const hero = heroRef.current;
+    const glow = glowRef.current;
+    const halo = haloRef.current;
+    const orb = orbRef.current;
+    const highlight = highlightRef.current;
+    const ringOuter = ringOuterRef.current;
+    const ringFar = ringFarRef.current;
+    if (!hero || !glow || !halo || !orb || !highlight || !ringOuter || !ringFar) {
+      return;
+    }
+
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+    let targetX = 0;
+    let targetY = 0;
+    let fastX = 0;
+    let fastY = 0;
+    let slowX = 0;
+    let slowY = 0;
+    let frameId = 0;
+    const start = performance.now();
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = hero.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+      targetX = Math.max(-1, Math.min(1, x));
+      targetY = Math.max(-1, Math.min(1, y));
+    };
+
+    const handlePointerLeave = () => {
+      targetX = 0;
+      targetY = 0;
+    };
+
+    if (fine) {
+      hero.addEventListener("pointermove", handlePointerMove);
+      hero.addEventListener("pointerleave", handlePointerLeave);
+    }
+
+    const frame = (now: number) => {
+      const elapsed = (now - start) / 1000;
+
+      // Without a fine pointer (touch screens) the orb drifts on its own
+      // rather than sitting still with nothing to follow.
+      if (!fine) {
+        targetX = Math.sin(elapsed * 0.42) * 0.55;
+        targetY = Math.sin(elapsed * 0.42 * 0.73 + 1.2) * 0.5;
+      }
+
+      fastX += (targetX - fastX) * 0.055;
+      fastY += (targetY - fastY) * 0.055;
+      slowX += (targetX - slowX) * 0.022;
+      slowY += (targetY - slowY) * 0.022;
+
+      const bob = Math.sin(elapsed * 0.6) * 5;
+
+      glow.style.transform = `translate3d(${slowX * 90}px, ${slowY * 70}px, 0)`;
+      halo.style.transform = `translate3d(${slowX * 34}px, ${slowY * 28 + bob * 0.5}px, 0)`;
+      orb.style.transform =
+        `translate3d(${fastX * 10}px, ${fastY * 8 + bob}px, 0)` +
+        ` rotateX(${-fastY * 11}deg) rotateY(${fastX * 13}deg)`;
+      highlight.style.transform = `translate3d(${fastX * 26}px, ${fastY * 22}px, 0)`;
+      ringOuter.style.transform =
+        `translate3d(${slowX * 24}px, ${slowY * 20 + bob * 0.5}px, 0)` +
+        ` rotateX(${-slowY * 7}deg) rotateY(${slowX * 9}deg)`;
+      ringFar.style.transform =
+        `translate3d(${slowX * 40}px, ${slowY * 34 + bob * 0.3}px, 0)` +
+        ` rotateX(${-slowY * 5}deg) rotateY(${slowX * 6}deg)`;
+
+      frameId = requestAnimationFrame(frame);
+    };
+
+    frameId = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      hero.removeEventListener("pointermove", handlePointerMove);
+      hero.removeEventListener("pointerleave", handlePointerLeave);
+    };
+  }, []);
+
   return (
-    <section id="top" className="bg-white px-3 pt-3 md:px-4 md:pt-4">
-      <div className="relative flex min-h-[85vh] flex-col items-center justify-center overflow-hidden rounded-[2rem] bg-marino px-6 py-28 text-center md:rounded-[2.5rem]">
-        {/* Decorative background: CSS-only soft sky arcs and glows on marino */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-[-24rem] h-[42rem] w-[42rem] -translate-x-1/2 rounded-full border border-cielo/20" />
-          <div className="absolute left-1/2 top-[-28rem] h-[54rem] w-[54rem] -translate-x-1/2 rounded-full border border-cielo/10" />
-          <div className="absolute bottom-[-14rem] right-[-10rem] h-[28rem] w-[28rem] rounded-full bg-cielo/10 blur-3xl" />
-          <div className="absolute bottom-[-16rem] left-[-12rem] h-[30rem] w-[30rem] rounded-full bg-cielo/5 blur-3xl" />
-        </div>
-        <h1 className="relative mx-auto max-w-4xl animate-fade-up font-heading text-4xl font-medium leading-tight tracking-tight text-white md:text-7xl">
-          Insurance for businesses that rely on AI.
-        </h1>
-        <p className="relative mx-auto mt-6 max-w-2xl animate-fade-up text-lg leading-relaxed text-white/75 [animation-delay:150ms]">
-          When your work depends on AI, new risks come with it — from model
-          failures to liability for automated decisions. Arca covers them:
-          simple, reliable, and fast.
-        </p>
-        <div className="relative mt-10 flex animate-fade-up justify-center [animation-delay:300ms]">
+    <section id="top" ref={heroRef} className="relative overflow-hidden bg-white">
+      <div
+        ref={glowRef}
+        aria-hidden="true"
+        className="orb-glow pointer-events-none absolute left-[-220px] top-[-260px] h-[900px] w-[900px] rounded-full blur-[20px] [will-change:transform]"
+      />
+
+      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-10 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:px-[76px] lg:py-0">
+        <div className="flex max-w-[540px] flex-col items-start gap-7">
+          <div className="inline-flex animate-fade-up items-center gap-[9px] rounded-full bg-bruma py-2 pl-3 pr-[15px] font-heading text-[13.5px] font-medium tracking-tight text-marino">
+            <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-cielo" />
+            Built for professional services
+          </div>
+          <h1 className="animate-fade-up text-pretty font-heading text-[clamp(38px,8vw,56px)] font-semibold leading-[1.03] tracking-[-0.038em] text-marino [animation-delay:100ms] lg:text-[66px]">
+            Insurance for businesses that rely on AI.
+          </h1>
+          <p className="max-w-[430px] animate-fade-up text-pretty text-[19px] leading-relaxed text-marino/65 [animation-delay:200ms]">
+            When your work depends on AI, new risks come with it — from model
+            failures to liability for automated decisions. Arca covers them:
+            simple, reliable, and fast.
+          </p>
           <a
             href="#get-a-quote"
-            className="group inline-flex items-center gap-3 rounded-full bg-oro py-2 pl-7 pr-2 text-base font-bold text-marino transition-colors hover:bg-oro-oscuro"
+            className="cta-glow group inline-flex animate-fade-up items-center gap-3.5 rounded-full bg-oro py-2.5 pl-7 pr-2.5 font-heading text-[17px] font-medium tracking-tight text-marino transition-transform duration-200 [animation-delay:300ms] hover:-translate-y-px"
           >
             Get a quote
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5">
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5">
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </span>
           </a>
         </div>
+
+        <div
+          aria-hidden="true"
+          className="relative flex min-h-[400px] items-center justify-center [perspective:1100px] lg:min-h-[560px]"
+        >
+          <div
+            ref={haloRef}
+            className="orb-halo absolute h-[400px] w-[400px] rounded-full blur-[10px] [will-change:transform] lg:h-[520px] lg:w-[520px]"
+          />
+          <div
+            ref={orbRef}
+            className="orb-sphere relative h-[270px] w-[270px] rounded-full [transform-style:preserve-3d] [will-change:transform] lg:h-[352px] lg:w-[352px]"
+          >
+            <div
+              ref={highlightRef}
+              className="orb-highlight absolute inset-0 rounded-full [will-change:transform]"
+            />
+            <div className="orb-bounce absolute inset-0 rounded-full" />
+          </div>
+          <div
+            ref={ringOuterRef}
+            className="orb-ring absolute h-[350px] w-[350px] rounded-full border border-cielo/30 [will-change:transform] lg:h-[452px] lg:w-[452px]"
+          />
+          <div
+            ref={ringFarRef}
+            className="orb-ring absolute h-[440px] w-[440px] rounded-full border border-cielo/15 [will-change:transform] lg:h-[572px] lg:w-[572px]"
+          />
+        </div>
       </div>
 
       {/* Industries marquee — decorative; industries remain reachable in the nav */}
-      <div aria-hidden="true" className="overflow-hidden py-7">
+      <div aria-hidden="true" className="overflow-hidden pb-7">
         <div className="flex w-max animate-marquee">
           {[0, 1].map((copy) => (
             <div key={copy} className="flex items-center gap-14 pr-14">
-              {INDUSTRIES.map((industry) => (
-                <span
-                  key={industry}
-                  className="whitespace-nowrap font-heading text-lg font-medium tracking-tight text-marino/40"
-                >
-                  {industry}
-                </span>
-              ))}
+              {Array.from({ length: MARQUEE_REPEATS }, (_, round) =>
+                INDUSTRIES.map((industry) => (
+                  <span
+                    key={`${round}-${industry}`}
+                    className="whitespace-nowrap font-heading text-lg font-medium tracking-tight text-marino/40"
+                  >
+                    {industry}
+                  </span>
+                )),
+              )}
             </div>
           ))}
         </div>

@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { INDUSTRIES } from "@/lib/industries";
 import NavDropdown from "./NavDropdown";
 
 const COVERAGES = [
   { label: "SLA", href: "#products" },
   { label: "Liability", href: "#products" },
-];
-
-const INDUSTRIES = [
-  { group: "Legal", items: ["Law firms", "Independent lawyers"] },
-  { group: "Accounting", items: ["Accounting firms", "Independent accountants"] },
-  { group: "Consulting", items: ["Consulting firms", "Independent consultants"] },
 ];
 
 export default function Navbar() {
@@ -33,13 +28,9 @@ export default function Navbar() {
         scrolled ? "bg-white shadow-md" : "bg-transparent"
       }`}
     >
-      <nav
-        className={`mx-auto grid h-16 max-w-6xl grid-cols-3 items-center px-4 transition-colors duration-300 md:px-8 ${
-          scrolled ? "text-marino" : "text-white"
-        }`}
-      >
+      <nav className="mx-auto grid h-16 max-w-[1240px] grid-cols-[1fr_auto_1fr] items-center px-8 text-marino lg:px-[76px]">
         {/* Left zone: dropdown menus (desktop) / hamburger (mobile) */}
-        <div className="hidden items-center gap-6 md:flex">
+        <div className="hidden items-center gap-10 md:flex">
           <NavDropdown label="Coverages">
             <ul className="space-y-3">
               {COVERAGES.map((coverage) => (
@@ -55,27 +46,18 @@ export default function Navbar() {
             </ul>
           </NavDropdown>
           <NavDropdown label="Industries">
-            <div className="grid w-max grid-cols-1 gap-5 sm:grid-cols-3">
+            <ul className="space-y-3">
               {INDUSTRIES.map((industry) => (
-                <div key={industry.group}>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-marino/50">
-                    {industry.group}
-                  </p>
-                  <ul className="space-y-2">
-                    {industry.items.map((item) => (
-                      <li key={item}>
-                        <a
-                          href="#"
-                          className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
-                        >
-                          {item}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <li key={industry}>
+                  <a
+                    href="#"
+                    className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
+                  >
+                    {industry}
+                  </a>
+                </li>
               ))}
-            </div>
+            </ul>
           </NavDropdown>
         </div>
         <button
@@ -162,24 +144,19 @@ export default function Navbar() {
             <summary className="cursor-pointer text-sm font-bold text-marino">
               Industries
             </summary>
-            <div className="mt-2 space-y-4 pl-4">
+            <ul className="mt-2 space-y-2 pl-4">
               {INDUSTRIES.map((industry) => (
-                <div key={industry.group}>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marino/50">
-                    {industry.group}
-                  </p>
-                  <ul className="space-y-2">
-                    {industry.items.map((item) => (
-                      <li key={item}>
-                        <a href="#" className="text-sm font-semibold text-marino">
-                          {item}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <li key={industry}>
+                  <a
+                    href="#"
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-semibold text-marino"
+                  >
+                    {industry}
+                  </a>
+                </li>
               ))}
-            </div>
+            </ul>
           </details>
           <a
             href="#"
