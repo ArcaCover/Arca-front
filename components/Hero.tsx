@@ -28,7 +28,7 @@ export default function Hero() {
           failures to liability for automated decisions. Arca covers them:
           simple, reliable, and fast.
         </p>
-        <div className="relative mt-10 flex animate-fade-up flex-col items-center gap-6 [animation-delay:300ms] sm:flex-row">
+        <div className="relative mt-10 flex animate-fade-up justify-center [animation-delay:300ms]">
           <a
             href="#get-a-quote"
             className="group inline-flex items-center gap-3 rounded-full bg-oro py-2 pl-7 pr-2 text-base font-bold text-marino transition-colors hover:bg-oro-oscuro"
@@ -37,16 +37,6 @@ export default function Hero() {
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5">
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </span>
-          </a>
-          <a
-            href="#what-we-do"
-            className="group inline-flex items-center gap-2 text-base font-semibold text-white transition-opacity hover:opacity-75"
-          >
-            How it works
-            <ArrowRight
-              aria-hidden="true"
-              className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5"
-            />
           </a>
         </div>
       </div>
