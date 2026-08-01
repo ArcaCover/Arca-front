@@ -2,11 +2,25 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
-import { INDUSTRIES } from "@/lib/industries";
 
-// Each marquee half must be wider than the screen or the loop shows a gap,
-// so the short list repeats several times per half.
-const MARQUEE_REPEATS = 6;
+// Fades the marquee in and out at both ends of its band. Applied inline
+// because the CSS pipeline strips mask-image declarations from stylesheets.
+const BAND_FADE =
+  "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)";
+
+// TODO: confirm covered-risk wording with counsel before launch
+const COVERED_RISKS = [
+  "AI hallucinations",
+  "Faulty automated decisions",
+  "Professional liability",
+  "Data breaches",
+  "Confidentiality breaches",
+  "IP infringement",
+  "Algorithmic bias",
+  "AI service outages",
+  "Regulatory non-compliance",
+  "Third-party AI failures",
+];
 
 export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
@@ -122,9 +136,9 @@ export default function Hero() {
             Insurance for businesses that rely on AI.
           </h1>
           <p className="max-w-[430px] animate-fade-up text-pretty text-[19px] leading-relaxed text-marino/65 [animation-delay:200ms]">
-            When your work depends on AI, new risks come with it — from model
-            failures to liability for automated decisions. Arca covers them:
-            simple, reliable, and fast.
+            AI moves faster than the risks it creates. Arca is the eye that
+            watches over them, from model failures to automated decisions, so
+            your business stays protected.
           </p>
           <a
             href="#get-a-quote"
@@ -139,7 +153,7 @@ export default function Hero() {
 
         <div
           aria-hidden="true"
-          className="relative flex min-h-[400px] items-center justify-center [perspective:1100px] lg:min-h-[560px]"
+          className="relative flex min-h-[400px] items-center justify-center [perspective:1100px] lg:min-h-[560px] lg:pt-32"
         >
           <div
             ref={haloRef}
@@ -166,23 +180,28 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Industries marquee — decorative; industries remain reachable in the nav */}
-      <div aria-hidden="true" className="overflow-hidden pb-7">
-        <div className="flex w-max animate-marquee">
-          {[0, 1].map((copy) => (
-            <div key={copy} className="flex items-center gap-14 pr-14">
-              {Array.from({ length: MARQUEE_REPEATS }, (_, round) =>
-                INDUSTRIES.map((industry) => (
+      {/* Covered-risks marquee — decorative. A single band centered on the page,
+          sitting below the orb with equal margins on both sides. */}
+      <div className="mx-auto max-w-[1240px] px-8 pb-12 pt-24 lg:px-[76px]">
+        <div
+          aria-hidden="true"
+          style={{ WebkitMaskImage: BAND_FADE, maskImage: BAND_FADE }}
+          className="overflow-hidden"
+        >
+          <div className="flex w-max animate-marquee">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex items-center gap-10 pr-10">
+                {COVERED_RISKS.map((risk) => (
                   <span
-                    key={`${round}-${industry}`}
-                    className="whitespace-nowrap font-heading text-lg font-medium tracking-tight text-marino/40"
+                    key={risk}
+                    className="whitespace-nowrap font-heading text-base font-medium tracking-tight text-marino/40"
                   >
-                    {industry}
+                    {risk}
                   </span>
-                )),
-              )}
-            </div>
-          ))}
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

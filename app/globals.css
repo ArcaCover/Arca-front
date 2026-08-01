@@ -13,7 +13,7 @@
   --font-body: var(--font-mulish);
 
   --animate-fade-up: fade-up 0.7s ease-out both;
-  --animate-marquee: marquee 30s linear infinite;
+  --animate-marquee: marquee 60s linear infinite;
 
   @keyframes fade-up {
     from {

@@ -28,7 +28,7 @@ export default function Navbar() {
         scrolled ? "bg-white shadow-md" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto grid h-16 max-w-[1240px] grid-cols-[1fr_auto_1fr] items-center px-8 text-marino lg:px-[76px]">
+      <nav className="grid h-16 w-full grid-cols-[1fr_auto_1fr] items-center px-6 text-marino md:px-8">
         {/* Left zone: dropdown menus (desktop) / hamburger (mobile) */}
         <div className="hidden items-center gap-10 md:flex">
           <NavDropdown label="Coverages">
