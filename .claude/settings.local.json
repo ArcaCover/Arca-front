@@ -15,7 +15,8 @@
       "PowerShell(npm install -D tailwindcss @tailwindcss/postcss)",
       "PowerShell(npm install lucide-react)",
       "PowerShell(Remove-Item -Recurse -Force .next -Confirm:$false)",
-      "PowerShell(git rm components/QuoteForm.tsx)"
+      "PowerShell(git rm components/QuoteForm.tsx)",
+      "PowerShell(npm run build; Write-Output \"--- leftover overrides ---\"; Select-String -Path components\\\\OceanPrefooter.tsx -Pattern \"true \\\\|\\\\|\" | ForEach-Object { $_.Line })"
     ]
   }
 }

@@ -197,6 +197,35 @@ body {
   }
 }
 
+/* Pre-footer ocean. The deep navies below the waterline are mixed down from
+   the marino token rather than written as literals. */
+.ocean-section {
+  --ocean-deep: color-mix(in srgb, var(--color-marino) 80%, black);
+  --ocean-abyss: color-mix(in srgb, var(--color-marino) 45%, black);
+  background: var(--ocean-deep);
+}
+
+.ocean-scrim {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ocean-deep) 55%, transparent) 0%,
+    color-mix(in srgb, var(--ocean-deep) 10%, transparent) 38%,
+    color-mix(in srgb, var(--ocean-abyss) 62%, transparent) 100%
+  );
+}
+
+.ocean-title {
+  text-shadow: 0 4px 30px color-mix(in srgb, var(--ocean-abyss) 50%, transparent);
+}
+
+.ocean-copy {
+  text-shadow: 0 2px 18px color-mix(in srgb, var(--ocean-abyss) 60%, transparent);
+}
+
+.ocean-cta {
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--ocean-abyss) 35%, transparent);
+}
+
 .cta-glow {
   box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--color-oro) 90%, transparent);
 }
