@@ -126,7 +126,9 @@ export default function Hero() {
         className="orb-glow pointer-events-none absolute left-[-220px] top-[-260px] h-[900px] w-[900px] rounded-full blur-[20px] [will-change:transform]"
       />
 
-      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-10 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:px-[76px] lg:py-0">
+      {/* The top padding is on the grid, not on a single column, so both the
+          copy and the orb centre on the same axis and the badge clears the nav. */}
+      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-10 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:px-[76px] lg:pb-0 lg:pt-32">
         <div className="flex max-w-[540px] flex-col items-start gap-7">
           <div className="inline-flex animate-fade-up items-center gap-[9px] rounded-full bg-bruma py-2 pl-3 pr-[15px] font-heading text-[13.5px] font-medium tracking-tight text-marino">
             <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-cielo" />
@@ -140,20 +142,21 @@ export default function Hero() {
             watches over them, from model failures to automated decisions, so
             your business stays protected.
           </p>
-          <a
-            href="#get-a-quote"
-            className="cta-glow group inline-flex animate-fade-up items-center gap-3.5 rounded-full bg-oro py-2.5 pl-7 pr-2.5 font-heading text-[17px] font-medium tracking-tight text-marino transition-transform duration-200 [animation-delay:300ms] hover:-translate-y-px"
+          {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
+          <button
+            type="button"
+            className="cta-glow group inline-flex animate-fade-up cursor-pointer items-center gap-3.5 rounded-full bg-oro py-2.5 pl-7 pr-2.5 font-heading text-[17px] font-medium tracking-tight text-marino transition-transform duration-200 [animation-delay:300ms] hover:-translate-y-px"
           >
             Get a quote
             <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5">
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </span>
-          </a>
+          </button>
         </div>
 
         <div
           aria-hidden="true"
-          className="relative flex min-h-[400px] items-center justify-center [perspective:1100px] lg:min-h-[560px] lg:pt-32"
+          className="relative flex min-h-[400px] items-center justify-center [perspective:1100px] lg:min-h-[560px]"
         >
           <div
             ref={haloRef}

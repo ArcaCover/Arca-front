@@ -104,18 +104,19 @@ export default function Navbar() {
           >
             My account
           </a>
-          <a
-            href="#get-a-quote"
+          {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
+          <button
+            type="button"
             aria-hidden={!scrolled}
             tabIndex={scrolled ? 0 : -1}
-            className={`overflow-hidden whitespace-nowrap rounded-full bg-oro text-sm font-bold text-marino transition-all duration-300 hover:bg-oro-oscuro ${
+            className={`cursor-pointer overflow-hidden whitespace-nowrap rounded-full bg-oro text-sm font-bold text-marino transition-all duration-300 hover:bg-oro-oscuro ${
               scrolled
                 ? "ml-0 max-w-40 px-4 py-2 opacity-100 md:ml-4"
                 : "pointer-events-none ml-0 max-w-0 px-0 py-2 opacity-0"
             }`}
           >
             Get a quote
-          </a>
+          </button>
         </div>
       </nav>
 

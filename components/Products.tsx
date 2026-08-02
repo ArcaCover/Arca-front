@@ -151,9 +151,10 @@ export default function Products() {
                   {product.description}
                 </p>
 
-                <a
-                  href="#get-a-quote"
-                  className="mt-2 inline-flex items-center gap-3.5 self-start rounded-full bg-oro py-2 pl-6 pr-2 font-heading text-base font-bold tracking-tight text-marino transition-colors duration-300 hover:bg-oro-oscuro"
+                {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
+                <button
+                  type="button"
+                  className="mt-2 inline-flex cursor-pointer items-center gap-3.5 self-start rounded-full bg-oro py-2 pl-6 pr-2 font-heading text-base font-bold tracking-tight text-marino transition-colors duration-300 hover:bg-oro-oscuro"
                 >
                   Get a quote
                   <span
@@ -162,7 +163,7 @@ export default function Products() {
                   >
                     <ArrowRight className="h-4 w-4" />
                   </span>
-                </a>
+                </button>
 
                 {/* Sits last so it can collapse to nothing without moving the
                     button above it. The negative margin cancels the column gap
