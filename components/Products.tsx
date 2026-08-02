@@ -154,12 +154,12 @@ export default function Products() {
                 {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
                 <button
                   type="button"
-                  className="mt-2 inline-flex cursor-pointer items-center gap-3.5 self-start rounded-full bg-oro py-2 pl-6 pr-2 font-heading text-base font-bold tracking-tight text-marino transition-colors duration-300 hover:bg-oro-oscuro"
+                  className="group mt-2 inline-flex cursor-pointer items-center gap-3.5 self-start rounded-full bg-oro py-2 pl-6 pr-2 font-heading text-base font-bold tracking-tight text-marino transition-colors duration-300 hover:bg-oro-oscuro"
                 >
                   Get a quote
                   <span
                     aria-hidden="true"
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-marino text-oro"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5"
                   >
                     <ArrowRight className="h-4 w-4" />
                   </span>
