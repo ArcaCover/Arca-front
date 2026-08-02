@@ -232,4 +232,9 @@ body {
   .product-fold {
     grid-template-rows: 1fr;
   }
+
+  .badge-rotator,
+  .badge-phrase {
+    transition: none;
+  }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
+import RotatingBadge from "./RotatingBadge";
 
 // Fades the marquee in and out at both ends of its band. Applied inline
 // because the CSS pipeline strips mask-image declarations from stylesheets.
@@ -130,10 +131,7 @@ export default function Hero() {
           copy and the orb centre on the same axis and the badge clears the nav. */}
       <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-10 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:px-[76px] lg:pb-0 lg:pt-32">
         <div className="flex max-w-[540px] flex-col items-start gap-7">
-          <div className="inline-flex animate-fade-up items-center gap-[9px] rounded-full bg-bruma py-2 pl-3 pr-[15px] font-heading text-[13.5px] font-medium tracking-tight text-marino">
-            <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-cielo" />
-            Built for professional services
-          </div>
+          <RotatingBadge className="animate-fade-up" />
           <h1 className="animate-fade-up text-pretty font-heading text-[clamp(38px,8vw,56px)] font-semibold leading-[1.03] tracking-[-0.038em] text-marino [animation-delay:100ms] lg:text-[66px]">
             Insurance for businesses that rely on AI.
           </h1>
