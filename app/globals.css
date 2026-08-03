@@ -197,6 +197,160 @@ body {
   }
 }
 
+/* ── AI gap section ─────────────────────────────────────────────────────
+   The mid navies, the card gradient and the bar fill are all mixed from the
+   marino and cielo tokens, so nothing outside the palette is written here. */
+.ai-gap {
+  --gap-navy-mid: color-mix(in srgb, var(--color-marino) 80%, black);
+  --gap-navy-deep: color-mix(in srgb, var(--color-marino) 65%, black);
+  --gap-card-top: color-mix(in srgb, var(--color-cielo) 10%, var(--color-marino));
+  --gap-card-bottom: color-mix(in srgb, var(--color-marino) 93%, black);
+  --gap-shadow: color-mix(in srgb, var(--color-marino) 20%, black);
+}
+
+.ag-panel-inner {
+  background: linear-gradient(
+    165deg,
+    var(--color-marino) 0%,
+    var(--gap-navy-mid) 55%,
+    var(--gap-navy-deep) 100%
+  );
+}
+
+.ag-card {
+  background: linear-gradient(
+    160deg,
+    var(--gap-card-top) 0%,
+    var(--gap-card-bottom) 100%
+  );
+  transition:
+    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.5s ease;
+}
+
+.ag-card:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--color-cielo) 30%, transparent);
+}
+
+.ag-fill {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-cielo) 55%, var(--color-marino)),
+    color-mix(in srgb, var(--color-cielo) 28%, var(--color-marino))
+  );
+  transition: width 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.ag-dim {
+  background: color-mix(in srgb, var(--gap-navy-deep) 62%, transparent);
+}
+
+.ag-seg {
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-oro) 45%, transparent);
+}
+
+.ag-late {
+  transition: opacity 0.6s ease;
+}
+
+.ag-closing-line {
+  transition: opacity 0.9s ease;
+}
+
+.ag-tip {
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--gap-shadow) 45%, transparent);
+  transition: opacity 0.18s ease;
+}
+
+.ag-doc-badge {
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--gap-shadow) 50%, transparent);
+  animation: ag-badge 6s ease-in-out infinite;
+}
+
+.ag-doc {
+  animation: ag-shake 6s ease-in-out infinite;
+}
+
+.ag-doc i {
+  background: color-mix(in srgb, var(--color-cielo) 30%, transparent);
+  animation: ag-type 6s ease-in-out infinite;
+}
+
+.ag-doc i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.ag-doc i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+.ag-doc i:nth-child(4) {
+  background: none;
+  animation:
+    ag-type 6s ease-in-out 0.6s infinite,
+    ag-flag 6s ease-in-out 0.6s infinite;
+}
+.ag-doc i:nth-child(5) {
+  animation-delay: 0.8s;
+}
+.ag-doc i:nth-child(6) {
+  animation-delay: 1s;
+}
+
+.ag-feed {
+  animation: ag-feed 14s linear infinite;
+}
+
+.ag-dot {
+  animation: ag-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ag-type {
+  0% { transform: scaleX(0); }
+  12% { transform: scaleX(1); }
+  90% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+@keyframes ag-flag {
+  0%, 44% { background: color-mix(in srgb, var(--color-cielo) 30%, transparent); }
+  54%, 88% { background: var(--color-oro); }
+  100% { background: color-mix(in srgb, var(--color-cielo) 30%, transparent); }
+}
+
+@keyframes ag-badge {
+  0%, 46% { opacity: 0; transform: translateY(8px); }
+  56%, 86% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+
+@keyframes ag-shake {
+  0%, 49% { transform: translateX(0); }
+  51% { transform: translateX(-3px); }
+  53% { transform: translateX(3px); }
+  55% { transform: translateX(-2px); }
+  57%, 100% { transform: translateX(0); }
+}
+
+@keyframes ag-feed {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+
+@keyframes ag-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* The page already runs the hero orb and the ocean shader. These loops freeze
+   while the section is off screen so they cost nothing there. */
+.ai-gap--paused .ag-doc,
+.ai-gap--paused .ag-doc i,
+.ai-gap--paused .ag-doc-badge,
+.ai-gap--paused .ag-feed,
+.ai-gap--paused .ag-dot {
+  animation-play-state: paused;
+}
+
 /* Pre-footer ocean. The deep navies below the waterline are mixed down from
    the marino token rather than written as literals. */
 .ocean-section {
@@ -265,5 +419,27 @@ body {
   .badge-rotator,
   .badge-phrase {
     transition: none;
+  }
+
+  .ag-doc,
+  .ag-doc i,
+  .ag-doc-badge,
+  .ag-feed,
+  .ag-dot {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .ag-doc i:nth-child(4) {
+    background: var(--color-oro);
+  }
+
+  .ag-fill,
+  .ag-late,
+  .ag-closing-line,
+  .ag-tip,
+  .ag-card {
+    transition: none !important;
   }
 }

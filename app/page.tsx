@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Products from "@/components/Products";
+import AiGapSection from "@/components/AiGapSection";
 import Testimonials from "@/components/Testimonials";
 import ValuePillars from "@/components/ValuePillars";
 import HowWeOperate from "@/components/HowWeOperate";
@@ -14,6 +15,7 @@ export default function HomePage() {
       <main>
         <Hero />
         <Products />
+        <AiGapSection />
         <Testimonials />
         <ValuePillars />
         <HowWeOperate />
