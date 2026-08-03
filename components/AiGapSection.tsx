@@ -6,13 +6,15 @@ import AiGapCards from "./AiGapCards";
 
 const COUNT_MS = 1400;
 
+// min-w-0 matters: grid columns default to an auto minimum, so a long figure
+// would widen its own column and push into the neighbour instead of staying put.
 const FIGURE =
-  "flex flex-col items-center gap-[18px] px-10 text-center max-[1080px]:px-0";
-// The dollar range is the widest figure, so it gets a third step down on
-// phones or it runs past the edge of the screen.
+  "flex min-w-0 flex-col items-center gap-4 px-6 text-center max-[1080px]:px-0";
+// One fluid size for all three keeps the row even and the baselines shared.
+// The ceiling is set so the widest figure ($500K–$2M) still clears its column.
 const FIGURE_NUM =
-  "flex items-baseline font-heading text-[92px] font-semibold leading-none tracking-[-0.05em] text-marino max-[1080px]:text-[68px] max-[640px]:text-[44px]";
-const FIGURE_COPY = "max-w-[262px] text-[17px] leading-[1.55] text-marino/80";
+  "flex max-w-full items-baseline justify-center whitespace-nowrap font-heading text-[clamp(32px,3.4vw,48px)] font-semibold leading-none tracking-[-0.04em] text-marino";
+const FIGURE_COPY = "max-w-[250px] text-[16px] leading-[1.55] text-marino/80";
 
 function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
   const [ref, inView] = useInView<HTMLSpanElement>();
@@ -78,10 +80,6 @@ export default function AiGapSection() {
     threshold: 0.01,
     once: false,
   });
-  const [closingRef, closingInView] = useInView<HTMLDivElement>({
-    threshold: 0.4,
-  });
-
   return (
     <section
       ref={sectionRef}
@@ -89,12 +87,12 @@ export default function AiGapSection() {
     >
       {/* ═══ BLOCK A — stats ═══ */}
       {/* TODO: verify data + add sources before launch */}
-      <div className="mx-auto flex max-w-[1380px] flex-col items-center gap-[76px] px-20 pb-[116px] pt-[132px] max-[1080px]:gap-14 max-[1080px]:px-10 max-[1080px]:pb-[84px] max-[1080px]:pt-24">
-        <div className="flex max-w-[860px] flex-col items-center gap-[26px] text-center">
-          <h2 className="font-heading text-[70px] font-medium leading-[1.02] tracking-[-0.042em] text-marino max-[1080px]:text-[48px]">
+      <div className="mx-auto flex max-w-[1380px] flex-col items-center gap-14 px-20 pb-[72px] pt-[88px] max-[1080px]:gap-10 max-[1080px]:px-10 max-[1080px]:pb-14 max-[1080px]:pt-16">
+        <div className="flex max-w-[760px] flex-col items-center gap-5 text-center">
+          <h2 className="font-heading text-[52px] font-medium leading-[1.04] tracking-[-0.04em] text-marino max-[1080px]:text-[38px]">
             Your policy was written before AI.
           </h2>
-          <p className="max-w-[660px] text-pretty text-[21px] leading-[1.58] text-marino/80">
+          <p className="max-w-[600px] text-pretty text-[18px] leading-[1.6] text-marino/80">
             Most professional liability policies don&rsquo;t mention artificial
             intelligence. The ones that do, exclude it.
           </p>
@@ -124,7 +122,7 @@ export default function AiGapSection() {
           >
             <span className={FIGURE_NUM}>
               <CountUp to={7} />
-              <span className="text-cielo">&nbsp;of&nbsp;</span>13
+              <span className="px-[0.2em] text-[0.62em] text-cielo">of</span>13
             </span>
             <p className={FIGURE_COPY}>
               major malpractice insurers report rising AI claims
@@ -132,42 +130,12 @@ export default function AiGapSection() {
           </div>
         </div>
 
-        {/* TODO: verify data + add sources before launch */}
-        <p className="max-w-[820px] text-center text-[13px] leading-[1.8] text-marino/45">
-          Source note — placeholder. [1] survey, year, sample. &nbsp;[2] range,
-          methodology. &nbsp;[3] study, year.
-          <br />
-          Figures shown are provisional and pending verification.
-        </p>
       </div>
 
       {/* ═══ BLOCK B — three cards ═══ */}
       <div className="mx-auto max-w-[1380px] px-6 pb-6 max-[1080px]:px-3 max-[1080px]:pb-3">
-        <div className="ag-panel-inner rounded-[44px] px-12 pb-[104px] pt-24 max-[1080px]:rounded-[32px] max-[1080px]:px-5 max-[1080px]:pb-16 max-[1080px]:pt-14">
+        <div className="ag-panel-inner rounded-[36px] px-10 py-16 max-[1080px]:rounded-[28px] max-[1080px]:px-5 max-[1080px]:py-12">
           <AiGapCards />
-
-          {/* ═══ BLOCK C — closing ═══ */}
-          <div
-            ref={closingRef}
-            className="flex flex-col items-center gap-2.5 px-5 pb-8 pt-[136px] text-center max-[1080px]:px-3 max-[1080px]:pb-4 max-[1080px]:pt-20"
-          >
-            <span
-              className="ag-closing-line font-heading text-[48px] font-normal leading-[1.22] tracking-[-0.04em] text-white/40 max-[1080px]:text-[30px]"
-              style={{ opacity: closingInView ? 1 : 0 }}
-            >
-              Others insure the companies that build and sell AI.
-            </span>
-            <span
-              className="ag-closing-line font-heading text-[48px] font-medium leading-[1.22] tracking-[-0.04em] text-white max-[1080px]:text-[30px]"
-              style={{
-                opacity: closingInView ? 1 : 0,
-                transitionDelay: "600ms",
-              }}
-            >
-              <em className="not-italic text-oro">ARCA</em> insures the
-              professional who uses it.
-            </span>
-          </div>
         </div>
       </div>
     </section>

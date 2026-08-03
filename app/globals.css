@@ -254,10 +254,6 @@ body {
   transition: opacity 0.6s ease;
 }
 
-.ag-closing-line {
-  transition: opacity 0.9s ease;
-}
-
 .ag-tip {
   box-shadow: 0 10px 30px color-mix(in srgb, var(--gap-shadow) 45%, transparent);
   transition: opacity 0.18s ease;
@@ -437,7 +433,6 @@ body {
 
   .ag-fill,
   .ag-late,
-  .ag-closing-line,
   .ag-tip,
   .ag-card {
     transition: none !important;

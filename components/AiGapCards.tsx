@@ -18,14 +18,16 @@ const FEED_ITEMS = [
 const FEED_FADE =
   "linear-gradient(180deg, transparent 0, black 16%, black 84%, transparent 100%)";
 
+// h-full plus a flex-1 stage makes all three cards the same height and puts
+// their titles, artwork and copy on the same lines as each other.
 const CARD_SHELL =
-  "ag-card flex flex-col gap-[34px] rounded-[30px] border border-cielo/15 p-[46px_38px_42px] max-[1080px]:gap-[26px] max-[1080px]:p-[34px_26px_32px]";
+  "ag-card flex h-full flex-col gap-6 rounded-3xl border border-cielo/15 p-[34px_30px_30px] max-[1080px]:gap-5 max-[1080px]:p-[26px_22px_24px]";
 const EYEBROW =
   "font-heading text-[11.5px] font-semibold tracking-[0.26em] text-cielo/90";
 const CARD_TITLE =
-  "font-heading text-[31px] font-medium leading-[1.12] tracking-[-0.038em] text-white max-[1080px]:text-[27px]";
-const CARD_COPY = "mt-auto text-[16px] leading-[1.65] text-white/70 text-pretty";
-const STAGE = "relative h-[236px] flex-none max-[1080px]:h-[200px]";
+  "font-heading text-[26px] font-medium leading-[1.14] tracking-[-0.036em] text-white max-[1080px]:text-[23px]";
+const CARD_COPY = "text-[15px] leading-[1.6] text-white/70 text-pretty";
+const STAGE = "relative flex-1 min-h-[176px] max-[1080px]:min-h-[168px]";
 
 function money(value: number) {
   return `$${Math.round(value).toLocaleString("en-US")}`;
@@ -132,7 +134,7 @@ export default function AiGapCards() {
     <div className="grid grid-cols-3 gap-6 max-[1080px]:grid-cols-1 max-[1080px]:gap-4">
       {/* CARD 01 — the document that fails */}
       <article className={CARD_SHELL}>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <span className={EYEBROW}>01</span>
           <h3 className={CARD_TITLE}>When AI gets it wrong</h3>
         </div>
@@ -157,7 +159,7 @@ export default function AiGapCards() {
 
       {/* CARD 02 — sub-limit bar. Figures are illustrative. */}
       <article className={CARD_SHELL}>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <span className={EYEBROW}>02</span>
           <h3 className={CARD_TITLE}>When your policy says no</h3>
         </div>
@@ -170,7 +172,7 @@ export default function AiGapCards() {
 
       {/* CARD 03 — regulatory feed */}
       <article className={CARD_SHELL}>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <span className={EYEBROW}>03</span>
           <h3 className={CARD_TITLE}>When the regulator calls</h3>
         </div>
