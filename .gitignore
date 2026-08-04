@@ -10,6 +10,9 @@
 .env.local
 .env.*.local
 
+# ajustes locales de la maquina, no del proyecto
+.claude/settings.local.json
+
 # sistema
 .DS_Store
 *.log
