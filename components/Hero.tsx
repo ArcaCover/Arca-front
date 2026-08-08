@@ -2,26 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
+import { COVERAGES } from "@/lib/coverages";
 import RotatingBadge from "./RotatingBadge";
 
 // Fades the marquee in and out at both ends of its band. Applied inline
 // because the CSS pipeline strips mask-image declarations from stylesheets.
 const BAND_FADE =
   "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)";
-
-// TODO: confirm covered-risk wording with counsel before launch
-const COVERED_RISKS = [
-  "AI hallucinations",
-  "Faulty automated decisions",
-  "Professional liability",
-  "Data breaches",
-  "Confidentiality breaches",
-  "IP infringement",
-  "Algorithmic bias",
-  "AI service outages",
-  "Regulatory non-compliance",
-  "Third-party AI failures",
-];
 
 export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
@@ -181,7 +168,7 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Covered-risks marquee — decorative. A single band centered on the page,
+      {/* Coverages marquee — decorative. A single band centered on the page,
           sitting below the orb with equal margins on both sides. */}
       <div className="mx-auto max-w-[1240px] px-8 pb-12 pt-24 lg:px-[76px]">
         <div
@@ -192,12 +179,12 @@ export default function Hero() {
           <div className="flex w-max animate-marquee">
             {[0, 1].map((copy) => (
               <div key={copy} className="flex items-center gap-10 pr-10">
-                {COVERED_RISKS.map((risk) => (
+                {COVERAGES.map((coverage) => (
                   <span
-                    key={risk}
+                    key={coverage}
                     className="whitespace-nowrap font-heading text-base font-medium tracking-tight text-marino/40"
                   >
-                    {risk}
+                    {coverage}
                   </span>
                 ))}
               </div>
