@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { INDUSTRIES } from "@/lib/industries";
 import NavDropdown from "./NavDropdown";
 
-const COVERAGES = [
-  { label: "SLA", href: "#products" },
-  { label: "Liability", href: "#products" },
-];
+const COVERAGES = [{ label: "AI Professional Shield", href: "#products" }];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -37,7 +34,7 @@ export default function Navbar() {
                 <li key={coverage.label}>
                   <a
                     href={coverage.href}
-                    className="text-sm font-semibold text-marino hover:text-oro-oscuro"
+                    className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
                   >
                     {coverage.label}
                   </a>
