@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { INDUSTRIES } from "@/lib/industries";
 import NavDropdown from "./NavDropdown";
 
-const COVERAGES = [{ label: "AI Professional Shield", href: "#products" }];
+const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
