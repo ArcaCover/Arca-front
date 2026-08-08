@@ -96,9 +96,7 @@ body {
   );
 }
 
-/* Product cards. The covered-risk fold always occupies its full height, so
-   revealing the chips never shifts the call to action: only opacity and the
-   per-chip offset animate. */
+/* Product card. Rises into place once on scroll, then only its shadow reacts. */
 .product-card {
   opacity: 0;
   transform: translateY(26px);
@@ -110,25 +108,11 @@ body {
 
 /* Depth comes from three stacked marino shadows — a tight contact layer, a
    mid one and a wide diffuse one — rather than a single hard drop. */
-.product-card--light {
-  box-shadow:
-    0 2px 8px color-mix(in srgb, var(--color-marino) 4%, transparent),
-    0 12px 28px color-mix(in srgb, var(--color-marino) 6%, transparent),
-    0 28px 64px color-mix(in srgb, var(--color-marino) 8%, transparent);
-}
-
 .product-card--dark {
   box-shadow:
     0 2px 8px color-mix(in srgb, var(--color-marino) 8%, transparent),
     0 12px 28px color-mix(in srgb, var(--color-marino) 14%, transparent),
     0 28px 64px color-mix(in srgb, var(--color-marino) 18%, transparent);
-  /* Staggers the pair on entrance; cleared on hover so the card reacts at once. */
-  transition-delay: 0.12s;
-}
-
-.product-card--dark:hover,
-.product-card--dark:focus-within {
-  transition-delay: 0s;
 }
 
 .product-card.is-in {
@@ -139,62 +123,12 @@ body {
 /* On hover the shadows spread and deepen so the card reads as lifting off the
    page. The card itself never translates: moving it would drag the call to
    action along and turn it back into a moving target. */
-.product-card--light.is-in:hover,
-.product-card--light.is-in:focus-within {
-  box-shadow:
-    0 4px 12px color-mix(in srgb, var(--color-marino) 5%, transparent),
-    0 18px 40px color-mix(in srgb, var(--color-marino) 9%, transparent),
-    0 40px 90px color-mix(in srgb, var(--color-marino) 14%, transparent);
-}
-
 .product-card--dark.is-in:hover,
 .product-card--dark.is-in:focus-within {
   box-shadow:
     0 4px 12px color-mix(in srgb, var(--color-marino) 10%, transparent),
     0 18px 40px color-mix(in srgb, var(--color-marino) 20%, transparent),
     0 40px 90px color-mix(in srgb, var(--color-marino) 28%, transparent);
-}
-
-.product-fold {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 0.45s ease;
-}
-
-.product-card:hover .product-fold,
-.product-card:focus-within .product-fold {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-
-.product-chip {
-  opacity: 0;
-  transform: translateY(8px);
-  transition:
-    opacity 0.4s ease,
-    transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.product-card:hover .product-chip,
-.product-card:focus-within .product-chip {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Narrow screens and touch devices have no hover: show the chips outright. */
-@media (max-width: 860px), (hover: none) {
-  .product-fold {
-    grid-template-rows: 1fr;
-  }
-
-  .product-fold,
-  .product-chip {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* ── AI gap section ─────────────────────────────────────────────────────
@@ -400,16 +334,10 @@ body {
     transform: none !important;
   }
 
-  .product-card,
-  .product-fold,
-  .product-chip {
+  .product-card {
     opacity: 1;
     transition: none;
     transform: none !important;
-  }
-
-  .product-fold {
-    grid-template-rows: 1fr;
   }
 
   .badge-rotator,
