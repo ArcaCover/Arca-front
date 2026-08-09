@@ -379,7 +379,7 @@ export default function OceanPanel({
                     bound >= 4 ? "opacity-100" : "opacity-0"
                   }`}
                 >
-                  ACTIVE
+                  ACTIVE!
                 </span>
               </div>
             </div>
