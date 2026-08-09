@@ -96,68 +96,84 @@ export default function Products() {
       aria-label="How Arca works"
       className="bg-bruma px-5 py-16 min-[861px]:px-10 min-[861px]:pb-[88px] min-[861px]:pt-[72px]"
     >
-      <div className="mx-auto flex w-full max-w-[1080px] flex-col items-center gap-8 rounded-[40px] bg-white p-6 shadow-[0_26px_60px_-34px_color-mix(in_srgb,var(--color-marino)_35%,transparent)] min-[861px]:flex-row min-[861px]:gap-10 min-[861px]:p-10">
-        {/* Panel first on narrow screens, beside the list from 861px up. */}
-        <div className="order-1 w-full min-[861px]:order-2 min-[861px]:w-[560px] min-[861px]:flex-none">
-          <OceanPanel active={active} paused={!sectionOnScreen} />
+      {/* Heading block matches the type scale of the section below it. */}
+      <div className="mx-auto flex max-w-[1080px] flex-col items-center gap-14 max-[1080px]:gap-10">
+        <div className="flex max-w-[760px] flex-col items-center gap-5 text-center">
+          <h2 className="font-heading text-[52px] font-bold leading-[1.04] tracking-[-0.04em] text-marino max-[1080px]:text-[38px]">
+            AI Professional Shield: coverage for the mistakes AI makes in your
+            name.
+          </h2>
+          <p className="max-w-[600px] text-pretty text-[18px] leading-[1.6] text-marino/80">
+            One policy built for the risks your current coverage ignores.
+          </p>
         </div>
 
-        <div className="order-2 flex w-full flex-col justify-center border-t border-marino/10 min-[861px]:order-1 min-[861px]:min-h-[420px] min-[861px]:flex-1">
-          {FEATURES.map((feature, index) => (
-            <button
-              key={feature.num}
-              type="button"
-              onClick={() => select(index)}
-              aria-current={index === active}
-              className="cursor-pointer border-b border-marino/10 pt-[18px] text-left"
-            >
-              <span className="flex items-baseline gap-3">
-                <span
-                  className={`font-heading text-xs font-bold tracking-[0.1em] text-cielo transition-opacity duration-300 ${
-                    index === active ? "opacity-100" : "opacity-40"
-                  }`}
-                >
-                  {feature.num}
-                </span>
-                <span
-                  className={`font-heading text-[16.5px] leading-[1.3] text-marino transition-opacity duration-300 min-[861px]:text-[18.5px] ${
-                    index === active
-                      ? "font-bold opacity-100"
-                      : "font-medium opacity-55"
-                  }`}
-                >
-                  {feature.title}
-                </span>
-              </span>
-              <span
-                className={`grid transition-[grid-template-rows] duration-[380ms] ease-out ${
-                  index === active ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                }`}
+        <div className="flex w-full flex-col items-center gap-8 rounded-[40px] bg-white p-6 shadow-[0_26px_60px_-34px_color-mix(in_srgb,var(--color-marino)_35%,transparent)] min-[861px]:flex-row min-[861px]:gap-10 min-[861px]:p-10">
+          {/* Panel first on narrow screens, beside the list from 861px up. */}
+          <div className="order-1 w-full min-[861px]:order-2 min-[861px]:w-[560px] min-[861px]:flex-none">
+            <OceanPanel active={active} paused={!sectionOnScreen} />
+          </div>
+
+          <div className="order-2 flex w-full flex-col justify-center min-[861px]:order-1 min-[861px]:min-h-[420px] min-[861px]:flex-1">
+            <span className="mb-4 font-heading text-[12.5px] font-semibold uppercase tracking-[0.1em] text-oro-oscuro">
+              From assessment to coverage
+            </span>
+            {FEATURES.map((feature, index) => (
+              <button
+                key={feature.num}
+                type="button"
+                onClick={() => select(index)}
+                aria-current={index === active}
+                className="cursor-pointer border-b border-marino/10 pt-[18px] text-left"
               >
-                <span className="overflow-hidden">
-                  <span className="mt-2.5 block max-w-[44ch] text-pretty text-[13.5px] leading-[1.55] text-marino/70 min-[861px]:ml-8 min-[861px]:text-[15px]">
-                    {feature.desc}
+                <span className="flex items-baseline gap-3">
+                  <span
+                    className={`font-heading text-xs font-bold tracking-[0.1em] text-cielo transition-opacity duration-300 ${
+                      index === active ? "opacity-100" : "opacity-40"
+                    }`}
+                  >
+                    {feature.num}
+                  </span>
+                  <span
+                    className={`font-heading text-[16.5px] leading-[1.3] text-marino transition-opacity duration-300 min-[861px]:text-[18.5px] ${
+                      index === active
+                        ? "font-bold opacity-100"
+                        : "font-medium opacity-55"
+                    }`}
+                  >
+                    {feature.title}
                   </span>
                 </span>
-              </span>
-              <span
-                className={`mt-[18px] block h-0.5 overflow-hidden rounded-full bg-marino/10 transition-opacity duration-300 ${
-                  index === active ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                {/* The initial scale is set inline, not with a utility class:
-                    Tailwind's scale-* writes the `scale` property, which would
-                    multiply with the transform the animation frame writes. */}
                 <span
-                  ref={(node) => {
-                    barRefs.current[index] = node;
-                  }}
-                  style={{ transform: "scaleX(0)" }}
-                  className="block h-full w-full origin-left rounded-full bg-oro"
-                />
-              </span>
-            </button>
-          ))}
+                  className={`grid transition-[grid-template-rows] duration-[380ms] ease-out ${
+                    index === active ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  }`}
+                >
+                  <span className="overflow-hidden">
+                    <span className="mt-2.5 block max-w-[44ch] text-pretty text-[13.5px] leading-[1.55] text-marino/70 min-[861px]:ml-8 min-[861px]:text-[15px]">
+                      {feature.desc}
+                    </span>
+                  </span>
+                </span>
+                <span
+                  className={`mt-[18px] block h-0.5 overflow-hidden rounded-full bg-marino/10 transition-opacity duration-300 ${
+                    index === active ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  {/* The initial scale is set inline, not with a utility class:
+                      Tailwind's scale-* writes the `scale` property, which would
+                      multiply with the transform the animation frame writes. */}
+                  <span
+                    ref={(node) => {
+                      barRefs.current[index] = node;
+                    }}
+                    style={{ transform: "scaleX(0)" }}
+                    className="block h-full w-full origin-left rounded-full bg-oro"
+                  />
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>
