@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { INDUSTRIES } from "@/lib/industries";
+import { ArcaWordmark } from "./brand/ArcaWordmark";
 import NavDropdown from "./NavDropdown";
 
 const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
@@ -105,11 +106,17 @@ export default function Navbar() {
         {/* Center zone: logo — large and floating over the hero, shrinks up on scroll */}
         <a
           href="#top"
-          className={`justify-self-center font-heading font-bold tracking-tight text-current transition-all duration-300 ${
-            scrolled ? "translate-y-0 text-2xl" : "translate-y-5 text-4xl md:translate-y-7 md:text-5xl"
+          className={`justify-self-center transition-transform duration-300 ${
+            scrolled ? "translate-y-0" : "translate-y-5 md:translate-y-7"
           }`}
         >
-          arca
+          {/* Height drives the mark, so the two states are set here rather than
+              through the font sizes the old text logo used. */}
+          <ArcaWordmark
+            className={`w-auto text-marino transition-[height] duration-300 ${
+              scrolled ? "h-5" : "h-7 md:h-9"
+            }`}
+          />
         </a>
 
         {/* Right zone: [My account] [Get a quote (appears on scroll)] */}
