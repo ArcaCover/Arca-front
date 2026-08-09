@@ -100,8 +100,7 @@ export default function Products() {
       <div className="mx-auto flex max-w-[1080px] flex-col items-center gap-14 max-[1080px]:gap-10">
         <div className="flex max-w-[760px] flex-col items-center gap-5 text-center">
           <h2 className="font-heading text-[52px] font-bold leading-[1.04] tracking-[-0.04em] text-marino max-[1080px]:text-[38px]">
-            AI Professional Shield: coverage for the mistakes AI makes in your
-            name.
+            Coverage for the mistakes AI makes in your name.
           </h2>
           <p className="max-w-[600px] text-pretty text-[18px] leading-[1.6] text-marino/80">
             One policy built for the risks your current coverage ignores.

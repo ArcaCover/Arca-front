@@ -210,10 +210,13 @@ export default function OceanPanel({
         </Scene>
 
         {/* 02 — Where you stand */}
-        <Scene isActive={active === 1} className="flex flex-col justify-center gap-[22px]">
+        <Scene isActive={active === 1} className="flex flex-col justify-center">
+          <div className="flex flex-col gap-[22px] rounded-3xl border border-white/25 bg-white/15 p-7 backdrop-blur-[10px]">
           <div className="flex items-center gap-[26px]">
-            <div className="relative h-[106px] w-[186px] flex-none">
-              <svg viewBox="0 0 200 112" className="h-full w-full overflow-visible">
+            {/* The labels sit below the arc rather than over it, so the round
+                stroke caps can never land on top of the text. */}
+            <div className="flex w-[186px] flex-none flex-col gap-1.5">
+              <svg viewBox="0 0 200 112" className="h-auto w-full">
                 <path
                   d="M14 100 A 86 86 0 0 1 186 100"
                   fill="none"
@@ -233,7 +236,7 @@ export default function OceanPanel({
                   strokeDashoffset={active === 1 ? 270 - 270 * 0.78 : 270}
                 />
               </svg>
-              <div className="absolute inset-x-0 -bottom-0.5 flex justify-between text-[10.5px] tracking-[0.1em] text-bruma/70">
+              <div className="flex justify-between text-[10.5px] tracking-[0.1em] text-bruma/70">
                 <span>LOWER</span>
                 <span>STRONGER</span>
               </div>
@@ -267,6 +270,7 @@ export default function OceanPanel({
                 <strong className="font-bold">Watch:</strong> Data handling
               </span>
             </div>
+          </div>
           </div>
         </Scene>
 
@@ -367,9 +371,11 @@ export default function OceanPanel({
               ))}
               <div className="flex items-center gap-4">
                 <span className="h-5 w-5 flex-none" />
+                {/* Pulled left by its own padding so the word lines up with the
+                    step labels above, not the pill edge. */}
                 <span
                   style={{ transform: `scale(${bound >= 4 ? 1 : 0.85})` }}
-                  className={`inline-flex items-center gap-2 rounded-full bg-cielo px-4 py-2 font-heading text-[13px] font-bold tracking-[0.08em] text-marino transition-[opacity,transform] duration-500 ease-out ${
+                  className={`-ml-4 inline-flex origin-left items-center gap-2 rounded-full bg-white px-4 py-2 font-heading text-[13px] font-bold tracking-[0.08em] text-marino shadow-[0_0_20px_color-mix(in_srgb,var(--color-cielo)_65%,transparent)] transition-[opacity,transform] duration-500 ease-out ${
                     bound >= 4 ? "opacity-100" : "opacity-0"
                   }`}
                 >
