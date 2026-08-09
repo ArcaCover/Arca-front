@@ -114,7 +114,7 @@ export default function Navbar() {
               through the font sizes the old text logo used. */}
           <ArcaWordmark
             className={`w-auto text-marino transition-[height] duration-300 ${
-              scrolled ? "h-6 md:h-7" : "h-9 md:h-14"
+              scrolled ? "h-5 md:h-6" : "h-7 md:h-9"
             }`}
           />
         </a>
