@@ -146,6 +146,8 @@ export default function OceanPanel({
 
   const count = active === 2 ? countProgress : 0;
   const bound = active === 3 ? boundStep : 0;
+  // Four nodes, so the line covers a third of the track per step after the first.
+  const timelineFill = Math.max(0, Math.min(1, (bound - 1) / 3));
   const money = (value: number) =>
     `$${(Math.round((value * count) / 10) * 10).toLocaleString("en-US")}`;
 
@@ -338,11 +340,14 @@ export default function OceanPanel({
         <Scene isActive={active === 3} className="flex flex-col justify-center">
           <div className="rounded-3xl border border-white/25 bg-white/15 p-7 py-[26px] backdrop-blur-[10px]">
             <div className="relative flex flex-col gap-[22px]">
-              <span className="absolute bottom-8 left-[9px] top-3 w-0.5 bg-white/30" />
-              <span
-                style={{ height: `${bound >= 3 ? 78 : bound * 26}%` }}
-                className="absolute left-[9px] top-3 w-0.5 bg-oro transition-[height] duration-1000 ease-out"
-              />
+              {/* The fill is a child of the track so its percentage measures
+                  against the track itself, node to node. */}
+              <span className="absolute bottom-[18px] left-[9px] top-3 w-0.5 rounded-full bg-white/30">
+                <span
+                  style={{ height: `${timelineFill * 100}%` }}
+                  className="block w-full rounded-full bg-oro transition-[height] duration-1000 ease-out"
+                />
+              </span>
               {BIND_STEPS.map((step, index) => (
                 <div
                   key={step.name}
@@ -369,13 +374,17 @@ export default function OceanPanel({
                   </div>
                 </div>
               ))}
+              {/* The badge is the fourth node of the timeline, so it carries a
+                  dot of its own and sits in the same column as the labels. */}
               <div className="flex items-center gap-4">
-                <span className="h-5 w-5 flex-none" />
-                {/* Pulled left by its own padding so the word lines up with the
-                    step labels above, not the pill edge. */}
+                <span
+                  className={`h-5 w-5 flex-none rounded-full border-2 transition-[background-color,border-color] duration-[400ms] ${
+                    bound >= 4 ? "border-oro bg-oro" : "border-white/40 bg-white/15"
+                  }`}
+                />
                 <span
                   style={{ transform: `scale(${bound >= 4 ? 1 : 0.85})` }}
-                  className={`-ml-4 inline-flex origin-left items-center gap-2 rounded-full bg-white px-4 py-2 font-heading text-[13px] font-bold tracking-[0.08em] text-marino shadow-[0_0_20px_color-mix(in_srgb,var(--color-cielo)_65%,transparent)] transition-[opacity,transform] duration-500 ease-out ${
+                  className={`inline-flex origin-left items-center gap-2 rounded-full bg-white px-4 py-2 font-heading text-[13px] font-bold tracking-[0.08em] text-marino shadow-[0_0_20px_color-mix(in_srgb,var(--color-cielo)_65%,transparent)] transition-[opacity,transform] duration-500 ease-out ${
                     bound >= 4 ? "opacity-100" : "opacity-0"
                   }`}
                 >
