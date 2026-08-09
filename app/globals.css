@@ -131,6 +131,17 @@ body {
     0 40px 90px color-mix(in srgb, var(--color-marino) 28%, transparent);
 }
 
+/* Darkens the ocean footage so the scenes on top of it stay readable, heavier
+   at the edges than in the middle. */
+.ocean-overlay {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-marino) 62%, transparent) 0%,
+    color-mix(in srgb, var(--color-marino) 34%, transparent) 45%,
+    color-mix(in srgb, var(--color-marino) 58%, transparent) 100%
+  );
+}
+
 /* ── AI gap section ─────────────────────────────────────────────────────
    The mid navies, the card gradient and the bar fill are all mixed from the
    marino and cielo tokens, so nothing outside the palette is written here. */
