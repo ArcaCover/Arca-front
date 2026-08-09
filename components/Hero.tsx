@@ -116,8 +116,10 @@ export default function Hero() {
 
       {/* The top padding is on the grid, not on a single column, so both the
           copy and the orb centre on the same axis and the badge clears the nav. */}
-      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-10 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:px-[76px] lg:pb-0 lg:pt-32">
-        <div className="flex max-w-[540px] flex-col items-start gap-7">
+      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-16 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:px-[76px] lg:pb-0 lg:pt-32">
+        {/* Sits above the orb: the outer rings drift with the cursor and would
+            otherwise sweep across the badge, the headline and the CTA. */}
+        <div className="relative z-10 flex max-w-[540px] flex-col items-start gap-7">
           <RotatingBadge className="animate-fade-up" />
           <h1 className="animate-fade-up text-pretty font-heading text-[clamp(38px,8vw,56px)] font-semibold leading-[1.03] tracking-[-0.038em] text-marino [animation-delay:100ms] lg:text-[66px]">
             Insurance for businesses that rely on AI.
@@ -170,7 +172,10 @@ export default function Hero() {
 
       {/* Coverages marquee — decorative. A single band centered on the page,
           sitting below the orb with equal margins on both sides. */}
-      <div className="mx-auto max-w-[1240px] px-8 pb-12 pt-24 lg:px-[76px]">
+      <div className="relative mx-auto max-w-[1240px] px-8 pb-12 pt-24 lg:px-[76px]">
+        <p className="mb-5 text-center font-heading text-[13.5px] font-medium tracking-tight text-marino/40">
+          What we cover
+        </p>
         <div
           aria-hidden="true"
           style={{ WebkitMaskImage: BAND_FADE, maskImage: BAND_FADE }}

@@ -6,6 +6,11 @@ import NavDropdown from "./NavDropdown";
 
 const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
 
+const PARTNERS = [
+  { label: "Producers", href: "#" },
+  { label: "Platforms", href: "#" },
+];
+
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -51,6 +56,20 @@ export default function Navbar() {
                     className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
                   >
                     {industry}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </NavDropdown>
+          <NavDropdown label="Partners">
+            <ul className="space-y-3">
+              {PARTNERS.map((partner) => (
+                <li key={partner.label}>
+                  <a
+                    href={partner.href}
+                    className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
+                  >
+                    {partner.label}
                   </a>
                 </li>
               ))}
@@ -151,6 +170,24 @@ export default function Navbar() {
                     className="text-sm font-semibold text-marino"
                   >
                     {industry}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
+          <details className="py-2">
+            <summary className="cursor-pointer text-sm font-bold text-marino">
+              Partners
+            </summary>
+            <ul className="mt-2 space-y-2 pl-4">
+              {PARTNERS.map((partner) => (
+                <li key={partner.label}>
+                  <a
+                    href={partner.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="text-sm font-semibold text-marino"
+                  >
+                    {partner.label}
                   </a>
                 </li>
               ))}
