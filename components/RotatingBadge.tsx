@@ -27,14 +27,18 @@ export default function RotatingBadge({ className = "" }: { className?: string }
     return () => clearInterval(id);
   }, []);
 
+  // Wrapped rather than read straight: if the list ever changes while a count
+  // is already running, an out-of-range index would leave the pill blank.
+  const current = index % AUDIENCES.length;
+
   // The phrases are stacked in one grid cell, so the pill would otherwise sit at
   // the widest of them. Measuring the active one lets it ease between lengths.
   useEffect(() => {
-    const active = phraseRefs.current[index];
+    const active = phraseRefs.current[current];
     if (active) {
       setWidth(active.offsetWidth);
     }
-  }, [index]);
+  }, [current]);
 
   return (
     <div
@@ -51,9 +55,9 @@ export default function RotatingBadge({ className = "" }: { className?: string }
             ref={(node) => {
               phraseRefs.current[position] = node;
             }}
-            aria-hidden={position !== index}
+            aria-hidden={position !== current}
             className={`badge-phrase col-start-1 row-start-1 w-max whitespace-nowrap transition-all duration-500 ease-out ${
-              position === index
+              position === current
                 ? "translate-y-0 opacity-100"
                 : "-translate-y-1.5 opacity-0"
             }`}
