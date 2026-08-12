@@ -4,12 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 // Fixed commercial sequence: the order is deliberate, never shuffled.
 const AUDIENCES = [
-  "Built for law firms",
   "Built for independent lawyers",
-  "Built for accounting firms",
-  "Built for independent accountants",
-  "Built for consulting firms",
-  "Built for independent consultants",
+  "Built for law firms",
+  "Built for legal partnerships",
 ];
 
 const ROTATION_MS = 3000;
