@@ -131,8 +131,12 @@ export default function Products() {
                 className="cursor-pointer border-b border-marino/10 pt-[18px] text-left"
               >
                 <span className="flex items-baseline gap-3">
+                  {/* Fixed width: the figures are proportional, so without it
+                      every title starts at a slightly different x. 20px + the
+                      12px gap put them on the same column as the description
+                      below, which is indented by 32px. */}
                   <span
-                    className={`font-heading text-xs font-bold tracking-[0.1em] text-cielo transition-opacity duration-300 ${
+                    className={`w-5 flex-none font-heading text-xs font-bold tracking-[0.1em] text-cielo transition-opacity duration-300 ${
                       index === active ? "opacity-100" : "opacity-40"
                     }`}
                   >
@@ -154,7 +158,7 @@ export default function Products() {
                   }`}
                 >
                   <span className="overflow-hidden">
-                    <span className="mt-2.5 block max-w-[44ch] text-pretty text-[13.5px] leading-[1.55] text-marino/70 min-[861px]:ml-8 min-[861px]:text-[15px]">
+                    <span className="mt-3 block max-w-[44ch] text-pretty text-[13.5px] leading-[1.55] text-marino/70 min-[861px]:ml-8 min-[861px]:text-[15px]">
                       {feature.desc}
                     </span>
                   </span>

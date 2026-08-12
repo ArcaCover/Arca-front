@@ -102,7 +102,7 @@ export default function OceanPanel({
   const [scanStep, setScanStep] = useState(0);
   const [question, setQuestion] = useState(0);
   const [questionIn, setQuestionIn] = useState(true);
-  const [scored, setScored] = useState(false);
+  const [quoted, setQuoted] = useState(false);
   const [countProgress, setCountProgress] = useState(0);
   const [boundStep, setBoundStep] = useState(0);
 
@@ -145,33 +145,44 @@ export default function OceanPanel({
       return () => timers.forEach(clearTimeout);
     }
 
-    // Two beats: a couple of questions, then the standing they produce.
     if (active === 1) {
       setQuestion(0);
       setQuestionIn(true);
-      setScored(false);
-      const timers = [
-        setTimeout(() => setQuestionIn(false), 1200),
-        setTimeout(() => {
-          setQuestion(1);
+      let fade: ReturnType<typeof setTimeout>;
+      const rotate = setInterval(() => {
+        setQuestionIn(false);
+        fade = setTimeout(() => {
+          setQuestion((current) => (current + 1) % QUESTIONS.length);
           setQuestionIn(true);
-        }, 1540),
-        setTimeout(() => setScored(true), 3100),
-      ];
-      return () => timers.forEach(clearTimeout);
+        }, 340);
+      }, 1350);
+      return () => {
+        clearInterval(rotate);
+        clearTimeout(fade);
+      };
     }
 
+    // Two beats: the standing the answers produce, then the prices it earns.
     if (active === 2) {
+      setQuoted(false);
       setCountProgress(0);
-      const start = performance.now();
-      const count = setInterval(() => {
-        const linear = Math.min(1, (performance.now() - start) / 1100);
-        setCountProgress(1 - Math.pow(1 - linear, 3));
-        if (linear >= 1) {
-          clearInterval(count);
-        }
-      }, 40);
-      return () => clearInterval(count);
+      let count: ReturnType<typeof setInterval>;
+      // The figures only start counting once the cards are the ones on screen.
+      const enter = setTimeout(() => {
+        setQuoted(true);
+        const start = performance.now();
+        count = setInterval(() => {
+          const linear = Math.min(1, (performance.now() - start) / 1100);
+          setCountProgress(1 - Math.pow(1 - linear, 3));
+          if (linear >= 1) {
+            clearInterval(count);
+          }
+        }, 40);
+      }, 1800);
+      return () => {
+        clearTimeout(enter);
+        clearInterval(count);
+      };
     }
 
     if (active === 3) {
@@ -314,10 +325,9 @@ export default function OceanPanel({
           </div>
         </Scene>
 
-        {/* 02 — The questions, then where they leave you */}
-        <Scene isActive={active === 1} className="">
-          <Beat show={!scored}>
-            <div className="w-full rounded-3xl border border-white/25 bg-white/15 p-7 pb-[22px] backdrop-blur-[10px]">
+        {/* 02 — The questions the scan could not answer */}
+        <Scene isActive={active === 1} className="flex items-center justify-center">
+          <div className="w-full rounded-3xl border border-white/25 bg-white/15 p-7 pb-[22px] backdrop-blur-[10px]">
               <div className="mb-[22px] flex items-center justify-between">
                 <span className="font-heading text-[11.5px] font-bold tracking-[0.16em] text-oro">
                   AI GOVERNANCE SCORECARD
@@ -347,10 +357,12 @@ export default function OceanPanel({
               <div className="mt-3 text-xs text-bruma/75">
                 Only what the scan couldn&rsquo;t answer on its own
               </div>
-            </div>
-          </Beat>
+          </div>
+        </Scene>
 
-          <Beat show={scored}>
+        {/* 03 — Where you stand, then the prices it earns */}
+        <Scene isActive={active === 2} className="">
+          <Beat show={!quoted}>
           <div className="flex flex-col gap-[22px] rounded-3xl border border-white/25 bg-white/15 p-7 backdrop-blur-[10px]">
           <div className="flex items-center gap-[26px]">
             {/* The labels sit below the arc rather than over it, so the round
@@ -373,7 +385,7 @@ export default function OceanPanel({
                   strokeWidth="14"
                   strokeLinecap="round"
                   strokeDasharray="270"
-                  strokeDashoffset={scored ? 270 - 270 * 0.78 : 270}
+                  strokeDashoffset={active === 2 ? 270 - 270 * 0.78 : 270}
                 />
               </svg>
               <div className="flex justify-between text-[10.5px] tracking-[0.1em] text-bruma/70">
@@ -383,9 +395,9 @@ export default function OceanPanel({
             </div>
             <div className="flex flex-col gap-2.5">
               <span
-                style={{ transform: `translateX(${scored ? 0 : -12}px)` }}
+                style={{ transform: `translateX(${active === 2 ? 0 : -12}px)` }}
                 className={`self-start rounded-full bg-oro px-[15px] py-[7px] font-heading text-[13px] font-bold tracking-[0.12em] text-marino transition-[opacity,transform] delay-500 duration-500 ${
-                  scored ? "opacity-100" : "opacity-0"
+                  active === 2 ? "opacity-100" : "opacity-0"
                 }`}
               >
                 FORTIFIED
@@ -413,21 +425,17 @@ export default function OceanPanel({
           </div>
           </div>
           </Beat>
-        </Scene>
 
-        {/* 03 — Quote options */}
-        <Scene
-          isActive={active === 2}
-          className="flex flex-col items-center justify-center gap-5"
-        >
+          <Beat show={quoted}>
+          <div className="flex flex-col items-center justify-center gap-5">
           <div className="flex items-center justify-center gap-3">
             {QUOTES.map((quote) => (
               <div
                 key={quote.name}
                 style={{
                   width: quote.width,
-                  transform: `rotate(${active === 2 ? quote.rotation : 0}deg) translateY(${
-                    active === 2 ? quote.lift : 0
+                  transform: `rotate(${quoted ? quote.rotation : 0}deg) translateY(${
+                    quoted ? quote.lift : 0
                   }px)`,
                 }}
                 className={`group flex cursor-pointer flex-col gap-2 rounded-[22px] border-[1.5px] p-5 px-4 backdrop-blur-[8px] transition-[transform,box-shadow,border-color] duration-500 ease-out hover:!rotate-0 hover:!translate-y-[-14px] hover:scale-[1.04] hover:border-oro ${
@@ -473,6 +481,8 @@ export default function OceanPanel({
           <div className="text-[13px] text-bruma/85">
             Three options, ready to compare — no underwriter call.
           </div>
+          </div>
+          </Beat>
         </Scene>
 
         {/* 04 — Bind */}
