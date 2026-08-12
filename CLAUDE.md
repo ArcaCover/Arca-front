@@ -8,10 +8,28 @@
 
 ## 1. Qué es Arca
 
-Arca es una **aseguradora 100% digital**. Opera como **MGA (Managing General Agent) de
-surplus lines**: hacemos suscripción (underwriting), distribución, emisión y
-administración de pólizas **en nombre de una aseguradora/reaseguradora ("carrier") que
-asume el riesgo en su balance**. Arca gana **comisión/fee**, no primas de riesgo.
+**One-liner (estilo YC):** "ARCA es el Coalition de AI professional liability."
+
+Arca es una **MGA (Managing General Agent) 100% digital** que vende seguro de
+**malpractice profesional** específico para errores derivados del uso de inteligencia
+artificial en firmas de servicios profesionales. Empezamos con abogados en Estados Unidos.
+
+**Referencia principal: Coalition** — MGA de cyber insurance valorada en $5B. Replicamos
+su enfoque: scoring automático de riesgo, distribución vía brokers, plataforma post-bind
+tipo "Coalition Control" para active insurance. Coalition no le pregunta a las empresas
+si tienen buena seguridad — las escanea automáticamente. Nosotros hacemos lo mismo para
+AI governance en firmas de abogados.
+
+### Modelo de negocio
+
+- Opera como **MGA de surplus lines**: suscripción, distribución, emisión y
+  administración de pólizas **en nombre de una aseguradora/reaseguradora ("carrier") que
+  asume el riesgo en su balance**.
+- Gana **comisión (25-30% de la prima)**, no primas de riesgo.
+- Distribuye principalmente a través de **brokers de E&O** que ya tienen relación con
+  firmas de abogados.
+- También permite **compra directa (self-service)** para firmas que califican
+  automáticamente.
 
 **Aspiración regulatoria:** ser **coverholder de Lloyd's**. Esto es un **objetivo en
 curso, NO un hecho logrado**. Nunca se presenta como conseguido en ningún texto público.
@@ -24,8 +42,7 @@ profesionales cuando la IA que usan para trabajar produce un error que daña a s
 
 Es el **único producto en scope actual**. El seguro tipo SLA paramétrico (cobertura por
 caída/degradación de servicios de IA de terceros, con trigger automático) se movió al
-**roadmap de largo plazo (Fase 2-3)**: necesita data de frecuencia/severidad que no
-existe todavía para AI service outages. No se elimina, se pospone.
+**roadmap de largo plazo (Fase 2-3)**.
 
 ### Coberturas del AI Professional Malpractice (8)
 
@@ -49,14 +66,14 @@ existe todavía para AI service outages. No se elimina, se pospone.
 
 ### Mercado y clientes objetivo
 
-Es un producto **B2B**. Mercado: **Estados Unidos** (regulación estado por estado; el
-riesgo de IA es novedoso, por eso surplus lines / mercado no admitido).
+Producto **B2B**. Mercado: **Estados Unidos** (regulación estado por estado; el riesgo
+de IA es novedoso, por eso surplus lines / mercado no admitido).
 
-**ICP Primario:** firmas de abogados SMB en EE.UU. (2-50 abogados), que usan IA
-generativa (ChatGPT, Claude, Copilot, Harvey AI, Clio AI) para investigación, drafting
-y análisis. Áreas de práctica: litigio, corporativo, inmigración, estate planning, tax.
-Jurisdicciones prioritarias: Florida, Texas, California, New York, Illinois.
-Prima estimada: USD 1,500–15,000/año.
+**ICP Primario:** firmas de abogados SMB en EE.UU. (2-50 abogados).
+- **Estados prioritarios:** Florida, Texas, California, New York.
+- **Áreas de práctica de mayor riesgo:** Criminal defense, Immigration, Personal Injury
+  litigation.
+- Prima estimada: USD 1,500–15,000/año.
 
 **ICP Secundario:** firmas contables y consultoras SMB (5-100 empleados) — CPAs,
 asesores tributarios, consultores de gestión que usan IA para cálculos, análisis,
@@ -77,30 +94,50 @@ distintos hacia la misma lógica.
 
 ---
 
-## 2. Estado del proyecto y decisiones confirmadas
+## 2. Equipo
+
+- **Juan José (CEO):** Construye el frontend con Claude Code (landing, UI del portal,
+  cuestionario, reportes, dashboards). También gestión de CEO (contactos, brokers,
+  Lloyd's Lab).
+- **Jesús (Founder Engineer):** Construye el backend (scrapers, pipeline de Capa 1,
+  lógica de scoring, API, base de datos, auth, pagos).
+- **Insurance Advisor (por contratar):** Fractional, $2-5K/mes + equity. Valida scoring
+  y pricing. Credibilidad frente a Lloyd's.
+
+---
+
+## 3. Estado del proyecto y decisiones confirmadas
 
 - **Carrier:** aún **no** hay carrier con acuerdo. Consecuencia: **no se emiten pólizas
-  reales** todavía. El foco actual es el sitio institucional.
-- **Equipo:** un solo fundador **no técnico**, construyendo con Claude Code.
-- **Producto core definido:** AI Professional Malpractice. Flujo de cotización diseñado a
-  nivel de negocio (5 fases). Pendiente de implementación técnica.
+  reales** todavía. El foco actual es el sitio institucional y la plataforma de scoring.
+- **Producto core definido:** AI Professional Malpractice. Score Engine diseñado (3
+  capas). Pendiente de implementación técnica.
 - **Principio de arquitectura:** **API-first**. Toda la lógica de negocio vive en un
   backend/API central; web y móvil son capas delgadas que la consumen. Nunca duplicar
   la lógica de negocio en el frontend.
 
 ### Stack tecnológico confirmado
 
-- **Lenguaje único:** **TypeScript** (web, backend y móvil), modo estricto.
+- **Lenguaje único:** **TypeScript** (web, backend y móvil), modo estricto. Si el
+  backend de Jesús usa otro lenguaje, eso se decide explícitamente porque rompe la
+  premisa de código compartido. **Pendiente de confirmar con Jesús.**
 - **Web:** **Next.js** (App Router). Renderizado en servidor para buen **SEO**.
 - **Estilos:** **Tailwind CSS** (v4; tokens declarados en `globals.css`).
 - **Tipografías (gratuitas, vía `next/font`):** **Space Grotesk** (títulos) y **Mulish**
   (textos). No usar fuentes de pago ni cargar Google Fonts con `<link>`.
-- **Iconos:** `lucide-react` (única librería de UI permitida hasta ahora).
-- **Datos / auth / almacenamiento:** **Supabase** (Postgres). **Aún NO conectado**: el
-  cliente está cableado a variables de entorno pero dormido.
+- **Iconos:** `lucide-react` (única librería de UI permitida en la landing).
+- **Componentes de UI para la plataforma (portal/dashboard):** `shadcn/ui` aprobado
+  como candidato. No aplica a la landing existente (ya construida con componentes
+  propios).
+- **Datos / auth / almacenamiento:** **Supabase** (Postgres + Auth con magic links).
+  **Aún NO conectado**: el cliente está cableado a variables de entorno pero dormido.
+- **Auth:** magic links vía Supabase Auth. Sin contraseña nunca.
+- **Pagos:** Stripe (test mode para MVP). **No conectado aún.**
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando lógica y
   validaciones en TypeScript.
-- **Hosting inicial:** **Vercel**.
+- **Hosting frontend:** **Vercel**.
+- **Hosting backend:** Railway o Render (decisión de Jesús, pendiente).
+- **Costo de infra MVP:** ~$0-55/mes.
 - **Convención:** validaciones y tipos se escriben **una sola vez** y se comparten; no
   reescribir la misma regla en dos lugares. Las listas de contenido compartido
   (p. ej. industrias) viven en **un único archivo** (`lib/industries.ts`) para que no se
@@ -130,20 +167,26 @@ distintos hacia la misma lógica.
    endpoints, comentarios y mensajes de commit. Sin excepción. El fundador escribe los
    prompts en español, pero **nada se traduce al español en el código**.
 
-## 3. Decisiones AÚN NO tomadas (no las inventes)
+---
+
+## 4. Decisiones AÚN NO tomadas (no las inventes)
 
 Hasta que el fundador las confirme explícitamente, **no asumas**:
 
-- Modelo de datos detallado (entidades, tablas, relaciones).
-- Proveedores externos adicionales (email transaccional, pagos, firma electrónica).
-- Librerías concretas de formularios o validación.
-- Implementación técnica del AI Governance Scorecard y motor de pricing.
-- Diseño visual del flujo de cotización (las 5 fases están definidas a nivel de
-  negocio, no a nivel de UI/UX).
+- Lenguaje del backend de Jesús (TypeScript vs Python). Recomendación del CTO:
+  TypeScript para mantener lenguaje único.
+- Modelo de datos detallado (entidades, tablas, relaciones). El modelo de
+  organizaciones (§6.4) está diseñado a nivel de negocio, no de schema.
+- Proveedores externos adicionales (email transaccional, firma electrónica).
+- Librerías concretas de formularios, validación, charts o generación de PDF para la
+  plataforma.
+- Implementación técnica del Score Engine (las 3 capas están diseñadas a nivel de
+  negocio, no de código).
+- Diseño visual del flujo de cotización y de los dashboards.
 
 ---
 
-## 4. Identidad de marca
+## 5. Identidad de marca
 
 ### Concepto (el corazón de Arca)
 
@@ -207,7 +250,237 @@ explica.
 
 ---
 
-## 5. Reglas de honestidad y contenido (obligatorias — es una aseguradora)
+## 6. Estrategia de negocio y mercado
+
+### 6.1 Posicionamiento y diferenciación
+
+**Elevator pitch:** "ARCA es el seguro de malpractice para la era de la inteligencia
+artificial."
+
+**Analogía de posición:** Armilla asegura al que FABRICA el cuchillo de IA. Testudo
+asegura al que lo VENDE. ARCA asegura al CHEF que lo usa para cocinar y sin saberlo
+sirve un plato contaminado.
+
+**Competidores directos — NO nombrar en textos comerciales (ver §7):**
+
+| Competidor | A quién asegura | Espacio que no cubren |
+|---|---|---|
+| **Coalition** | Cyber insurance con scoring automático | No cubre malpractice por IA |
+| **Armilla AI** (Lloyd's coverholder, Toronto) | Empresas que CONSTRUYEN IA | No cubre profesionales que USAN IA |
+| **Testudo** (Lloyd's Lab alumni) | Mid-market que DESPLIEGA GenAI | No enfocado en professional services SMB |
+| **HSB / Munich Re** | Paramétrico para AI downtime | Cubre interrupción, no errores profesionales |
+| **Carriers tradicionales de E&O** | Professional liability estándar | No tienen scoring de AI governance |
+
+**Posición de ARCA:** profesionales que USAN IA para servir a clientes + scoring engine
+de AI governance. Nadie está ahí.
+
+### 6.2 Ruta regulatoria
+
+- **Hoy:** agente de seguros. No hay binding authority, no suscribimos, no emitimos.
+- **Prioridad #1:** entrar a **Lloyd's Lab** (accelerator de Lloyd's of London).
+  **Target: Cohort 18, apertura estimada diciembre 2026.**
+- **Ruta:** Agente → Lloyd's Lab → Coverholder con syndicate sponsor → MGA con binding
+  authority → eventualmente Carrier.
+- **Lo que mostramos a Lloyd's Lab:** Score Engine funcionando como herramienta de
+  suscripción + tesis de mercado (gap de professional liability por IA) + 50+ scorecards
+  completos + feedback de brokers.
+- **Competidores que pasaron por Lloyd's Lab:** Armilla AI (Chaucer como sponsor),
+  Testudo (Cohort 14, Apollo como sponsor). Cubren segmentos distintos al nuestro.
+
+### 6.3 AI Governance Score Engine (activo central del negocio)
+
+El Score Engine es el corazón de ARCA. Evalúa qué tan expuesta está una firma
+profesional al riesgo de malpractice por IA. Es lo que nos diferencia y genera el moat
+competitivo.
+
+#### Arquitectura de tres capas
+
+**CAPA 1 — AUTOPILOT (Señales automáticas, 0 fricción)**
+- El broker o cliente ingresa solo email + dominio.
+- ARCA escanea automáticamente en <60 segundos:
+  - Website de la firma (AI policy, menciones de IA, tamaño, practice areas, blog)
+  - Tech stack (BuiltWith/Wappalyzer: plataforma legal, email provider, DMARC)
+  - Datos regulatorios (bar standing, sanciones disciplinarias, regulaciones de IA por
+    estado)
+  - Señales del mercado laboral (job postings con IA)
+- Genera un **Pre-Score (0-100)** con nivel de confianza (ALTA/MEDIA/BAJA).
+- Output: Pre-Score + señales detectadas + Quick Scan Report.
+
+**CAPA 2 — DEEP SCAN (Cuestionario inteligente, ~5 min)**
+- **8-12 preguntas adaptativas** (de un banco de 20) basadas en lo que Capa 1 ya
+  detectó. Si detectamos AI policy en el web, NO preguntamos "¿tienen policy?" —
+  preguntamos "¿con qué frecuencia la actualizan?"
+- 6 dominios con pesos:
+
+| Dominio | Peso | Qué evalúa |
+|---|---|---|
+| D1. AI Governance & Policy | 25% | Política escrita, ownership, herramientas aprobadas |
+| D2. AI Tool Environment | 20% | Enterprise vs consumer, casos de uso, dependencia |
+| D3. Human Oversight & Review | 20% | Proceso de revisión, seniority, checklist, disclosure |
+| D4. Data Protection & Confidentiality | 15% | Datos de clientes en IA, controles, consentimiento |
+| D5. Training & Competency | 10% | Programa de training, awareness de limitaciones |
+| D6. Incident Preparedness | 10% | Plan de respuesta, monitoreo, historial de incidentes |
+
+- Output: Composite Score + scores por dominio + tier + pricing + Risk Report.
+
+**CAPA 3 — LIVING SCORE (Monitoreo continuo post-bind)**
+- Dashboard tipo Coalition Control donde el asegurado vive todo el año.
+- Re-scans mensuales de Capa 1.
+- Alertas proactivas (nuevos casos de malpractice por IA, cambios regulatorios).
+- Score dinámico que cambia con el riesgo real.
+- **Para diciembre 2026: solo mockup funcional.** La Capa 3 real es post-Lloyd's Lab.
+
+#### Score visible vs. multiplicadores internos
+
+**UN solo score visible para el cliente:** AI Governance Score (0-100). Es lo que puede
+mejorar. Es su "hero metric."
+
+**Multiplicadores internos (no visibles, afectan pricing):**
+
+Practice Area Risk Multiplier:
+- Criminal defense: 2.0x
+- Immigration: 1.8x
+- Personal Injury litigation: 1.6x
+- Family law: 1.3x
+- Commercial litigation: 1.2x
+- Employment law: 1.15x
+- Corporate/M&A: 1.0x (baseline)
+- Real estate: 0.85x
+- Tax/regulatory: 0.75x
+
+Jurisdiction Factor: 0.85 (poco litigioso) a 1.25 (FL, CA, TX, NY).
+Size Factor: 0.90 (solo practitioner) a 1.30 (31-50 abogados).
+
+#### Tiers
+
+| Score | Tier | Nombre | Decisión |
+|---|---|---|---|
+| 85-100 | 1 | **FORTRESS** | AUTO_BIND — mejores tarifas, quote instantáneo |
+| 70-84 | 2 | **FORTIFIED** | AUTO_BIND — tarifas estándar, quote instantáneo |
+| 50-69 | 3 | **GUARDED** | REFERRAL — tarifas cargadas, quote en 48h |
+| 30-49 | 4 | **EXPOSED** | REFERRAL_SENIOR — tarifas altas + condiciones, quote en 5 días |
+| 0-29 | 5 | **CRITICAL** | DECLINE — plan de mejora + re-assessment en 90 días |
+
+#### Benchmark
+
+El cliente ve: "Tu firma está en el percentil X comparado con firmas de [su área de
+práctica] en [su estado]." Se vuelve más preciso con cada firma que escaneamos.
+
+#### Pre-bind contingencies (estilo Coalition)
+
+Si score es bajo, NO declinamos sin más. Damos un **"path to insurability"**: qué
+mejorar, cuántos puntos ganaría, y cuándo puede re-evaluar. Convierte un "no" en un
+"todavía no."
+
+#### Action plan gamificado
+
+Cada mejora muestra puntos (+10 pts) e impacto en prima (-12%). Estilo Coalition
+Control.
+
+#### Fórmula de pricing
+
+```
+Prima Anual = Base Rate ($420) × Número de abogados × Governance Factor × Practice Multiplier × Jurisdiction Factor × Size Factor
+```
+
+3 opciones de límite siempre:
+- **Essential:** $50K per claim / $100K aggregate (factor 0.60)
+- **Professional:** $250K per claim / $500K aggregate (factor 1.00)
+- **Complete:** $1M per claim / $2M aggregate (factor 1.85)
+
+**No implementar pricing hasta que el fundador lo indique.**
+
+Documento de diseño detallado: ARCA_SCORE_ENGINE_BLUEPRINT_v2.md.
+
+### 6.4 Tres flujos de adquisición
+
+**Flujo A — Directo (self-service)**
+1. Abogado llega a arca.com.
+2. Pone email + dominio (estilo Lemonade: sin contraseña, sin registro).
+3. Ve Pre-Score en 30-60 segundos.
+4. Completa cuestionario (~5 min).
+5. Ve score completo + pricing.
+6. Si AUTO_BIND → puede comprar directo con Stripe.
+7. ARCA se queda 100% de la comisión.
+
+**Flujo B — Directo → Broker**
+1-5: Igual que Flujo A.
+6. Si REFERRAL → no puede comprar directo.
+7. Lo conectamos con un broker certificado de ARCA.
+8. Broker recibe lead calificado con score + reporte.
+9. Broker recibe comisión reducida (ARCA generó el lead).
+
+**Flujo C — Broker invita (canal principal)**
+1. Broker entra a su dashboard.
+2. Click "+ Nuevo Lead" → nombre + dominio + email del cliente.
+3. Sistema corre Capa 1 automáticamente.
+4. Broker puede: compartir por link (con tracking), enviar por email, descargar PDF
+   con su branding.
+5. Abogado abre el link → ve Pre-Score → completa assessment.
+6. Todo queda vinculado al broker que lo invitó.
+7. Broker cierra la venta → comisión completa.
+
+#### Registro estilo Lemonade
+
+- Primer touchpoint: solo email + dominio. Nada más. Sin contraseña.
+- El email se guarda INMEDIATAMENTE como lead (aunque cierre la página).
+- La "cuenta" formal solo se crea al comprar o al ser invitado a una organización.
+- Usamos magic links (Supabase Auth) — sin contraseña nunca.
+
+### 6.5 Modelo de organizaciones
+
+La firma es una **organización**. Múltiples personas pueden tener acceso con diferentes
+roles.
+
+Ejemplo: "Miami Legal Services" (organización)
+- John Smith (Managing Partner) → compró la póliza → role: "owner"
+- Sarah Chen (Director of Operations) → monitorea score → role: "admin"
+- Mike Johnson (IT Manager) → implementa mejoras → role: "member"
+
+**Roles y permisos:**
+- **owner:** Control total (billing, cancelar póliza, invitar/remover miembros)
+- **admin:** Ver todo, invitar miembros, re-hacer assessments (no billing)
+- **member:** Ver score, alertas, action plan, marcar acciones completadas
+- **viewer:** Solo lectura
+
+La organización se crea automáticamente al comprar (Flujo A) o cuando el broker emite
+la póliza (Flujo C).
+
+**Nota:** este modelo está diseñado a nivel de negocio. El schema de base de datos es
+una decisión pendiente (ver §4).
+
+### 6.6 Onboarding de brokers
+
+Los brokers **NO se auto-registran**. Es un proceso manual:
+1. Broker ve página "Partners/Producers" en arca.com → llena formulario de solicitud.
+2. CEO hace discovery call y evalúa.
+3. Si aprobado, CEO crea la cuenta desde el panel admin.
+4. Broker recibe magic link de invitación → accede a su dashboard.
+5. CEO hace demo del producto.
+
+### 6.7 Catalizador de mercado
+
+En enero 2026 Verisk/ISO publicó una exclusión de IA generativa (Form CG 40 47).
+Dato reportado: afecta al 82% de las pólizas de P&C globales. **⚠ VERIFICAR fuente y
+cifra exacta antes de usar en cualquier texto público.** Las pólizas de professional
+liability tradicionales están en zona gris sobre si cubren errores causados por IA.
+ARCA llena ese hueco.
+
+### 6.8 Documentos de referencia
+
+- **ARCA_SCORE_ENGINE_BLUEPRINT_v2.md** — Diseño completo del scoring engine con
+  fórmulas, pesos, y preguntas.
+- **ARCA_DEVELOPER_HANDOFF.html/.md** — Especificación técnica para Jesús con
+  endpoints, modelo de datos, y JSON de request/response.
+- **ARCA_CEO_PLAYBOOK.html** — Plan de ejecución semana a semana del CEO.
+- **ARCA_OnePager.pdf** — one-pager con producto, mercado, competencia, roadmap.
+- **ARCA_Guia_JuanJose.pdf** — versión simplificada con analogías.
+- **ARCA_Scorecard_Design.pdf** — preguntas completas, puntajes, fórmula de pricing
+  original, rate multipliers, controles anti-fraude, flujo paso a paso.
+
+---
+
+## 7. Reglas de honestidad y contenido (obligatorias — es una aseguradora)
 
 - **Nunca** inventar testimonios, ratings, número de clientes, sellos ni certificaciones
   en contenido que vaya a producción. En modo diseño se pueden usar placeholders
@@ -231,7 +504,7 @@ example — actual rates vary") o retirar las cifras.** Esta decisión queda pen
 
 ---
 
-## 6. Reglas de datos sensibles y seguridad
+## 8. Reglas de datos sensibles y seguridad
 
 - **Nunca** escribir secretos (claves, tokens, contraseñas) en el código. Usar
   **variables de entorno**; `.env.local` ignorado por git y `.env.example` sin valores.
@@ -244,7 +517,7 @@ example — actual rates vary") o retirar las cifras.** Esta decisión queda pen
 
 ---
 
-## 7. Estado de la landing institucional
+## 9. Estado de la landing institucional
 
 **Secciones actuales, en orden:**
 
@@ -307,15 +580,13 @@ Crisis Management · Regulatory Compliance Costs.
 - **Conectar Supabase** — sigue sin conectar.
 - **Flujo "Get a quote"** — el formulario de captación fue **eliminado** de la página.
   Todos los botones "Get a quote" y "Start a conversation" están **visibles pero sin
-  acción**. El flujo ahora tiene un **diseño completo de negocio** (5 fases: Lead
-  Capture → AI Governance Scorecard → Risk Report → Quote Generation → Binding &
-  Issuance — ver §11.4). Implementación técnica y diseño visual pendientes. El paso
-  inmediato sigue siendo un **modal de captación de leads** (Fase A) como puerta de
-  entrada.
+  acción**. El primer paso es un **input de email + dominio** (estilo Lemonade) que
+  guarda el lead inmediatamente y dispara el scan de Capa 1. Implementación técnica y
+  diseño visual pendientes.
 - **Recomprimir `public/videos/ocean.mp4`:** 13.3 MB para 5.2 segundos (21 Mbps).
   Debería pesar 1-2 MB. Ya está en el historial de git con ese peso.
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
-  (ver §5).
+  (ver §7).
 - **Reexportar wordmark** con contraformas fusionadas si llega una versión nueva del
   diseñador.
 - **Verificar estadísticas** y añadir fuentes antes de lanzar.
@@ -333,31 +604,31 @@ Crisis Management · Regulatory Compliance Costs.
 
 ---
 
-## 8. Cómo debes comportarte al programar
+## 10. Cómo debes comportarte al programar
 
 Estos cuatro principios (basados en observaciones de Andrej Karpathy) aplican
 **siempre**. Sesgan hacia cautela sobre velocidad; para tareas triviales usa el sentido
 común.
 
-### 8.1 Pensar antes de codear
+### 10.1 Pensar antes de codear
 No asumas. No escondas tu confusión. Muestra las alternativas.
 - Declara tus supuestos. Si dudas, **pregunta** en vez de inventar.
 - Si hay varias interpretaciones, **preséntalas**; no elijas una en silencio.
 - Si existe un enfoque más simple, **dilo**. Haz *push-back* cuando corresponda.
 
-### 8.2 Simplicidad primero
+### 10.2 Simplicidad primero
 El mínimo código que resuelve el problema. Nada especulativo.
 - Ninguna funcionalidad más allá de lo pedido; nada de abstracciones de un solo uso.
 - Nada de "flexibilidad" no solicitada ni manejo de errores imposibles.
 - Si escribiste 200 líneas y bastaban 50, **reescríbelo**.
 
-### 8.3 Cambios quirúrgicos
+### 10.3 Cambios quirúrgicos
 Toca solo lo necesario. Limpia solo tu propio desorden.
 - No "mejores" código, comentarios ni formato vecinos; no refactorices lo que no está roto.
 - Respeta el estilo existente. Si ves código muerto no relacionado, **menciónalo, no lo borres**.
 - Cada línea cambiada debe rastrearse a lo que se pidió.
 
-### 8.4 Ejecución guiada por objetivos
+### 10.4 Ejecución guiada por objetivos
 Define criterios de éxito y verifícalos **midiendo en el navegador**, no a ojo.
 - Enuncia un plan breve con su verificación para tareas de varios pasos.
 - Si no pudiste comprobar algo (p. ej. el panel del navegador congelado), **dilo** en
@@ -365,7 +636,7 @@ Define criterios de éxito y verifícalos **midiendo en el navegador**, no a ojo
 
 ---
 
-## 9. Cómo trabajar con el fundador
+## 11. Cómo trabajar con el fundador
 
 - El fundador **no es ingeniero**. Explica lo técnico en simple; profundiza solo si lo pide.
 - Antes de escribir código para una tarea grande, **propón un plan y espera confirmación**.
@@ -390,14 +661,54 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 
 ---
 
-## 10. Registro de decisiones (bitácora)
+## 12. Timeline y hitos (target: Lloyd's Lab Cohort 18, diciembre 2026)
+
+### Agosto 2026
+- Landing page + página Partners
+- Onboarding de Jesús
+- Contactar Sebastián Gómez y Paola Neira
+- Componentes base del frontend
+
+### Septiembre 2026
+- Capa 1 funcionando (POST /scan → Pre-Score en <60 seg)
+- Pantalla de Pre-Score + Quick Scan Report PDF
+- Conectar frontend con API real
+- Testear con 50 firmas reales
+- Contactar Costero Brokers y Argentum Re
+
+### Octubre 2026
+- Cuestionario adaptativo (Capa 2) integrado
+- Pantalla de resultados completos + pricing
+- Full Assessment Report PDF (5 páginas)
+- Dashboard del broker
+- Auth con magic links
+- Primeras conversaciones con candidatos de Insurance Advisor
+
+### Noviembre 2026
+- Funciones de compartir del broker (link + email + PDF branded)
+- Checkout con Stripe (test mode)
+- Panel admin
+- Dashboard cliente post-bind (mockup funcional)
+- Demo a 3-5 brokers reales con feedback documentado
+- Insurance Advisor comprometido
+
+### Diciembre 2026
+- Aplicación a Lloyd's Lab Cohort 18
+- Deck de pitch + demo en vivo
+- Scoring engine con 50+ scorecards completos y feedback de brokers
+
+---
+
+## 13. Registro de decisiones (bitácora)
 
 - Modelo de negocio: **MGA de surplus lines** en EE. UU., aspirando a coverholder de
   Lloyd's. Nicho: riesgos de IA para servicios profesionales (legal, accounting,
   consulting).
+- **Referencia principal: Coalition** (scoring automático + brokers + active insurance).
 - Arquitectura: **API-first**.
-- Stack: TypeScript · Next.js · Tailwind CSS · Supabase (Postgres) · Expo/React Native
-  (fase posterior) · Vercel. Iconos: lucide-react.
+- Stack: TypeScript · Next.js · Tailwind CSS · Supabase (Postgres + Auth) · Stripe
+  (pagos, test mode) · Expo/React Native (fase posterior) · Vercel. Iconos: lucide-react.
+  shadcn/ui aprobado para plataforma (no landing).
 - Identidad: paleta marino/cielo/oro (+ oro oscuro, bruma, rojo) y tipografías
   Space Grotesk + Mulish. Concepto de marca: refugio + ojo + inclusión.
 - **Todo el código en inglés**; texto del sitio en inglés.
@@ -405,133 +716,30 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - Landing institucional construida y iterada: hero con orbe interactivo, cinta de
   coberturas, tarjetas de producto con chips en hover, sección de stats + cards
   animadas, pre-footer con océano WebGL, footer.
-- Formulario de captación **eliminado**; flujo "Get a quote" pendiente (modal + Supabase).
+- Formulario de captación **eliminado**; flujo "Get a quote" rediseñado como email +
+  dominio estilo Lemonade (pendiente implementación).
 - **Pivote de producto:** SLA paramétrico sale del scope actual (pasa a Fase 2-3).
   Producto core único: **AI Professional Malpractice** (AI Professional Liability).
-- **8 coberturas definidas:** 4 third-party (Work Product Errors, Regulatory Sanctions,
-  Bias & Discrimination, Privacy & Confidentiality Breach) + 4 first-party (Error
-  Remediation, Forensic Investigation, Crisis Management, Regulatory Compliance Costs).
+- **8 coberturas definidas:** 4 third-party + 4 first-party.
 - **ICPs definidos:** primario = firmas de abogados SMB (2-50 abogados), secundario =
   firmas contables/consultoras SMB (5-100 empleados).
-- **AI Governance Scorecard diseñado:** 20 preguntas, 6 dominios NIST, 5 tiers de
-  riesgo, triple función (lead gen + underwriting + demo Lloyd's Lab).
-- **Flujo de cotización completo** diseñado a nivel de negocio (5 fases: Lead Capture →
-  Scorecard → Risk Report → Quote Generation → Binding & Issuance).
+- **Score Engine diseñado:** 3 capas (Autopilot → Deep Scan → Living Score), 6
+  dominios NIST, 5 tiers, triple función (lead gen + underwriting + demo Lloyd's Lab).
+- **3 flujos de adquisición:** Directo, Directo→Broker, Broker invita.
+- **Modelo de organizaciones:** firma como org, roles owner/admin/member/viewer.
+- **Onboarding de brokers:** manual (discovery call + aprobación del CEO).
+- **Equipo:** Juan José (CEO/frontend), Jesús (Founder Engineer/backend), Insurance
+  Advisor (por contratar).
+- **Timeline:** agosto–diciembre 2026, target Lloyd's Lab Cohort 18.
 - **Prioridad estratégica #1:** entrada a Lloyd's Lab.
 - **Producto renombrado** de AI Professional Shield a **AI Professional Malpractice**.
 - **Sección Products reconstruida** como recorrido interactivo con panel de océano en
-  vídeo; las 8 coberturas salen de esa sección y viven solo en la cinta.
+  vídeo.
 - **Wordmark oficial** sustituye al logo de texto; **favicon** configurado.
 - **Menú Partners** (Producers / Platforms) añadido al navbar.
 - **Decisión consciente** de mostrar precios ilustrativos sin etiqueta en el panel de
   océano — pendiente de resolver (disclaimer o retirar) antes de lanzar.
-- *(pendiente)* Modelo de datos detallado.
-- *(pendiente)* Proveedores externos (email, pagos, firma electrónica).
-
----
-
-## 11. Estrategia de negocio y mercado
-
-### 11.1 Posicionamiento y diferenciación
-
-**Elevator pitch:** "ARCA es el seguro de malpractice para la era de la inteligencia
-artificial."
-
-**Analogía de posición:** Armilla asegura al que FABRICA el cuchillo de IA. Testudo
-asegura al que lo VENDE. ARCA asegura al CHEF que lo usa para cocinar y sin saberlo
-sirve un plato contaminado.
-
-**Competidores directos (3) — NO nombrar en textos comerciales (ver §5):**
-
-| Competidor | A quién asegura | Espacio que no cubren |
-|---|---|---|
-| **Armilla AI** (Lloyd's coverholder, Toronto) | Empresas que CONSTRUYEN IA | No cubre profesionales que USAN IA |
-| **Testudo** (Lloyd's Lab alumni) | Mid-market que DESPLIEGA GenAI | No enfocado en professional services SMB |
-| **HSB / Munich Re** | SMBs (gap de CGL por IA) | No cubre professional E&O / malpractice |
-
-**Posición de ARCA:** profesionales que USAN IA para servir a clientes. Nadie está ahí.
-
-### 11.2 Ruta regulatoria
-
-- **Hoy:** agente de seguros. No hay binding authority, no suscribimos, no emitimos.
-- **Prioridad #1:** entrar a **Lloyd's Lab** (accelerator de Lloyd's of London).
-- **Ruta:** Agente → Lloyd's Lab → Coverholder con syndicate sponsor → MGA con binding
-  authority → eventualmente Carrier.
-- **Lo que mostramos a Lloyd's Lab:** AI Governance Scorecard funcionando como
-  herramienta de suscripción + tesis de mercado (gap de professional liability por IA).
-- **Competidores que pasaron por Lloyd's Lab:** Armilla AI (Chaucer como sponsor),
-  Testudo (Cohort 14, Apollo como sponsor). Cubren segmentos distintos al nuestro.
-
-### 11.3 AI Governance Scorecard (resumen para contexto técnico)
-
-Herramienta web donde una firma profesional responde **20 preguntas** sobre cómo usa IA.
-En **10-12 minutos** recibe un puntaje de riesgo de **0-100** con un reporte de
-vulnerabilidades y recomendaciones.
-
-**Triple función:**
-1. **Lead generation** — toda firma que lo complete es un prospecto calificado.
-2. **Motor de suscripción** — el score determina precio y vía de underwriting.
-3. **Demo para Lloyd's Lab** — herramienta de risk assessment que un syndicate no puede
-   replicar internamente.
-
-**6 dominios (alineados con NIST AI Risk Management Framework):**
-
-| Dominio | Peso | Qué evalúa |
-|---|---|---|
-| D1. AI Governance & Policy | 25% | Política escrita, ownership, herramientas aprobadas |
-| D2. AI Tool Environment | 20% | Enterprise vs consumer, casos de uso, dependencia |
-| D3. Human Oversight & Review | 20% | Proceso de revisión, seniority, checklist, disclosure |
-| D4. Data Protection & Confidentiality | 15% | Datos de clientes en IA, controles, consentimiento |
-| D5. Training & Competency | 10% | Programa de training, awareness de limitaciones |
-| D6. Incident Preparedness | 10% | Plan de respuesta, monitoreo, historial de incidentes |
-
-**5 tiers de riesgo:**
-
-| Tier | Score | Nombre | Acción de underwriting |
-|---|---|---|---|
-| 1 | 85-100 | **FORTRESS** | Auto-bind. Mejores tarifas. Quote instantáneo. |
-| 2 | 70-84 | **FORTIFIED** | Auto-bind. Tarifas estándar. Quote instantáneo. |
-| 3 | 50-69 | **GUARDED** | Referral a underwriter. Tarifas cargadas. Quote en 48h. |
-| 4 | 30-49 | **EXPOSED** | Referral. Tarifas altas + condiciones. Quote en 5 días. |
-| 5 | 0-29 | **CRITICAL** | Decline. Plan de mejora + re-assessment en 90 días. |
-
-Documento de diseño detallado disponible para implementación (ARCA_Scorecard_Design.pdf).
-
-### 11.4 Flujo de cotización (5 fases)
-
-- **Fase A — Lead Capture (~2 min):** datos de la firma (nombre, estado, número de
-  profesionales, área de práctica, email). Alimenta los factores de pricing.
-- **Fase B — AI Governance Scorecard (~10 min):** 20 preguntas por dominio, barra de
-  progreso, mini-score por dominio, score total instantáneo al terminar.
-- **Fase C — Risk Report (inmediato):** PDF descargable con score total, tier, score por
-  dominio, top 3 vulnerabilidades, top 3 fortalezas, recomendaciones. Se genera aunque
-  no compre — es el lead magnet.
-- **Fase D — Quote Generation:** 3 opciones de límite (Good / Better / Best). El path
-  bifurca por tier:
-  - Tier 1-2: "Bind Now" → aceptar → warranty → pagar → póliza instantánea.
-  - Tier 3: "Get Final Quote" → docs adicionales → review 48h → quote → bind.
-  - Tier 4: "Request Review" → docs completos → call con underwriter → quote 5 días.
-  - Tier 5: "Improve Your Score" → roadmap de remediación → re-assessment 90 días.
-- **Fase E — Binding & Issuance:** warranty statement (firma electrónica), pago
-  (anual con 5% descuento / semestral / mensual; tarjeta o ACH), policy document
-  automático, datos para bordereaux (reporting al syndicate).
-
-**Fórmula de pricing:**
-`Prima Anual = Base Rate × Governance Factor × Size Factor × Practice Factor × Jurisdiction Factor`
-Factores detallados en ARCA_Scorecard_Design.pdf. No implementar hasta que el fundador
-lo indique.
-
-### 11.5 Catalizador de mercado
-
-En enero 2026 Verisk/ISO publicó una exclusión de IA generativa (Form CG 40 47).
-Dato reportado: afecta al 82% de las pólizas de P&C globales. **⚠ VERIFICAR fuente y
-cifra exacta antes de usar en cualquier texto público.** Las pólizas de professional
-liability tradicionales están en zona gris sobre si cubren errores causados por IA.
-ARCA llena ese hueco.
-
-### 11.6 Documentos de referencia del CEO
-
-- **ARCA_Scorecard_Design.pdf** — preguntas completas, puntajes, fórmula de pricing,
-  rate multipliers, controles anti-fraude, flujo paso a paso.
-- **ARCA_OnePager.pdf** — one-pager con producto, mercado, competencia, roadmap.
-- **ARCA_Guia_JuanJose.pdf** — versión simplificada con analogías.
+- *(pendiente)* Modelo de datos detallado (schema).
+- *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
+- *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
+- *(pendiente)* Librerías de charts, PDF, formularios para la plataforma.
