@@ -2,12 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-// The loop is stitched from two players: the standby one starts and takes over
-// before the running one reaches its end, so the restart never cuts. The
-// outgoing player fades out on top of the incoming one, which is already fully
-// opaque underneath, so nothing shows through mid-fade.
-const HANDOFF_SECONDS = 1.2;
-const CROSSFADE_MS = 700;
+import { useVideoLoop } from "@/lib/useVideoLoop";
 
 /**
  * Closing block of the page: the ocean video runs behind both the CTA and the
@@ -17,84 +12,17 @@ const CROSSFADE_MS = 700;
  */
 export default function OceanPrefooter({ children }: { children?: ReactNode }) {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const frontRef = useRef<HTMLVideoElement>(null);
-  const backRef = useRef<HTMLVideoElement>(null);
+  const { frontRef, backRef, play, pause } = useVideoLoop();
 
   useEffect(() => {
     const node = sectionRef.current;
-    const front = frontRef.current;
-    const back = backRef.current;
-    if (!node || !front || !back) {
+    if (!node) {
       return;
     }
-
-    const players = [front, back];
-
-    // Reduced motion: leave the first player on its first frame, never start.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      players.forEach((player) => player.pause());
-      return;
-    }
-
-    let active = 0;
-    let switching = false;
-    let warmed = false;
-    let fadeTimer = 0;
-
-    const handOff = (event: Event) => {
-      const current = event.currentTarget as HTMLVideoElement;
-      if (switching || current !== players[active] || !current.duration) {
-        return;
-      }
-      if (current.duration - current.currentTime > HANDOFF_SECONDS) {
-        return;
-      }
-
-      switching = true;
-      const next = players[1 - active];
-
-      // Incoming: goes underneath and turns opaque with no transition.
-      next.style.transitionDuration = "0ms";
-      next.style.zIndex = "0";
-      next.style.opacity = "1";
-      next.currentTime = 0;
-      next.play().catch(() => {});
-
-      // Outgoing: rises above it and fades away.
-      current.style.transitionDuration = `${CROSSFADE_MS}ms`;
-      current.style.zIndex = "1";
-      current.style.opacity = "0";
-
-      active = 1 - active;
-      fadeTimer = window.setTimeout(() => {
-        current.pause();
-        current.currentTime = 0;
-        switching = false;
-      }, CROSSFADE_MS);
-    };
-
-    players.forEach((player) => player.addEventListener("timeupdate", handOff));
-
-    const play = () => {
-      players[active].play().catch(() => {});
-      if (!warmed) {
-        warmed = true;
-        // Buffer the standby player so its turn starts without a stall.
-        const standby = players[1 - active];
-        standby.preload = "auto";
-        standby.load();
-      }
-    };
-    const pause = () => players.forEach((player) => player.pause());
 
     if (!("IntersectionObserver" in window)) {
       play();
-      return () => {
-        players.forEach((player) =>
-          player.removeEventListener("timeupdate", handOff),
-        );
-        window.clearTimeout(fadeTimer);
-      };
+      return;
     }
 
     // Only decode frames while the block is on screen.
@@ -112,14 +40,8 @@ export default function OceanPrefooter({ children }: { children?: ReactNode }) {
     );
     observer.observe(node);
 
-    return () => {
-      observer.disconnect();
-      players.forEach((player) =>
-        player.removeEventListener("timeupdate", handOff),
-      );
-      window.clearTimeout(fadeTimer);
-    };
-  }, []);
+    return () => observer.disconnect();
+  }, [play, pause]);
 
   return (
     <div

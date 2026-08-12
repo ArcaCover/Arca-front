@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useVideoLoop } from "@/lib/useVideoLoop";
+
 // The panel is designed at a fixed size and scaled to fit its column, which
 // keeps every scene laid out exactly as approved at any viewport width.
 const PANEL_WIDTH = 560;
@@ -61,7 +63,7 @@ export default function OceanPanel({
   paused: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const { frontRef, backRef, play, pause } = useVideoLoop();
   const [scale, setScale] = useState(1);
   const [question, setQuestion] = useState(0);
   const [questionIn, setQuestionIn] = useState(true);
@@ -82,16 +84,12 @@ export default function OceanPanel({
   }, []);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) {
-      return;
-    }
     if (paused || prefersReducedMotion()) {
-      video.pause();
+      pause();
       return;
     }
-    video.play().catch(() => {});
-  }, [paused]);
+    play();
+  }, [paused, play, pause]);
 
   // Each scene runs its own little sequence, restarted whenever it becomes the
   // active one and stopped while the section is off screen.
@@ -169,15 +167,30 @@ export default function OceanPanel({
         }}
       >
         {/* TODO: re-encode ocean.mp4 before launch — 13 MB for a 5s loop */}
-        <video
-          ref={videoRef}
-          src="/videos/ocean.mp4"
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        {/* Isolated so the two players can swap z-index between them without
+            ever rising above the overlay and the scenes. */}
+        <div className="absolute inset-0 isolate">
+          <video
+            ref={frontRef}
+            src="/videos/ocean.mp4"
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            style={{ opacity: 1, zIndex: 0 }}
+            className="absolute inset-0 h-full w-full object-cover transition-opacity ease-linear"
+          />
+          <video
+            ref={backRef}
+            src="/videos/ocean.mp4"
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            style={{ opacity: 0, zIndex: 1 }}
+            className="absolute inset-0 h-full w-full object-cover transition-opacity ease-linear"
+          />
+        </div>
         <div className="ocean-overlay absolute inset-0" />
 
         {/* 01 — Scorecard questionnaire */}
