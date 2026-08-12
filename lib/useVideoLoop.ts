@@ -2,11 +2,6 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-// Hand over this long before the end, and cross the players over this fast, so
-// the fade always finishes while the outgoing one still has frames left.
-const HANDOFF_SECONDS = 1.2;
-const CROSSFADE_MS = 700;
-
 /**
  * Seamless loop for a background video: two players of the same file take
  * turns, so it never snaps back to its first frame. The standby starts from
@@ -16,8 +11,16 @@ const CROSSFADE_MS = 700;
  * Attach the two refs to stacked <video> nodes and drive `play`/`pause` from
  * whatever visibility signal the section already has. Both are no-ops under
  * `prefers-reduced-motion`, which leaves the first frame showing.
+ *
+ * The hand-over starts `handoffSeconds` before the end and the fade takes
+ * `crossfadeMs`; keep the first comfortably longer than the second so the fade
+ * always finishes while the outgoing player still has frames left. The wider
+ * the water on screen, the longer the fade needs to be to go unnoticed.
  */
-export function useVideoLoop() {
+export function useVideoLoop({
+  handoffSeconds = 1.2,
+  crossfadeMs = 700,
+}: { handoffSeconds?: number; crossfadeMs?: number } = {}) {
   const frontRef = useRef<HTMLVideoElement>(null);
   const backRef = useRef<HTMLVideoElement>(null);
   const activeRef = useRef(0);
@@ -43,7 +46,7 @@ export function useVideoLoop() {
       ) {
         return;
       }
-      if (current.duration - current.currentTime > HANDOFF_SECONDS) {
+      if (current.duration - current.currentTime > handoffSeconds) {
         return;
       }
 
@@ -58,7 +61,7 @@ export function useVideoLoop() {
       next.play().catch(() => {});
 
       // Outgoing: rises above it and fades away.
-      current.style.transitionDuration = `${CROSSFADE_MS}ms`;
+      current.style.transitionDuration = `${crossfadeMs}ms`;
       current.style.zIndex = "1";
       current.style.opacity = "0";
 
@@ -67,7 +70,7 @@ export function useVideoLoop() {
         current.pause();
         current.currentTime = 0;
         switching = false;
-      }, CROSSFADE_MS);
+      }, crossfadeMs);
     };
 
     players.forEach((player) => player.addEventListener("timeupdate", handOff));
@@ -78,7 +81,7 @@ export function useVideoLoop() {
       );
       window.clearTimeout(fadeTimer);
     };
-  }, []);
+  }, [handoffSeconds, crossfadeMs]);
 
   const play = useCallback(() => {
     const players = [frontRef.current, backRef.current];

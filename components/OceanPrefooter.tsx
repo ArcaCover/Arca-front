@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
+import { useInView } from "@/lib/useInView";
 import { useVideoLoop } from "@/lib/useVideoLoop";
 
 /**
@@ -11,37 +12,20 @@ import { useVideoLoop } from "@/lib/useVideoLoop";
  * same backdrop.
  */
 export default function OceanPrefooter({ children }: { children?: ReactNode }) {
-  const sectionRef = useRef<HTMLDivElement>(null);
+  // Kept live (once: false) so the loop only decodes while the block shows.
+  const [sectionRef, onScreen] = useInView<HTMLDivElement>({
+    threshold: 0.01,
+    once: false,
+  });
   const { frontRef, backRef, play, pause } = useVideoLoop();
 
   useEffect(() => {
-    const node = sectionRef.current;
-    if (!node) {
-      return;
-    }
-
-    if (!("IntersectionObserver" in window)) {
+    if (onScreen) {
       play();
-      return;
+    } else {
+      pause();
     }
-
-    // Only decode frames while the block is on screen.
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            play();
-          } else {
-            pause();
-          }
-        });
-      },
-      { threshold: 0.01 },
-    );
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, [play, pause]);
+  }, [onScreen, play, pause]);
 
   return (
     <div

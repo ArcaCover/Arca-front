@@ -81,15 +81,26 @@ export default function AiGapSection() {
     threshold: 0.01,
     once: false,
   });
-  const { frontRef, backRef, play, pause } = useVideoLoop();
+  // The panel is a wide, open stretch of water, so it needs a longer fade than
+  // the pre-footer to hide the seam.
+  const { frontRef, backRef, play, pause } = useVideoLoop({
+    handoffSeconds: 2,
+    crossfadeMs: 1400,
+  });
+  // Tracked apart from the section: the panel sits at the bottom of a tall
+  // block, so this keeps it from decoding while only the stats are on screen.
+  const [panelRef, panelOnScreen] = useInView<HTMLDivElement>({
+    threshold: 0.01,
+    once: false,
+  });
 
   useEffect(() => {
-    if (sectionOnScreen) {
+    if (panelOnScreen) {
       play();
     } else {
       pause();
     }
-  }, [sectionOnScreen, play, pause]);
+  }, [panelOnScreen, play, pause]);
 
   return (
     <section
@@ -145,7 +156,10 @@ export default function AiGapSection() {
 
       {/* ═══ BLOCK B — three cards ═══ */}
       <div className="mx-auto max-w-[1380px] px-6 pb-6 max-[1080px]:px-3 max-[1080px]:pb-3">
-        <div className="ag-panel-inner relative overflow-hidden rounded-[36px] px-10 py-16 max-[1080px]:rounded-[28px] max-[1080px]:px-5 max-[1080px]:py-12">
+        <div
+          ref={panelRef}
+          className="ag-panel-inner relative overflow-hidden rounded-[36px] px-10 py-16 max-[1080px]:rounded-[28px] max-[1080px]:px-5 max-[1080px]:py-12"
+        >
           {/* TODO: re-encode ocean.mp4 before launch — 13 MB for a 5s loop */}
           {/* Isolated so the two players can swap z-index between them without
               ever rising above the scrim and the cards. */}
