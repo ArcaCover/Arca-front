@@ -10,7 +10,7 @@ const FEATURES = [
   {
     num: "01",
     title: "Know your risk in minutes",
-    desc: "The AI Governance Scorecard walks through how your firm actually uses AI — tools, oversight, client data.",
+    desc: "Enter your firm's website and email. Arca's Score Engine scans public signals automatically — no forms, no questions yet.",
   },
   {
     num: "02",
@@ -114,9 +114,14 @@ export default function Products() {
           </div>
 
           <div className="order-2 flex w-full flex-col justify-center min-[861px]:order-1 min-[861px]:min-h-[420px] min-[861px]:flex-1">
-            <span className="mb-4 font-heading text-[12.5px] font-semibold uppercase tracking-[0.1em] text-oro-oscuro">
+            <span className="mb-2.5 font-heading text-[12.5px] font-semibold uppercase tracking-[0.1em] text-oro-oscuro">
               From assessment to coverage
             </span>
+            <p className="mb-6 max-w-[46ch] text-pretty text-[15px] leading-[1.6] text-marino/65 min-[861px]:text-[16px]">
+              Your firm&rsquo;s website tells us more than you think. We start
+              with what&rsquo;s already public, then ask only what we
+              couldn&rsquo;t find.
+            </p>
             {FEATURES.map((feature, index) => (
               <button
                 key={feature.num}

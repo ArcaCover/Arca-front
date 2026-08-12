@@ -14,6 +14,21 @@ const QUESTIONS = [
   "Who reviews AI-assisted work before it leaves the firm?",
   "Does client data ever go into a consumer AI tool?",
   "Do you have a written AI policy your team follows?",
+  "Has your team been trained on where AI gets things wrong?",
+];
+
+// Scene 01 runs on a fixed schedule: the two fields fill in, the scan sweeps
+// through its sources, and the pre-score lands. Each number is the gap in ms
+// from the previous step.
+const SCAN_STEPS = [360, 680, 600, 520, 520, 500];
+const SCAN_FIELDS = [
+  { label: "Firm website", value: "yourfirm.com", filledAt: 1 },
+  { label: "Work email", value: "you@yourfirm.com", filledAt: 2 },
+];
+const SCAN_SOURCES = [
+  "Reading your website",
+  "Checking your tech stack",
+  "Checking public records",
 ];
 
 // TODO: replace placeholder premiums with real rates before launch
@@ -25,12 +40,31 @@ const QUOTES = [
 
 const BIND_STEPS = [
   { name: "Signed", meta: "Warranty statement · e-signature" },
-  { name: "Payment confirmed", meta: "Annual · 5% discount applied" },
+  { name: "Payment confirmed", meta: "Secure payment processed" },
   { name: "Policy issued", meta: "Documents in your inbox" },
 ];
 
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** One of the moments a scene walks through, cross-faded in place. */
+function Beat({
+  show,
+  children,
+}: {
+  show: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`absolute inset-0 flex flex-col justify-center transition-opacity duration-[340ms] ease-out ${
+        show ? "opacity-100" : "pointer-events-none opacity-0"
+      }`}
+    >
+      {children}
+    </div>
+  );
 }
 
 /** Wraps a scene so only the active one is visible and interactive. */
@@ -65,8 +99,10 @@ export default function OceanPanel({
   const wrapRef = useRef<HTMLDivElement>(null);
   const { frontRef, backRef, play, pause } = useVideoLoop();
   const [scale, setScale] = useState(1);
+  const [scanStep, setScanStep] = useState(0);
   const [question, setQuestion] = useState(0);
   const [questionIn, setQuestionIn] = useState(true);
+  const [scored, setScored] = useState(false);
   const [countProgress, setCountProgress] = useState(0);
   const [boundStep, setBoundStep] = useState(0);
 
@@ -99,20 +135,30 @@ export default function OceanPanel({
     }
 
     if (active === 0) {
+      setScanStep(0);
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      let at = 0;
+      SCAN_STEPS.forEach((gap, index) => {
+        at += gap;
+        timers.push(setTimeout(() => setScanStep(index + 1), at));
+      });
+      return () => timers.forEach(clearTimeout);
+    }
+
+    // Two beats: a couple of questions, then the standing they produce.
+    if (active === 1) {
       setQuestion(0);
       setQuestionIn(true);
-      let fade: ReturnType<typeof setTimeout>;
-      const rotate = setInterval(() => {
-        setQuestionIn(false);
-        fade = setTimeout(() => {
-          setQuestion((current) => (current + 1) % QUESTIONS.length);
+      setScored(false);
+      const timers = [
+        setTimeout(() => setQuestionIn(false), 1200),
+        setTimeout(() => {
+          setQuestion(1);
           setQuestionIn(true);
-        }, 340);
-      }, 1900);
-      return () => {
-        clearInterval(rotate);
-        clearTimeout(fade);
-      };
+        }, 1540),
+        setTimeout(() => setScored(true), 3100),
+      ];
+      return () => timers.forEach(clearTimeout);
     }
 
     if (active === 2) {
@@ -142,6 +188,11 @@ export default function OceanPanel({
     }
   }, [active, paused]);
 
+  // The last step of the sweep is the result, so the bar fills over the three
+  // steps before it.
+  const scanned = scanStep >= SCAN_STEPS.length;
+  const scanProgress = Math.max(0, Math.min(1, (scanStep - 2) / 3)) * 100;
+  const scanSource = Math.max(0, Math.min(SCAN_SOURCES.length - 1, scanStep - 3));
   const count = active === 2 ? countProgress : 0;
   const bound = active === 3 ? boundStep : 0;
   // Four nodes, so the line covers a third of the track per step after the first.
@@ -192,39 +243,114 @@ export default function OceanPanel({
         </div>
         <div className="ocean-overlay absolute inset-0" />
 
-        {/* 01 — Scorecard questionnaire */}
-        <Scene isActive={active === 0} className="flex items-center justify-center">
-          <div className="w-full rounded-3xl border border-white/25 bg-white/15 p-7 pb-[22px] backdrop-blur-[10px]">
-            <div className="mb-[22px] flex items-center justify-between">
+        {/* 01 — Automatic scan */}
+        <Scene isActive={active === 0} className="flex flex-col justify-center">
+          <div className="flex flex-col gap-[18px] rounded-3xl border border-white/25 bg-white/15 p-7 backdrop-blur-[10px]">
+            <div className="flex items-center justify-between">
               <span className="font-heading text-[11.5px] font-bold tracking-[0.16em] text-oro">
-                AI GOVERNANCE SCORECARD
+                AI GOVERNANCE SCAN
               </span>
-              <span className="text-xs text-bruma/80">{question + 1} of 20</span>
+              <span className="text-xs text-bruma/80">Under 60 seconds</span>
             </div>
-            <div className="flex min-h-[112px] items-center">
-              <p
-                style={{ transform: `translateY(${questionIn ? 0 : 8}px)` }}
-                className={`text-pretty font-heading text-[23px] font-medium leading-[1.32] text-white transition-[opacity,transform] duration-[350ms] ${
-                  questionIn ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                {QUESTIONS[question]}
-              </p>
+
+            <div className="flex flex-col gap-2.5">
+              {SCAN_FIELDS.map((field) => (
+                <div
+                  key={field.label}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/20 bg-white/10 px-4 py-3"
+                >
+                  <span className="text-[12.5px] text-bruma/70">
+                    {field.label}
+                  </span>
+                  <span
+                    className={`font-heading text-[15px] font-semibold transition-colors duration-500 ${
+                      scanStep >= field.filledAt ? "text-white" : "text-white/35"
+                    }`}
+                  >
+                    {field.value}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/20">
-              <div
-                style={{ width: `${12 + question * 22}%` }}
-                className="h-full rounded-full bg-oro transition-[width] duration-[600ms] ease-out"
-              />
-            </div>
-            <div className="mt-3 text-xs text-bruma/75">
-              About 10 minutes · tools, oversight, client data
+
+            {/* Sweep and result share one block, so the card holds its height. */}
+            <div className="relative min-h-[84px]">
+              <Beat show={!scanned}>
+                <div className="flex flex-col gap-3.5">
+                  <div className="h-1 overflow-hidden rounded-full bg-white/20">
+                    <div
+                      style={{ width: `${scanProgress}%` }}
+                      className="h-full rounded-full bg-oro transition-[width] duration-[560ms] ease-out"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2.5 text-[13px] text-bruma/85">
+                    <span className="h-[7px] w-[7px] flex-none rounded-full bg-cielo" />
+                    {SCAN_SOURCES[scanSource]}
+                  </div>
+                </div>
+              </Beat>
+              {/* TODO: illustrative pre-score — the scan is not live yet */}
+              <Beat show={scanned}>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-heading text-[44px] font-bold leading-none text-white">
+                      72
+                    </span>
+                    <span className="font-heading text-[17px] font-semibold text-bruma/70">
+                      /100
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <span className="rounded-full bg-oro px-[13px] py-[6px] font-heading text-[11.5px] font-bold tracking-[0.12em] text-marino">
+                      HIGH CONFIDENCE
+                    </span>
+                    <span className="text-[12.5px] text-bruma/75">
+                      Pre-score, nothing asked yet
+                    </span>
+                  </div>
+                </div>
+              </Beat>
             </div>
           </div>
         </Scene>
 
-        {/* 02 — Where you stand */}
-        <Scene isActive={active === 1} className="flex flex-col justify-center">
+        {/* 02 — The questions, then where they leave you */}
+        <Scene isActive={active === 1} className="">
+          <Beat show={!scored}>
+            <div className="w-full rounded-3xl border border-white/25 bg-white/15 p-7 pb-[22px] backdrop-blur-[10px]">
+              <div className="mb-[22px] flex items-center justify-between">
+                <span className="font-heading text-[11.5px] font-bold tracking-[0.16em] text-oro">
+                  AI GOVERNANCE SCORECARD
+                </span>
+                <span className="text-xs text-bruma/80">
+                  {question + 1} of {QUESTIONS.length}
+                </span>
+              </div>
+              <div className="flex min-h-[112px] items-center">
+                <p
+                  style={{ transform: `translateY(${questionIn ? 0 : 8}px)` }}
+                  className={`text-pretty font-heading text-[23px] font-medium leading-[1.32] text-white transition-[opacity,transform] duration-[350ms] ${
+                    questionIn ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  {QUESTIONS[question]}
+                </p>
+              </div>
+              <div className="mt-5 h-1 overflow-hidden rounded-full bg-white/20">
+                <div
+                  style={{
+                    width: `${((question + 1) / QUESTIONS.length) * 100}%`,
+                  }}
+                  className="h-full rounded-full bg-oro transition-[width] duration-[600ms] ease-out"
+                />
+              </div>
+              <div className="mt-3 text-xs text-bruma/75">
+                Only what the scan couldn&rsquo;t answer on its own
+              </div>
+            </div>
+          </Beat>
+
+          <Beat show={scored}>
           <div className="flex flex-col gap-[22px] rounded-3xl border border-white/25 bg-white/15 p-7 backdrop-blur-[10px]">
           <div className="flex items-center gap-[26px]">
             {/* The labels sit below the arc rather than over it, so the round
@@ -247,7 +373,7 @@ export default function OceanPanel({
                   strokeWidth="14"
                   strokeLinecap="round"
                   strokeDasharray="270"
-                  strokeDashoffset={active === 1 ? 270 - 270 * 0.78 : 270}
+                  strokeDashoffset={scored ? 270 - 270 * 0.78 : 270}
                 />
               </svg>
               <div className="flex justify-between text-[10.5px] tracking-[0.1em] text-bruma/70">
@@ -257,9 +383,9 @@ export default function OceanPanel({
             </div>
             <div className="flex flex-col gap-2.5">
               <span
-                style={{ transform: `translateX(${active === 1 ? 0 : -12}px)` }}
+                style={{ transform: `translateX(${scored ? 0 : -12}px)` }}
                 className={`self-start rounded-full bg-oro px-[15px] py-[7px] font-heading text-[13px] font-bold tracking-[0.12em] text-marino transition-[opacity,transform] delay-500 duration-500 ${
-                  active === 1 ? "opacity-100" : "opacity-0"
+                  scored ? "opacity-100" : "opacity-0"
                 }`}
               >
                 FORTIFIED
@@ -286,6 +412,7 @@ export default function OceanPanel({
             </div>
           </div>
           </div>
+          </Beat>
         </Scene>
 
         {/* 03 — Quote options */}
@@ -353,8 +480,10 @@ export default function OceanPanel({
           <div className="rounded-3xl border border-white/25 bg-white/15 p-7 py-[26px] backdrop-blur-[10px]">
             <div className="relative flex flex-col gap-[22px]">
               {/* The fill is a child of the track so its percentage measures
-                  against the track itself, node to node. */}
-              <span className="absolute bottom-[18px] left-[9px] top-3 w-0.5 rounded-full bg-white/30">
+                  against the track itself, node to node. Both ends sit on a
+                  dot centre: a row is 44px tall and the dot 20px, so the first
+                  centre lands 22px down. */}
+              <span className="absolute bottom-[18px] left-[9px] top-[22px] w-0.5 rounded-full bg-white/30">
                 <span
                   style={{ height: `${timelineFill * 100}%` }}
                   className="block w-full rounded-full bg-oro transition-[height] duration-1000 ease-out"
