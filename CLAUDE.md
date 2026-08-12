@@ -583,8 +583,6 @@ Crisis Management · Regulatory Compliance Costs.
   acción**. El primer paso es un **input de email + dominio** (estilo Lemonade) que
   guarda el lead inmediatamente y dispara el scan de Capa 1. Implementación técnica y
   diseño visual pendientes.
-- **Recomprimir `public/videos/ocean.mp4`:** 13.3 MB para 5.2 segundos (21 Mbps).
-  Debería pesar 1-2 MB. Ya está en el historial de git con ese peso.
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
   (ver §7).
 - **Reexportar wordmark** con contraformas fusionadas si llega una versión nueva del
@@ -596,6 +594,9 @@ Crisis Management · Regulatory Compliance Costs.
 - **Añadir imagen de Open Graph**.
 
 **Hechos (completados):**
+- ~~Recomprimir `ocean.mp4`~~ — 13.3 MB → 4.4 MB (1600×900, H.264 CRF 25 con
+  denoise, sin pista de audio). La versión de 13.3 MB sigue en el historial de
+  git; el repo no adelgaza sin reescribir historia.
 - ~~Actualizar cinta de coberturas (10 → 8 definitivas).~~
 - ~~Rediseñar sección Products (2 tarjetas → recorrido interactivo).~~
 - ~~Actualizar menú Coverages del navbar (quitar SLA, dejar una opción).~~
@@ -651,9 +652,12 @@ Define criterios de éxito y verifícalos **midiendo en el navegador**, no a ojo
 
 ### Rendimiento (vigilar)
 
-La página ya carga: el orbe del hero (rAF), la cinta de coberturas, un shader WebGL de
-océano en el pre-footer, **y un vídeo de océano en bucle** en la sección Products. Son
-**dos océanos en la misma página**. Conviene medirlo en un móvil real antes de lanzar.
+La página ya carga: el orbe del hero (rAF), la cinta de coberturas y **tres secciones
+con vídeo de océano** (Products, panel de tarjetas de la sección AI gap y pre-footer).
+El shader WebGL del pre-footer fue sustituido por el vídeo. Cada sección monta **dos
+`<video>`** del mismo archivo para el bucle sin corte (`lib/useVideoLoop`), o sea seis
+elementos en total, aunque el archivo se descarga una sola vez. Conviene medirlo en un
+móvil real antes de lanzar.
 
 **Regla:** toda animación en bucle debe **pausarse cuando su sección no está en
 pantalla** (IntersectionObserver), y todo efecto debe respetar

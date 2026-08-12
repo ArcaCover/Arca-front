@@ -166,7 +166,6 @@ export default function OceanPanel({
           transformOrigin: "top left",
         }}
       >
-        {/* TODO: re-encode ocean.mp4 before launch — 13 MB for a 5s loop */}
         {/* Isolated so the two players can swap z-index between them without
             ever rising above the overlay and the scenes. */}
         <div className="absolute inset-0 isolate">

@@ -160,7 +160,6 @@ export default function AiGapSection() {
           ref={panelRef}
           className="ag-panel-inner relative overflow-hidden rounded-[36px] px-10 py-16 max-[1080px]:rounded-[28px] max-[1080px]:px-5 max-[1080px]:py-12"
         >
-          {/* TODO: re-encode ocean.mp4 before launch — 13 MB for a 5s loop */}
           {/* Isolated so the two players can swap z-index between them without
               ever rising above the scrim and the cards. */}
           <div className="absolute inset-0 isolate">

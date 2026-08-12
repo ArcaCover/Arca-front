@@ -32,7 +32,6 @@ export default function OceanPrefooter({ children }: { children?: ReactNode }) {
       ref={sectionRef}
       className="ocean-section relative isolate w-full overflow-hidden"
     >
-      {/* TODO: re-encode ocean.mp4 before launch — 13 MB for a 5s loop */}
       <video
         ref={frontRef}
         src="/videos/ocean.mp4"
