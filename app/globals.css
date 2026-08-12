@@ -162,6 +162,17 @@ body {
   );
 }
 
+/* Keeps the panel reading as the deep navy block it was, with the ocean video
+   moving underneath rather than competing with the cards. */
+.ag-panel-scrim {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--color-marino) 80%, transparent) 0%,
+    color-mix(in srgb, var(--gap-navy-mid) 64%, transparent) 55%,
+    color-mix(in srgb, var(--gap-navy-deep) 80%, transparent) 100%
+  );
+}
+
 .ag-card {
   background: linear-gradient(
     160deg,

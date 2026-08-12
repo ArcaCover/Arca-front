@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useInView } from "@/lib/useInView";
+import { useVideoLoop } from "@/lib/useVideoLoop";
 import AiGapCards from "./AiGapCards";
 
 const COUNT_MS = 1400;
@@ -80,6 +81,16 @@ export default function AiGapSection() {
     threshold: 0.01,
     once: false,
   });
+  const { frontRef, backRef, play, pause } = useVideoLoop();
+
+  useEffect(() => {
+    if (sectionOnScreen) {
+      play();
+    } else {
+      pause();
+    }
+  }, [sectionOnScreen, play, pause]);
+
   return (
     <section
       ref={sectionRef}
@@ -134,8 +145,39 @@ export default function AiGapSection() {
 
       {/* ═══ BLOCK B — three cards ═══ */}
       <div className="mx-auto max-w-[1380px] px-6 pb-6 max-[1080px]:px-3 max-[1080px]:pb-3">
-        <div className="ag-panel-inner rounded-[36px] px-10 py-16 max-[1080px]:rounded-[28px] max-[1080px]:px-5 max-[1080px]:py-12">
-          <AiGapCards />
+        <div className="ag-panel-inner relative overflow-hidden rounded-[36px] px-10 py-16 max-[1080px]:rounded-[28px] max-[1080px]:px-5 max-[1080px]:py-12">
+          {/* TODO: re-encode ocean.mp4 before launch — 13 MB for a 5s loop */}
+          {/* Isolated so the two players can swap z-index between them without
+              ever rising above the scrim and the cards. */}
+          <div className="absolute inset-0 isolate">
+            <video
+              ref={frontRef}
+              src="/videos/ocean.mp4"
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              aria-hidden="true"
+              style={{ opacity: 1, zIndex: 0 }}
+              className="absolute inset-0 h-full w-full object-cover transition-opacity ease-linear"
+            />
+            <video
+              ref={backRef}
+              src="/videos/ocean.mp4"
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              aria-hidden="true"
+              style={{ opacity: 0, zIndex: 1 }}
+              className="absolute inset-0 h-full w-full object-cover transition-opacity ease-linear"
+            />
+          </div>
+          <div className="ag-panel-scrim pointer-events-none absolute inset-0" />
+
+          <div className="relative">
+            <AiGapCards />
+          </div>
         </div>
       </div>
     </section>
