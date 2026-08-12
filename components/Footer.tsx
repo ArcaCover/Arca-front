@@ -3,7 +3,7 @@ const COMPANY = ["Partners", "Blog", "Careers"];
 
 export default function Footer() {
   return (
-    <footer className="bg-marino px-6 pb-10 pt-16">
+    <footer className="border-t border-white/10 bg-marino/60 px-6 pb-10 pt-16 backdrop-blur-md">
       <div className="mx-auto grid max-w-5xl gap-10 sm:grid-cols-2 md:grid-cols-4">
         <div>
           <h3 className="font-heading text-xs font-medium uppercase tracking-widest text-white/50">

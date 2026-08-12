@@ -292,8 +292,8 @@ body {
   animation-play-state: paused;
 }
 
-/* Pre-footer ocean. The deep navies below the waterline are mixed down from
-   the marino token rather than written as literals. */
+/* Pre-footer ocean video. The deep navies are mixed down from the marino token
+   rather than written as literals. */
 .ocean-section {
   --ocean-deep: color-mix(in srgb, var(--color-marino) 80%, black);
   --ocean-abyss: color-mix(in srgb, var(--color-marino) 45%, black);
@@ -304,8 +304,8 @@ body {
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--ocean-deep) 55%, transparent) 0%,
-    color-mix(in srgb, var(--ocean-deep) 10%, transparent) 38%,
-    color-mix(in srgb, var(--ocean-abyss) 62%, transparent) 100%
+    color-mix(in srgb, var(--ocean-deep) 40%, transparent) 30%,
+    color-mix(in srgb, var(--ocean-abyss) 55%, transparent) 100%
   );
 }
 

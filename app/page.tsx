@@ -19,9 +19,10 @@ export default function HomePage() {
         <Testimonials />
         <ValuePillars />
         <HowWeOperate />
-        <OceanPrefooter />
       </main>
-      <Footer />
+      <OceanPrefooter>
+        <Footer />
+      </OceanPrefooter>
     </>
   );
 }
