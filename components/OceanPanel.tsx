@@ -38,6 +38,9 @@ const QUOTES = [
   { name: "BEST", value: 6900, limit: "$2M", rotation: 7, lift: 10, width: 148, size: 25, featured: false },
 ];
 
+// The arc fills to the same figure the gauge prints in its middle.
+const STAND_SCORE = 0.86;
+
 const BIND_STEPS = [
   { name: "Signed", meta: "Warranty statement · e-signature" },
   { name: "Payment confirmed", meta: "Secure payment processed" },
@@ -92,9 +95,12 @@ function Scene({
 export default function OceanPanel({
   active,
   paused,
+  cycleMs,
 }: {
   active: number;
   paused: boolean;
+  /** How long a step holds, so scenes with two beats can split it evenly. */
+  cycleMs: number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const { frontRef, backRef, play, pause } = useVideoLoop();
@@ -162,7 +168,8 @@ export default function OceanPanel({
       };
     }
 
-    // Two beats: the standing the answers produce, then the prices it earns.
+    // Two beats splitting the step down the middle: the standing the answers
+    // produce, then the prices it earns.
     if (active === 2) {
       setQuoted(false);
       setCountProgress(0);
@@ -178,7 +185,7 @@ export default function OceanPanel({
             clearInterval(count);
           }
         }, 40);
-      }, 1800);
+      }, cycleMs / 2);
       return () => {
         clearTimeout(enter);
         clearInterval(count);
@@ -197,7 +204,7 @@ export default function OceanPanel({
       timers.push(setTimeout(() => advance(1), 380));
       return () => timers.forEach(clearTimeout);
     }
-  }, [active, paused]);
+  }, [active, paused, cycleMs]);
 
   // The last step of the sweep is the result, so the bar fills over the three
   // steps before it.
@@ -367,7 +374,7 @@ export default function OceanPanel({
           <div className="flex items-center gap-[26px]">
             {/* The labels sit below the arc rather than over it, so the round
                 stroke caps can never land on top of the text. */}
-            <div className="flex w-[186px] flex-none flex-col gap-1.5">
+            <div className="relative flex w-[186px] flex-none flex-col gap-1.5">
               <svg viewBox="0 0 200 112" className="h-auto w-full">
                 <path
                   d="M14 100 A 86 86 0 0 1 186 100"
@@ -385,9 +392,30 @@ export default function OceanPanel({
                   strokeWidth="14"
                   strokeLinecap="round"
                   strokeDasharray="270"
-                  strokeDashoffset={active === 2 ? 270 - 270 * 0.78 : 270}
+                  strokeDashoffset={active === 2 ? 270 - 270 * STAND_SCORE : 270}
                 />
               </svg>
+              {/* TODO: illustrative score — the engine is not live yet.
+                  Absolutely placed inside the arc, so it reads as the gauge's
+                  own figure and costs the column no layout. The arrow says the
+                  answers moved it up from the pre-score of the first step. */}
+              <div className="pointer-events-none absolute inset-x-0 top-[36px] flex flex-col items-center">
+                <div className="flex items-start gap-1.5">
+                  <span className="font-heading text-[34px] font-bold leading-none text-white">
+                    86
+                  </span>
+                  <svg
+                    viewBox="0 0 10 8"
+                    aria-hidden="true"
+                    className="mt-[5px] h-2 w-2.5 flex-none fill-oro"
+                  >
+                    <path d="M5 0 10 8 0 8 Z" />
+                  </svg>
+                </div>
+                <span className="mt-1.5 font-heading text-[12.5px] font-semibold text-bruma/75">
+                  /100
+                </span>
+              </div>
               <div className="flex justify-between text-[10.5px] tracking-[0.1em] text-bruma/70">
                 <span>LOWER</span>
                 <span>STRONGER</span>

@@ -110,7 +110,11 @@ export default function Products() {
         <div className="flex w-full flex-col items-center gap-8 rounded-[40px] bg-white p-6 shadow-[0_26px_60px_-34px_color-mix(in_srgb,var(--color-marino)_35%,transparent)] min-[861px]:flex-row min-[861px]:gap-10 min-[861px]:p-10">
           {/* Panel first on narrow screens, beside the list from 861px up. */}
           <div className="order-1 w-full min-[861px]:order-2 min-[861px]:w-[560px] min-[861px]:flex-none">
-            <OceanPanel active={active} paused={!sectionOnScreen} />
+            <OceanPanel
+              active={active}
+              paused={!sectionOnScreen}
+              cycleMs={CYCLE_SECONDS * 1000}
+            />
           </div>
 
           <div className="order-2 flex w-full flex-col justify-center min-[861px]:order-1 min-[861px]:min-h-[420px] min-[861px]:flex-1">
