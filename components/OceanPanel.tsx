@@ -399,22 +399,22 @@ export default function OceanPanel({
                   Absolutely placed inside the arc, so it reads as the gauge's
                   own figure and costs the column no layout. The arrow says the
                   answers moved it up from the pre-score of the first step. */}
-              <div className="pointer-events-none absolute inset-x-0 top-[36px] flex flex-col items-center">
-                <div className="flex items-start gap-1.5">
-                  <span className="font-heading text-[34px] font-bold leading-none text-white">
-                    86
-                  </span>
-                  <svg
-                    viewBox="0 0 10 8"
-                    aria-hidden="true"
-                    className="mt-[5px] h-2 w-2.5 flex-none fill-oro"
-                  >
-                    <path d="M5 0 10 8 0 8 Z" />
-                  </svg>
-                </div>
-                <span className="mt-1.5 font-heading text-[12.5px] font-semibold text-bruma/75">
+              <div className="pointer-events-none absolute inset-x-0 top-[40px] flex items-baseline justify-center gap-[3px]">
+                <span className="font-heading text-[38px] font-bold leading-none tracking-[-0.04em] text-white">
+                  86
+                </span>
+                <span className="font-heading text-[14px] font-medium leading-none text-bruma/60">
                   /100
                 </span>
+                {/* Lifted off the baseline so it rides the middle of the
+                    figure rather than hanging off a corner. */}
+                <svg
+                  viewBox="0 0 10 8"
+                  aria-hidden="true"
+                  className="ml-[3px] h-[9px] w-[11px] flex-none translate-y-[-9px] fill-oro"
+                >
+                  <path d="M5 0 10 8 0 8 Z" />
+                </svg>
               </div>
               <div className="flex justify-between text-[10.5px] tracking-[0.1em] text-bruma/70">
                 <span>LOWER</span>
