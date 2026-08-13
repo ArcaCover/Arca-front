@@ -173,7 +173,10 @@ export default function Hero() {
       {/* Coverages marquee — decorative. A single band centered on the page,
           sitting below the orb with equal margins on both sides. */}
       <div className="relative mx-auto max-w-[1240px] px-8 pb-12 pt-24 lg:px-[76px]">
-        <p className="mb-5 text-center font-heading text-[20px] font-medium tracking-tight text-marino/40">
+        {/* Stays under the hero's own voice: below the 19px subtitle and level
+            with the CTA, a step over the 16px items it introduces. Its presence
+            comes from the weight, since going bigger outranks the subtitle. */}
+        <p className="mb-5 text-center font-heading text-[17px] font-semibold tracking-tight text-marino/40">
           What we cover
         </p>
         <div
