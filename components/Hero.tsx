@@ -107,7 +107,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section id="top" ref={heroRef} className="relative overflow-hidden bg-white">
+    <section id="top" ref={heroRef} className="bg-canvas relative overflow-hidden">
       <div
         ref={glowRef}
         aria-hidden="true"

@@ -68,6 +68,12 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Fades every halo in over the first stretch of the canvas. Without it the
+     topmost halo is clipped by the container edge and lands as a hard line
+     exactly where the hero ends, which made the hero look like a separate
+     sheet of paper. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0px, black 420px);
+  mask-image: linear-gradient(to bottom, transparent 0px, black 420px);
   background:
     radial-gradient(
       58% 16% at 90% 2%,
