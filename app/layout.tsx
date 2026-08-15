@@ -15,7 +15,7 @@ const mulish = Mulish({
 
 const TITLE = "Arca: AI Liability Insurance for the Legal Industry";
 const DESCRIPTION =
-  "Arca covers what your professional liability policy doesn't: malpractice, faulty automated decisions, and regulatory exposure from the AI tools your firm already uses.";
+  "Arca covers what your professional liability policy doesn't: malpractice, faulty automated decisions, and regulatory exposure from the AI tools you already use.";
 
 // A plain string title, deliberately not a template, so nothing is appended
 // to it in the browser tab or in search results.
