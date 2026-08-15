@@ -23,6 +23,10 @@ export default function ValuePillars() {
         <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-5xl">
           What we do.
         </h2>
+        <p className="mx-auto mt-5 max-w-[600px] text-pretty text-center text-[18px] leading-[1.6] text-marino/80">
+          Insurance built around how your practice actually uses AI — not
+          adapted from a generic tech policy.
+        </p>
         <div className="mt-14 grid gap-6 md:grid-cols-3">
           {PILLARS.map((pillar, index) => (
             <div key={pillar.title} className="rounded-[1.75rem] bg-bruma p-8">

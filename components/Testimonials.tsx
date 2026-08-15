@@ -61,6 +61,9 @@ export default function Testimonials() {
         <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-5xl">
           What our clients say.
         </h2>
+        <p className="mx-auto mt-5 max-w-[600px] text-pretty text-center text-[18px] leading-[1.6] text-marino/80">
+          How legal teams are closing the gap in their AI coverage.
+        </p>
 
         <div className="relative mx-auto mt-12 min-h-[420px] max-w-4xl overflow-hidden rounded-3xl">
           <div
