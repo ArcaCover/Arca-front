@@ -16,7 +16,7 @@ const PILLARS = [
 
 export default function ValuePillars() {
   return (
-    <section id="what-we-do" className="bg-canvas px-6 py-20 md:py-24">
+    <section id="what-we-do" className="px-6 py-20 md:py-24">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-5xl">
           What we do.

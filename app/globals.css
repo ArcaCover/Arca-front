@@ -11,8 +11,10 @@
 
   /* Page canvas for everything between the hero and the pre-footer. Not a new
      brand colour: a trace of marino over white, so it warms or cools with the
-     palette instead of drifting off on its own. */
-  --color-canvas: color-mix(in srgb, var(--color-marino) 4%, white);
+     palette instead of drifting off on its own. Kept close to white on
+     purpose — the halos over it are what give the page depth, and a heavier
+     grey underneath only muddies them. */
+  --color-canvas: color-mix(in srgb, var(--color-marino) 2%, white);
 
   --font-heading: var(--font-space-grotesk);
   --font-body: var(--font-mulish);
@@ -47,6 +49,66 @@ html {
 
 body {
   @apply bg-white font-body text-marino;
+}
+
+/* ── Page canvas ────────────────────────────────────────────────────────
+   The hero does not sit on a colour, it sits on white lit by a huge blurred
+   orb. This carries that same idea down the page: a near-white base with a
+   few very wide halos of cielo and bruma placed at different heights, so the
+   body reads as one lit room instead of a flat grey slab. Sizes are in
+   percentages of this container, which spans every body section, so the
+   halos stay put relative to the page rather than to any one section. */
+.page-canvas {
+  position: relative;
+  background: var(--color-canvas);
+}
+
+.page-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      58% 16% at 90% 2%,
+      color-mix(in srgb, var(--color-cielo) 34%, transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(
+      52% 15% at 2% 18%,
+      color-mix(in srgb, var(--color-bruma) 92%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 13% at 96% 33%,
+      color-mix(in srgb, var(--color-cielo) 22%, transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(
+      56% 15% at 4% 52%,
+      color-mix(in srgb, var(--color-bruma) 85%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      54% 14% at 98% 68%,
+      color-mix(in srgb, var(--color-cielo) 26%, transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(
+      52% 15% at 2% 85%,
+      color-mix(in srgb, var(--color-bruma) 88%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      56% 14% at 90% 98%,
+      color-mix(in srgb, var(--color-cielo) 28%, transparent) 0%,
+      transparent 72%
+    );
+}
+
+/* Keeps the sections above the halos. */
+.page-canvas > * {
+  position: relative;
 }
 
 /* Hero orb layers. Every stop is mixed from the brand tokens above, so the

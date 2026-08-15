@@ -14,11 +14,15 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <Products />
-        <AiGapSection />
-        <Testimonials />
-        <ValuePillars />
-        <HowWeOperate />
+        {/* One lit canvas behind every body section, so the page reads as a
+            single space rather than a stack of differently tinted bands. */}
+        <div className="page-canvas">
+          <Products />
+          <AiGapSection />
+          <Testimonials />
+          <ValuePillars />
+          <HowWeOperate />
+        </div>
       </main>
       <OceanPrefooter>
         <Footer />
