@@ -105,7 +105,7 @@ export default function AiGapSection() {
   return (
     <section
       ref={sectionRef}
-      className={`ai-gap bg-white ${sectionOnScreen ? "" : "ai-gap--paused"}`}
+      className={`ai-gap bg-canvas ${sectionOnScreen ? "" : "ai-gap--paused"}`}
     >
       {/* ═══ BLOCK A — stats ═══ */}
       {/* TODO: verify data + add sources before launch */}

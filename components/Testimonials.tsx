@@ -56,7 +56,7 @@ export default function Testimonials() {
   const testimonial = TESTIMONIALS[index];
 
   return (
-    <section ref={sectionRef} className="bg-bruma px-6 py-20 md:py-24">
+    <section ref={sectionRef} className="bg-canvas px-6 py-20 md:py-24">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center font-heading text-3xl font-medium tracking-tight text-marino md:text-5xl">
           What our clients say.

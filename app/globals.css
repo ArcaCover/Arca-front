@@ -9,6 +9,11 @@
   --color-bruma: #e4f4f7;
   --color-rojo: #ec3325;
 
+  /* Page canvas for everything between the hero and the pre-footer. Not a new
+     brand colour: a trace of marino over white, so it warms or cools with the
+     palette instead of drifting off on its own. */
+  --color-canvas: color-mix(in srgb, var(--color-marino) 4%, white);
+
   --font-heading: var(--font-space-grotesk);
   --font-body: var(--font-mulish);
 

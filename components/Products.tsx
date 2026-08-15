@@ -94,7 +94,7 @@ export default function Products() {
       id="products"
       ref={sectionRef}
       aria-label="How Arca works"
-      className="bg-bruma px-5 py-16 min-[861px]:px-10 min-[861px]:pb-[88px] min-[861px]:pt-[72px]"
+      className="bg-canvas px-5 py-16 min-[861px]:px-10 min-[861px]:pb-[88px] min-[861px]:pt-[72px]"
     >
       {/* Heading block matches the type scale of the section below it. */}
       <div className="mx-auto flex max-w-[1080px] flex-col items-center gap-14 max-[1080px]:gap-10">

@@ -19,7 +19,7 @@ const BLOCKS = [
 
 export default function HowWeOperate() {
   return (
-    <section className="bg-white px-3 pb-6 md:px-4 md:pb-8">
+    <section className="bg-canvas px-3 pb-6 md:px-4 md:pb-8">
       <div className="mx-auto grid max-w-6xl gap-10 rounded-[2rem] bg-marino p-10 md:grid-cols-3 md:rounded-[2.5rem] md:p-16">
         {BLOCKS.map((block) => (
           <div key={block.title}>
