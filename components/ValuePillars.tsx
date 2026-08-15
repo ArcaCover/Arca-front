@@ -7,7 +7,7 @@ const PILLARS = [
   {
     title: "Built for how AI fails in practice",
     description:
-      "Coverage designed around the real ways AI creates exposure for a law firm — not a generic tech policy.",
+      "Coverage designed around the real ways AI creates exposure — from a hallucinated citation to a disciplinary complaint.",
   },
   {
     title: "A digital process, start to finish",

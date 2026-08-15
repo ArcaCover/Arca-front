@@ -13,7 +13,7 @@ const mulish = Mulish({
   variable: "--font-mulish",
 });
 
-const TITLE = "Arca — AI Liability Insurance for Law Firms";
+const TITLE = "Arca: AI Liability Insurance for the Legal Industry";
 const DESCRIPTION =
   "Arca covers what your professional liability policy doesn't: malpractice, faulty automated decisions, and regulatory exposure from the AI tools your firm already uses.";
 
