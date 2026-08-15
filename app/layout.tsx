@@ -17,9 +17,22 @@ const TITLE = "Arca: AI Liability Insurance for the Legal Industry";
 const DESCRIPTION =
   "Arca covers what your professional liability policy doesn't: malpractice, faulty automated decisions, and regulatory exposure from the AI tools you already use.";
 
+// Share cards need absolute URLs, so the relative image below is resolved
+// against this. TODO: set NEXT_PUBLIC_SITE_URL to the real domain before launch
+// — without it the card points at localhost and no scraper can fetch it.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+const OG_IMAGE = {
+  url: "/og.png",
+  width: 1200,
+  height: 630,
+  alt: "Arca — coverage for the mistakes AI makes in your name.",
+};
+
 // A plain string title, deliberately not a template, so nothing is appended
 // to it in the browser tab or in search results.
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: TITLE,
   description: DESCRIPTION,
   // The SVG comes first so browsers that support it scale the mark cleanly at
@@ -37,12 +50,14 @@ export const metadata: Metadata = {
     type: "website",
     title: TITLE,
     description: DESCRIPTION,
-    // TODO: add OG image before launch
+    siteName: "Arca",
+    images: [OG_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
+    images: [OG_IMAGE],
   },
 };
 
