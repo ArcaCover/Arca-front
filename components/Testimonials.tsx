@@ -93,15 +93,6 @@ export default function Testimonials() {
                 {testimonial.author}
               </figcaption>
 
-              {/* TODO: link to case study page */}
-              <button
-                type="button"
-                className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/40 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-              >
-                Read case study
-                <span aria-hidden="true">&rarr;</span>
-              </button>
-
               <div className="mt-10 flex gap-8 md:gap-10">
                 {testimonial.metrics.map((metric) => (
                   <div key={metric.label}>
