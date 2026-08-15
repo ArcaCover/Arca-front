@@ -303,6 +303,48 @@ body {
   animation-play-state: paused;
 }
 
+/* ── Testimonial card ───────────────────────────────────────────────────
+   TODO: replace public/brand/testimonial-bg.jpg before launch — commercial
+   licence for this asset is unverified. */
+.testimonial-bg {
+  background-image: url("/brand/testimonial-bg.jpg");
+  background-size: cover;
+  background-position: 50% 50%;
+  animation: bg-drift 20s ease-in-out infinite;
+}
+
+/* The drift lives on this layer, never on the card itself: scaling the card
+   would drag the text and the metrics along with it. */
+@keyframes bg-drift {
+  0% {
+    background-position: 50% 50%;
+    transform: scale(1);
+  }
+  50% {
+    background-position: 52% 48%;
+    transform: scale(1.03);
+  }
+  100% {
+    background-position: 50% 50%;
+    transform: scale(1);
+  }
+}
+
+/* Same off-screen freeze the AI gap section uses. */
+.testimonial-bg--paused {
+  animation-play-state: paused;
+}
+
+/* Lifts text contrast over the photograph without flattening it to a block. */
+.testimonial-scrim {
+  background: linear-gradient(
+    120deg,
+    color-mix(in srgb, var(--color-marino) 78%, transparent) 0%,
+    color-mix(in srgb, var(--color-marino) 62%, transparent) 55%,
+    color-mix(in srgb, var(--color-marino) 40%, transparent) 100%
+  );
+}
+
 /* Pre-footer ocean video. The deep navies are mixed down from the marino token
    rather than written as literals. */
 .ocean-section {
@@ -386,5 +428,14 @@ body {
   .ag-tip,
   .ag-card {
     transition: none !important;
+  }
+
+  .testimonial-bg {
+    animation: none;
+    transform: none;
+  }
+
+  .testimonial-fade {
+    transition: none;
   }
 }
