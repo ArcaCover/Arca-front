@@ -306,27 +306,32 @@ body {
 /* ── Testimonial card ───────────────────────────────────────────────────
    TODO: replace public/brand/testimonial-bg.jpg before launch — commercial
    licence for this asset is unverified. */
+/* The source photo is tall (1400x2400) and the card is wide and short, so a
+   `cover` fit inside the card would only ever show one flat central band —
+   which is why a small drift there looked like nothing was moving. Instead the
+   layer is four times the card's height, holding the whole photo, and it
+   travels the full way down and back. The folds sweep through the card. */
 .testimonial-bg {
   background-image: url("/brand/testimonial-bg.jpg");
   background-size: cover;
-  background-position: 50% 50%;
-  animation: bg-drift 20s ease-in-out infinite;
+  background-position: 50% 0%;
+  /* Linear on purpose. Any ease parks the sweep for seconds at each turn and
+     the card reads as a still photo there; a constant crawl always shows
+     movement, and on an abstract texture the turn itself goes unnoticed. */
+  animation: bg-sweep 24s linear infinite alternate;
+  will-change: transform;
 }
 
-/* The drift lives on this layer, never on the card itself: scaling the card
+/* Travel stops at -75%: the layer is 400% tall, so at that point its bottom
+   edge is still level with the card's and no corner is ever exposed. The
+   sweep lives on this layer, never on the card itself — scaling the card
    would drag the text and the metrics along with it. */
-@keyframes bg-drift {
+@keyframes bg-sweep {
   0% {
-    background-position: 50% 50%;
-    transform: scale(1);
-  }
-  50% {
-    background-position: 52% 48%;
-    transform: scale(1.03);
+    transform: translate3d(0, 0, 0) scale(1.04);
   }
   100% {
-    background-position: 50% 50%;
-    transform: scale(1);
+    transform: translate3d(0, -75%, 0) scale(1.12);
   }
 }
 
@@ -335,13 +340,16 @@ body {
   animation-play-state: paused;
 }
 
-/* Lifts text contrast over the photograph without flattening it to a block. */
+/* Lifts text contrast over the photograph without flattening it to a block.
+   All the copy sits in the left 60%, so the scrim stays heavy there and thins
+   out towards the right, where the moving folds can show through. */
 .testimonial-scrim {
   background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--color-marino) 78%, transparent) 0%,
-    color-mix(in srgb, var(--color-marino) 62%, transparent) 55%,
-    color-mix(in srgb, var(--color-marino) 40%, transparent) 100%
+    100deg,
+    color-mix(in srgb, var(--color-marino) 80%, transparent) 0%,
+    color-mix(in srgb, var(--color-marino) 74%, transparent) 45%,
+    color-mix(in srgb, var(--color-marino) 40%, transparent) 75%,
+    color-mix(in srgb, var(--color-marino) 22%, transparent) 100%
   );
 }
 
@@ -432,7 +440,7 @@ body {
 
   .testimonial-bg {
     animation: none;
-    transform: none;
+    transform: translate3d(0, -35%, 0);
   }
 
   .testimonial-fade {

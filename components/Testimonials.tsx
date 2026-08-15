@@ -63,12 +63,13 @@ export default function Testimonials() {
         </h2>
 
         <div className="relative mx-auto mt-12 min-h-[420px] max-w-4xl overflow-hidden rounded-3xl">
-          <div
-            aria-hidden="true"
-            className={`testimonial-bg absolute inset-0 ${
-              inView ? "" : "testimonial-bg--paused"
-            }`}
-          />
+          <div aria-hidden="true" className="absolute inset-0 overflow-hidden">
+            <div
+              className={`testimonial-bg absolute inset-x-0 top-0 h-[400%] ${
+                inView ? "" : "testimonial-bg--paused"
+              }`}
+            />
+          </div>
           <div aria-hidden="true" className="testimonial-scrim absolute inset-0" />
 
           <figure
