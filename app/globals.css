@@ -394,13 +394,17 @@ body {
 }
 
 /* Each blob is rasterised blurred once and only its transform animates, so
-   the loop stays on the compositor instead of repainting a 70px blur. */
+   the loop stays on the compositor instead of repainting the blur.
+   Blobs are kept smaller than the card and their orbits wide: a blob larger
+   than the card just fills it evenly, and sliding an even fill around changes
+   nothing you can see. What reads as movement is the blob's edge crossing
+   the card, so the edge has to stay inside it. */
 .silk-blob {
   position: absolute;
   top: 50%;
   left: 50%;
   border-radius: 50%;
-  filter: blur(70px);
+  filter: blur(45px);
   animation: silk-orbit var(--period) linear infinite;
   will-change: transform;
 }
@@ -417,61 +421,61 @@ body {
 }
 
 .silk-blob--a {
-  --period: 19s;
-  --rx: 150px;
-  --ry: 40px;
-  margin: -350px 0 0 -350px;
-  width: 700px;
-  height: 700px;
+  --period: 17s;
+  --rx: 250px;
+  --ry: 105px;
+  margin: -200px 0 0 -200px;
+  width: 400px;
+  height: 400px;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--color-cielo) 88%, white) 0%,
-    color-mix(in srgb, var(--color-cielo) 55%, transparent) 55%,
-    transparent 72%
+    color-mix(in srgb, var(--color-cielo) 60%, white) 0%,
+    color-mix(in srgb, var(--color-cielo) 80%, transparent) 48%,
+    transparent 70%
   );
 }
 
 .silk-blob--b {
-  --period: 27s;
-  --rx: 230px;
-  --ry: 90px;
-  margin: -300px 0 0 -300px;
-  width: 600px;
-  height: 600px;
+  --period: 26s;
+  --rx: 340px;
+  --ry: 145px;
+  margin: -170px 0 0 -170px;
+  width: 340px;
+  height: 340px;
   animation-direction: reverse;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, var(--color-cielo) 70%, transparent) 0%,
-    transparent 68%
-  );
-}
-
-.silk-blob--c {
-  --period: 23s;
-  --rx: 190px;
-  --ry: 130px;
-  margin: -340px 0 0 -340px;
-  width: 680px;
-  height: 680px;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--color-marino) 62%, black) 0%,
+    color-mix(in srgb, var(--color-cielo) 92%, transparent) 0%,
     transparent 66%
   );
 }
 
+.silk-blob--c {
+  --period: 21s;
+  --rx: 230px;
+  --ry: 130px;
+  margin: -190px 0 0 -190px;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-marino) 55%, black) 0%,
+    transparent 64%
+  );
+}
+
 .silk-blob--d {
-  --period: 15s;
-  --rx: 270px;
-  --ry: 60px;
-  margin: -220px 0 0 -220px;
-  width: 440px;
-  height: 440px;
+  --period: 13s;
+  --rx: 380px;
+  --ry: 85px;
+  margin: -130px 0 0 -130px;
+  width: 260px;
+  height: 260px;
   animation-direction: reverse;
   background: radial-gradient(
     circle,
-    color-mix(in srgb, white 55%, var(--color-cielo)) 0%,
-    transparent 62%
+    color-mix(in srgb, white 70%, var(--color-cielo)) 0%,
+    transparent 60%
   );
 }
 
