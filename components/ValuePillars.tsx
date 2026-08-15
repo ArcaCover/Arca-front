@@ -1,16 +1,18 @@
 const PILLARS = [
   {
-    title: "Easy",
+    title: "Plain-English coverage",
     description:
-      "Get covered fully online, in plain language — no jargon, no fine print.",
+      "Policies written in language attorneys actually use — no jargon, no fine print games.",
   },
   {
-    title: "Reliable",
-    description: "Coverage designed specifically for the risks AI creates.",
+    title: "Built for how AI fails in practice",
+    description:
+      "Coverage designed around the real ways AI creates exposure for a law firm — not a generic tech policy.",
   },
   {
-    title: "Fast",
-    description: "A fully digital process, built to move at the speed you do.",
+    title: "A digital process, start to finish",
+    description:
+      "From assessment to bound policy, everything happens online, at the speed your firm needs.",
   },
 ];
 

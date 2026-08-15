@@ -13,11 +13,9 @@ const mulish = Mulish({
   variable: "--font-mulish",
 });
 
-// TODO: review SEO copy before launch (quote flow not live yet)
-const TITLE =
-  "Arca: AI Liability Insurance for Law, Accounting & Consulting Firms";
+const TITLE = "Arca — AI Liability Insurance for Law Firms";
 const DESCRIPTION =
-  "Your professional liability policy was written before AI. Arca covers the gap: malpractice, faulty automated decisions, and regulatory exposure from the AI tools you already use. Get a quote in minutes.";
+  "Arca covers what your professional liability policy doesn't: malpractice, faulty automated decisions, and regulatory exposure from the AI tools your firm already uses.";
 
 // A plain string title, deliberately not a template, so nothing is appended
 // to it in the browser tab or in search results.

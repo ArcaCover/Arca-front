@@ -122,12 +122,12 @@ export default function Hero() {
         <div className="relative z-10 flex max-w-[540px] flex-col items-start gap-7">
           <RotatingBadge className="animate-fade-up" />
           <h1 className="animate-fade-up text-pretty font-heading text-[clamp(38px,8vw,56px)] font-semibold leading-[1.03] tracking-[-0.038em] text-marino [animation-delay:100ms] lg:text-[66px]">
-            Insurance for businesses that rely on AI.
+            Insurance for law firms that rely on AI.
           </h1>
           <p className="max-w-[430px] animate-fade-up text-pretty text-[19px] leading-relaxed text-marino/65 [animation-delay:200ms]">
             AI moves faster than the risks it creates. Arca is the eye that
-            watches over them, from model failures to automated decisions, so
-            your business stays protected.
+            watches over your practice, from AI-drafted errors to automated
+            decisions, so your firm stays protected.
           </p>
           {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
           <button

@@ -3,17 +3,17 @@ const BLOCKS = [
   {
     title: "Managing General Agent (MGA)",
     description:
-      "We underwrite, issue, and service policies on behalf of the risk carrier.",
+      "Arca underwrites, issues, and manages every policy on behalf of the insurance carrier that assumes the risk.",
   },
   {
     title: "Surplus lines",
     description:
-      "Specialized coverage for emerging AI risks, outside the standard admitted market.",
+      "Because AI risk is new and still evolving, our coverage is placed in the surplus lines market — built for risks the standard market hasn't caught up to yet.",
   },
   {
     title: "Building toward Lloyd's coverholder status",
     description:
-      "We are working toward becoming an approved Lloyd's coverholder — an ongoing goal, not a status we hold today.",
+      "We are working toward Lloyd's coverholder status — a goal we're pursuing, not a status we hold today.",
   },
 ];
 

@@ -20,7 +20,7 @@ const FEATURES = [
   {
     num: "03",
     title: "Get real numbers",
-    desc: "Three coverage options, ready to compare — in minutes, not a call with an underwriter.",
+    desc: "Three coverage options, ready to compare — clear pricing, no waiting on a quote.",
   },
   {
     num: "04",
