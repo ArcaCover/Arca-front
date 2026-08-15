@@ -376,53 +376,120 @@ body {
   animation-play-state: paused;
 }
 
-/* ── Testimonial card ───────────────────────────────────────────────────
-   TODO: replace public/brand/testimonial-bg.jpg before launch — commercial
-   licence for this asset is unverified. */
-/* The source photo is tall (1400x2400) and the card is wide and short, so a
-   `cover` fit inside the card would only ever show one flat central band —
-   which is why a small drift there looked like nothing was moving. Instead the
-   layer is four times the card's height, holding the whole photo, and it
-   travels the full way down and back. The folds sweep through the card. */
-.testimonial-bg {
-  background-image: url("/brand/testimonial-bg.jpg");
-  background-size: cover;
-  background-position: 50% 0%;
-  /* Linear on purpose. Any ease parks the sweep for seconds at each turn and
-     the card reads as a still photo there; a constant crawl always shows
-     movement, and on an abstract texture the turn itself goes unnoticed. */
-  animation: bg-sweep 24s linear infinite alternate;
+/* ── Testimonial card silk ──────────────────────────────────────────────
+   Built from the palette in code rather than from a photograph. A still
+   photo can only be panned, so it had no gradients of its own to move and
+   its travel had to end somewhere and turn around. Here four blurred blobs
+   orbit their own centres at different periods and radii: the gradients
+   themselves move, the periods never line up, and a full 360deg turn ends
+   exactly where it began, so nothing ever restarts. */
+.silk {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-cielo) 94%, white) 0%,
+    color-mix(in srgb, var(--color-cielo) 84%, var(--color-marino)) 30%,
+    color-mix(in srgb, var(--color-cielo) 58%, var(--color-marino)) 58%,
+    color-mix(in srgb, var(--color-cielo) 34%, var(--color-marino)) 100%
+  );
+}
+
+/* Each blob is rasterised blurred once and only its transform animates, so
+   the loop stays on the compositor instead of repainting a 70px blur. */
+.silk-blob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  filter: blur(70px);
+  animation: silk-orbit var(--period) linear infinite;
   will-change: transform;
 }
 
-/* Travel stops at -75%: the layer is 400% tall, so at that point its bottom
-   edge is still level with the card's and no corner is ever exposed. The
-   sweep lives on this layer, never on the card itself — scaling the card
-   would drag the text and the metrics along with it. */
-@keyframes bg-sweep {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1.04);
+/* One keyframe for every blob: the orbit radius comes from --rx/--ry on the
+   element itself, so each blob traces its own ellipse. */
+@keyframes silk-orbit {
+  from {
+    transform: rotate(0deg) translate(var(--rx), var(--ry));
   }
-  100% {
-    transform: translate3d(0, -75%, 0) scale(1.12);
+  to {
+    transform: rotate(360deg) translate(var(--rx), var(--ry));
   }
+}
+
+.silk-blob--a {
+  --period: 19s;
+  --rx: 150px;
+  --ry: 40px;
+  margin: -350px 0 0 -350px;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-cielo) 88%, white) 0%,
+    color-mix(in srgb, var(--color-cielo) 55%, transparent) 55%,
+    transparent 72%
+  );
+}
+
+.silk-blob--b {
+  --period: 27s;
+  --rx: 230px;
+  --ry: 90px;
+  margin: -300px 0 0 -300px;
+  width: 600px;
+  height: 600px;
+  animation-direction: reverse;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-cielo) 70%, transparent) 0%,
+    transparent 68%
+  );
+}
+
+.silk-blob--c {
+  --period: 23s;
+  --rx: 190px;
+  --ry: 130px;
+  margin: -340px 0 0 -340px;
+  width: 680px;
+  height: 680px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-marino) 62%, black) 0%,
+    transparent 66%
+  );
+}
+
+.silk-blob--d {
+  --period: 15s;
+  --rx: 270px;
+  --ry: 60px;
+  margin: -220px 0 0 -220px;
+  width: 440px;
+  height: 440px;
+  animation-direction: reverse;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, white 55%, var(--color-cielo)) 0%,
+    transparent 62%
+  );
 }
 
 /* Same off-screen freeze the AI gap section uses. */
-.testimonial-bg--paused {
+.silk--paused .silk-blob {
   animation-play-state: paused;
 }
 
-/* Lifts text contrast over the photograph without flattening it to a block.
-   All the copy sits in the left 60%, so the scrim stays heavy there and thins
-   out towards the right, where the moving folds can show through. */
+/* Lifts text contrast over the silk without flattening it to a block. All
+   the copy sits in the left 60%, so the scrim stays heavy there and thins
+   out towards the right, where the moving gradients can show through. */
 .testimonial-scrim {
   background: linear-gradient(
     100deg,
-    color-mix(in srgb, var(--color-marino) 80%, transparent) 0%,
-    color-mix(in srgb, var(--color-marino) 74%, transparent) 45%,
-    color-mix(in srgb, var(--color-marino) 40%, transparent) 75%,
-    color-mix(in srgb, var(--color-marino) 22%, transparent) 100%
+    color-mix(in srgb, var(--color-marino) 74%, transparent) 0%,
+    color-mix(in srgb, var(--color-marino) 60%, transparent) 42%,
+    color-mix(in srgb, var(--color-marino) 14%, transparent) 68%,
+    transparent 100%
   );
 }
 
@@ -511,9 +578,10 @@ body {
     transition: none !important;
   }
 
-  .testimonial-bg {
+  /* The blobs keep their opening positions, which is still a full gradient. */
+  .silk-blob {
     animation: none;
-    transform: translate3d(0, -35%, 0);
+    transform: translate(var(--rx), var(--ry));
   }
 
   .testimonial-fade {
