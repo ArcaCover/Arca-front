@@ -18,9 +18,10 @@ const DESCRIPTION =
   "Arca covers what your professional liability policy doesn't: malpractice, faulty automated decisions, and regulatory exposure from the AI tools you already use.";
 
 // Share cards need absolute URLs, so the relative image below is resolved
-// against this. TODO: set NEXT_PUBLIC_SITE_URL to the real domain before launch
-// — without it the card points at localhost and no scraper can fetch it.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+// against this. The production domain is the default so nothing has to be
+// configured for it to work; the env var is only there to point previews and
+// staging at themselves.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://arcacover.com";
 
 const OG_IMAGE = {
   url: "/og.png",
