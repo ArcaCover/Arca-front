@@ -136,6 +136,9 @@ distintos hacia la misma lógica.
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando lógica y
   validaciones en TypeScript.
 - **Hosting frontend:** **Vercel**.
+- **Dominio:** **arcacover.com** (confirmado). Vive como valor por defecto en
+  `app/layout.tsx` para que producción no dependa de configurar nada;
+  `NEXT_PUBLIC_SITE_URL` existe solo para apuntar previews o staging a sí mismos.
 - **Hosting backend:** Railway o Render (decisión de Jesús, pendiente).
 - **Costo de infra MVP:** ~$0-55/mes.
 - **Convención:** validaciones y tipos se escriben **una sola vez** y se comparten; no
@@ -159,6 +162,22 @@ distintos hacia la misma lógica.
 - **Colores fuera de paleta:** si el diseño trae un color que no está en la paleta
   (p. ej. un verde), sustituirlo por el token más cercano (cielo, oro, etc.) y avisar.
   No ampliar la paleta sin decisión del fundador.
+- **El compilador puede descartar CSS válido en silencio.** Una capa de degradado
+  con `var()` y una parada en `0` sin unidad desapareció de `background` sin dar
+  error, y el efecto simplemente no ocurría. Se resolvió con `mask-image`. Moraleja:
+  cuando un estilo "no hace nada", **comprobar en el navegador que la regla llegó**
+  (contar las capas con `getComputedStyle`) antes de reescribir el diseño.
+- **Movimiento que no se ve:** una capa animada más grande que su contenedor lo
+  llena de forma uniforme, y desplazar un relleno uniforme no cambia la imagen. Para
+  que un fondo se perciba en movimiento, lo que debe cruzar el encuadre es el
+  **borde** de la forma, no su centro. Pasó dos veces en la tarjeta de testimonios.
+- **Bucles sin costura:** una animación que va y vuelve (`alternate`) se detiene en
+  cada giro y se lee como imagen fija; un recorrido finito tiene que reiniciarse. Una
+  **rotación de 360°** empieza donde termina, así que nunca salta. Con varias capas
+  de periodos sin factores comunes, el patrón tarda horas en repetirse.
+- **Generación de imágenes:** `sharp` está disponible como dependencia de Next y sirve
+  para rasterizar SVG a PNG (así se generó `public/og.png`). No hace falta instalar
+  nada ni usar herramientas externas.
 
 ### Idioma — dos niveles (regla estricta)
 
@@ -207,8 +226,15 @@ El nombre "Arca" trae **tres ideas** que deben respirarse en diseño y tono:
 Lemonade: lenguaje llano, mucho aire, sin letra chica), con acabado moderno y algo
 "tech". Tono B2B: cercano pero serio. Layouts **editoriales** (no todo centrado y del
 mismo tamaño), esquinas muy redondeadas, botones tipo píldora, CTA dorado con flecha
-dentro de un **círculo blanco**. Alternar secciones claras (blanco/bruma) con bloques
-marino para dar ritmo. Nunca copiar a Lemonade ni a ninguna marca real.
+dentro de un **círculo blanco**. Nunca copiar a Lemonade ni a ninguna marca real.
+
+**Fondo de la página (decisión revisada):** ya **no** se alternan secciones
+blanco/bruma. El hero y todo el cuerpo comparten **un único lienzo iluminado**: base
+casi blanca (`--color-canvas`) con varios halos muy amplios de cielo y bruma
+repartidos a lo largo de toda su altura. La idea es la del hero — no es un color, es
+blanco con una fuente de luz encima — y el ritmo lo dan ahora los **bloques marino**
+y las tarjetas que flotan sobre el lienzo. Se probó un gris plano antes y se
+descartó: un gris de base ensucia cualquier luz que se le ponga encima.
 
 ### Paleta de color y roles (usar exactamente estos hex, siempre vía tokens)
 
@@ -219,18 +245,29 @@ marino para dar ritmo. Nunca copiar a Lemonade ni a ninguna marca real.
 - **Oro oscuro `#D4A12A`** — texto dorado sobre claro, estados hover, eyebrows sobre
   fondo claro.
 - **Blanco `#FFFFFF`** — lienzo principal.
-- **Bruma `#E4F4F7`** — fondos alternos de sección.
+- **Bruma `#E4F4F7`** — tarjetas y etiquetas (ya no fondos de sección).
 - **Rojo `#EC3325`** — RESERVADO solo para alertas y errores.
+
+**Token derivado (no es un color nuevo de marca):**
+- **`--color-canvas`** = `color-mix(in srgb, var(--color-marino) 2%, white)` ≈ `#FAFAFB`.
+  Lienzo del hero y de todo el cuerpo. Se deja **muy cerca del blanco a propósito**:
+  los halos encima son los que dan profundidad, y un gris más denso debajo solo los
+  enturbia.
 
 **Convención de tokens:** colores y fuentes se definen **una sola vez** como tokens y se
 usan por nombre. **Nunca escribir un hex suelto en un componente.** Los tonos
 intermedios que no existan en la paleta se **derivan de los tokens con `color-mix`**
 (como se hizo con los degradados del orbe).
 
-**Excepción documentada:** la paleta interna del **shader WebGL del océano** (constantes
-GLSL de agua, cielo, espuma y brillo) se deja tal cual, porque son parte del algoritmo
-de render y atarlas a tokens cambiaría el aspecto aprobado. Va con un comentario que lo
-explica.
+**Excepción retirada:** existía una excepción para las constantes GLSL del shader WebGL
+del océano. Ese shader **ya no está en el código** (lo sustituyó el vídeo), así que la
+excepción desapareció con él. Comprobado: los **únicos hex de `app/` y `components/`
+son los seis tokens** de `globals.css`.
+
+**Única excepción viva:** `public/brand/og-source.svg` sí lleva los hex escritos. Es un
+asset que se rasteriza fuera del navegador (con `sharp`), donde no existen las
+variables CSS, así que los valores van resueltos a mano. Si cambia la paleta, hay que
+actualizarlo también.
 
 ### Assets de marca
 
@@ -247,6 +284,11 @@ explica.
   para no duplicar tags.
 - **Encuadre:** los assets de marca deben venir centrados y llenando su lienzo. El
   favicon llegaba con 33% de vacío abajo y solo 57% de alto ocupado; se recentró al 90%.
+- **Imagen para compartir (Open Graph):** `public/og.png`, 1200×630, ~155 KB. Está
+  **dibujada con código** (orbe del hero con su degradado y anillos sobre fondo
+  marino + wordmark real + titular de Products). El SVG fuente vive en
+  `public/brand/og-source.svg`: si cambia el copy, se reedita ese archivo y se
+  re-rasteriza con `sharp`, no se retoca el PNG.
 
 ---
 
@@ -395,7 +437,7 @@ Documento de diseño detallado: ARCA_SCORE_ENGINE_BLUEPRINT_v2.md.
 ### 6.4 Tres flujos de adquisición
 
 **Flujo A — Directo (self-service)**
-1. Abogado llega a arca.com.
+1. Abogado llega a arcacover.com.
 2. Pone email + dominio (estilo Lemonade: sin contraseña, sin registro).
 3. Ve Pre-Score en 30-60 segundos.
 4. Completa cuestionario (~5 min).
@@ -452,7 +494,7 @@ una decisión pendiente (ver §4).
 ### 6.6 Onboarding de brokers
 
 Los brokers **NO se auto-registran**. Es un proceso manual:
-1. Broker ve página "Partners/Producers" en arca.com → llena formulario de solicitud.
+1. Broker ve página "Partners/Producers" en arcacover.com → llena formulario de solicitud.
 2. CEO hace discovery call y evalúa.
 3. Si aprobado, CEO crea la cuenta desde el panel admin.
 4. Broker recibe magic link de invitación → accede a su dashboard.
@@ -519,6 +561,13 @@ example — actual rates vary") o retirar las cifras.** Esta decisión queda pen
 
 ## 9. Estado de la landing institucional
 
+**Estructura de fondo:** `app/page.tsx` envuelve las cinco secciones del cuerpo
+(Products → How we operate) en un `div.page-canvas`. Ese contenedor lleva el lienzo
+y los halos; las secciones son **transparentes**, para que la luz sea continua y no
+haya costura entre ellas. El hero comparte el mismo token de base y los halos entran
+con una máscara en los primeros 420px, si no el corte del primer halo dibujaba una
+línea justo donde termina el hero.
+
 **Secciones actuales, en orden:**
 
 1. **Navbar** — transformable con scroll: arriba transparente con el **wordmark SVG**
@@ -526,47 +575,65 @@ example — actual rates vary") o retirar las cifras.** Esta decisión queda pen
    se fija con fondo blanco, el wordmark se reduce y aparece el botón dorado "Get a
    quote" empujando "My account" a su izquierda. Enlaces pegados a los **bordes reales**
    de la ventana (no al ancho del hero). Menús: "Coverages" (una sola opción: AI
-   Professional Malpractice), "Industries" (Legal, Accounting, Consulting — **sin
-   subniveles**) y "Partners" (Producers, Platforms). Accesibles por teclado; en móvil,
-   hamburguesa con logo centrado.
-2. **Hero** — dos columnas. Izquierda: badge **rotativo** ("Built for law firms" →
-   independent lawyers → accounting firms → independent accountants → consulting firms →
-   independent consultants, en ese orden fijo, ~3s cada uno, en bucle), título,
-   subtítulo y CTA dorado. Derecha: **orbe interactivo** que se inclina hacia el cursor
-   (halo y anillos lo siguen más lento; flotación automática en táctil; estático con
-   reduced-motion).
+   Professional Malpractice), "Industries" (**solo "Legal"**, desde `lib/industries.ts`)
+   y "Partners" (Producers, Platforms). Accesibles por teclado; en móvil, hamburguesa
+   con logo centrado.
+2. **Hero** — dos columnas. Izquierda: badge **rotativo** de **3 frases, todas legales**
+   ("Built for independent lawyers" → "Built for law firms" → "Built for legal
+   partnerships", en ese orden fijo, ~3s cada una, en bucle), título, subtítulo y CTA
+   dorado. Derecha: **orbe interactivo** que se inclina hacia el cursor (halo y anillos
+   lo siguen más lento; flotación automática en táctil; estático con reduced-motion).
 3. **Cinta de coberturas** — franja centrada a todo el ancho, márgenes simétricos, bajo
    el orbe sin tocar sus anillos, con fundido en los extremos. Muestra las **8 coberturas
    definitivas** y se alimenta de `lib/coverages.ts`. Lleva encima el micro-título
    "What we cover".
 4. **Products** — recorrido interactivo del producto:
-   - Fondo bruma, tarjeta blanca de ~1080px, esquinas de ~40px.
-   - **Encabezado fuera de la tarjeta (centrado):** headline "AI Professional Shield:
-     coverage for the mistakes AI makes in your name." + subtítulo "One policy built for
-     the risks your current coverage ignores." (mismo estilo tipográfico que la sección
-     "Your policy was written before AI").
+   - Sobre el lienzo de la página, tarjeta blanca de ~1080px, esquinas de ~40px.
+   - **Encabezado fuera de la tarjeta (centrado):** headline "Coverage for the mistakes
+     AI makes in your name." + subtítulo "One policy built for the risks your current
+     coverage ignores."
    - **Eyebrow** `FROM ASSESSMENT TO COVERAGE` en oro oscuro arriba de los pasos.
    - **Izquierda:** 4 features con auto-avance de ~5.5s y barra de progreso dorada. Clic
      salta y reinicia. Features: Know your risk in minutes · See where you stand · Get
      real numbers · Bind in minutes.
    - **Derecha:** panel de ~560×420 con vídeo de océano (`public/videos/ocean.mp4`) y 4
-     escenas (scorecard → gauge → cotizaciones → timeline de emisión).
+     escenas (scan → cuestionario → gauge y cotizaciones → timeline de emisión).
    - **Nota:** las 8 coberturas ya no se muestran en esta sección — solo viven en la
      cinta del hero. `COVERAGE_GROUPS` de `lib/coverages.ts` quedó sin consumir aquí.
 5. **"Your policy was written before AI"** — stats con count-up + tres cards animadas
    (documento que falla, barra de sublímite con tooltip, feed regulatorio).
-6. **Testimonials** — carrusel con placeholders ficticios.
-7. **How we operate** — MGA / surplus lines / Lloyd's como aspiración.
-8. **Pre-footer océano** — shader WebGL, "Don't navigate AI risk alone", CTA "Start a
-   conversation" (sin acción todavía).
-9. **Footer** — Contact, Resources, Company (Partners, Blog, Careers), Follow us.
+6. **Testimonials** — **una sola tarjeta grande** tipo case study (no carrusel de
+   tarjetas pequeñas): firma, titular, cita, autor y dos métricas en oro a la
+   izquierda; bloque de iniciales a la derecha; controles `‹ ›` con fundido de 300ms
+   para alternar los 3 testimonios. Datos en `lib/mock/testimonials.ts`, **solo firmas
+   legales y todas ficticias**. El fondo es **seda generada con código** (`.silk`):
+   cuatro manchas difuminadas orbitando sobre un degradado de la paleta, con periodos
+   19/27/23/15s. Antes era una foto de stock; se retiró (ver "Hechos").
+7. **What we do** — tres pilares (Plain-English coverage · Built for how AI fails in
+   practice · A digital process, start to finish) en tarjetas bruma.
+8. **How we operate** — MGA / surplus lines / Lloyd's como aspiración, en bloque marino.
+9. **Pre-footer océano** — **vídeo** (ya no shader WebGL), "Don't navigate AI risk
+   alone", CTA "Start a conversation" (sin acción todavía).
+10. **Footer** — Contact, Resources, Company (Partners, Blog, Careers), Follow us.
 
-**Textos clave actuales:**
-- Título hero: "Insurance for businesses that rely on AI."
+**Patrón de encabezado:** las cinco secciones con `<h2>` (Products, "Your policy…",
+Testimonials, What we do, pre-footer) llevan **titular + subtítulo** con el mismo
+tratamiento (18px, marino al 80%, centrado, 600px de ancho). Si se añade una sección
+nueva, seguir ese patrón.
+
+**Textos clave actuales** (el inventario completo del copy está en la §9.1):
+- Título hero: "Insurance for lawyers who rely on AI."
 - Subtítulo hero: "AI moves faster than the risks it creates. Arca is the eye that
-  watches over them, from model failures to automated decisions, so your business stays
-  protected."
-- Metadatos: title "Arca: AI Liability Insurance for Law, Accounting & Consulting Firms".
+  watches over your practice, from AI-drafted errors to automated decisions, so you
+  stay protected."
+- Metadatos: title "Arca: AI Liability Insurance for the Legal Industry" — con **dos
+  puntos**, no guion, y dirigido a la industria legal.
+
+**Audiencia — regla:** el sitio habla a **abogados** ("lawyers", "your practice"), no a
+"businesses" ni a "firms" a secas. "Lawyers" cubre las tres variantes del badge
+(independiente, firma, sociedad); "law firms" dejaba fuera al abogado independiente.
+Accounting y consulting **salieron de todo el texto visible** aunque siguen en el ICP
+secundario de la §1.
 
 **Coberturas (definidas por el CEO y Co-CEO; pendiente validación final con
 abogado/carrier):**
@@ -575,23 +642,40 @@ AI Privacy & Confidentiality Breach · Error Remediation · AI Forensic Investig
 Crisis Management · Regulatory Compliance Costs.
 **Producto único:** AI Professional Malpractice (las 8 coberturas).
 
+### 9.1 Inventario completo del copy
+
+La transcripción literal de **todo** el texto visible, sección por sección y en orden
+de lectura, incluido lo que no se ve de entrada (las 5 preguntas del cuestionario, las
+fuentes del escaneo, el feed regulatorio, el timeline de emisión), vive en
+`docs/copy-deck.md`. Lleva marcado qué es ficticio y qué está sin verificar. **Al
+cambiar copy, actualizar también ese archivo** o vuelve a quedar desfasado.
+
 ### Pendientes marcados en el código (TODO)
+
+Lista verificada contra los `TODO` que hay hoy en el código:
 
 - **Conectar Supabase** — sigue sin conectar.
 - **Flujo "Get a quote"** — el formulario de captación fue **eliminado** de la página.
   Todos los botones "Get a quote" y "Start a conversation" están **visibles pero sin
   acción**. El primer paso es un **input de email + dominio** (estilo Lemonade) que
   guarda el lead inmediatamente y dispara el scan de Capa 1. Implementación técnica y
-  diseño visual pendientes.
+  diseño visual pendientes. (`Hero.tsx`, `Navbar.tsx`, `OceanPrefooter.tsx`)
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
-  (ver §7).
+  (ver §7). (`OceanPanel.tsx`)
+- **Scores ilustrativos** 72 y 86 del panel — el Score Engine no existe todavía.
+  (`OceanPanel.tsx`)
 - **Reexportar wordmark** con contraformas fusionadas si llega una versión nueva del
   diseñador.
-- **Verificar estadísticas** y añadir fuentes antes de lanzar.
-- **Reemplazar testimonios** ficticios por reales.
+- **Verificar estadísticas** y añadir fuentes antes de lanzar. (`AiGapSection.tsx`)
+- **Reemplazar testimonios** ficticios por reales. (`lib/mock/testimonials.ts`,
+  `Testimonials.tsx`)
 - **Reemplazar eventos regulatorios** del feed por eventos reales verificados.
+  (`AiGapCards.tsx`)
 - **Validar redacción regulatoria** (MGA / surplus lines / Lloyd's) con abogado.
-- **Añadir imagen de Open Graph**.
+  (`HowWeOperate.tsx`)
+- **Validar nombres de las 8 coberturas** con abogado/carrier. (`lib/coverages.ts`)
+- **Reemplazar el correo** `hello@arca.com` del footer: es de relleno y además usa un
+  dominio que ya no es el nuestro (sería `@arcacover.com`). (`Footer.tsx`)
 
 **Hechos (completados):**
 - ~~Recomprimir `ocean.mp4`~~ — 13.3 MB → 4.4 MB (1600×900, H.264 CRF 25 con
@@ -602,6 +686,17 @@ Crisis Management · Regulatory Compliance Costs.
 - ~~Actualizar menú Coverages del navbar (quitar SLA, dejar una opción).~~
 - ~~Favicon configurado.~~
 - ~~Wordmark SVG reemplaza logo de texto.~~
+- ~~Imagen de Open Graph~~ — `public/og.png` dibujada con código, conectada en
+  `metadata.openGraph` y `metadata.twitter`, con `metadataBase` apuntando a
+  arcacover.com.
+- ~~Rediseñar Testimonials~~ — de carrusel de tarjetas blancas a una tarjeta grande
+  de case study con fondo animado.
+- ~~Retirar la foto de stock~~ del fondo de Testimonials y sustituirla por seda
+  generada con código. Con esto **desaparece el bloqueante de licencia**: no queda
+  ningún asset de terceros en el proyecto.
+- ~~Unificar el fondo de la página~~ en un solo lienzo iluminado (ver §5).
+- ~~Aplicar el copy deck revisado por el CCO~~ — metadatos, hero, paso 03 de Products,
+  los tres pilares de "What we do" y las tres descripciones de "How we operate".
 
 ---
 
@@ -658,6 +753,10 @@ El shader WebGL del pre-footer fue sustituido por el vídeo. Cada sección monta
 `<video>`** del mismo archivo para el bucle sin corte (`lib/useVideoLoop`), o sea seis
 elementos en total, aunque el archivo se descarga una sola vez. Conviene medirlo en un
 móvil real antes de lanzar.
+
+A eso se suma la **seda de Testimonials**: cuatro capas desenfocadas girando. Es barata
+porque el desenfoque se rasteriza una vez y solo se anima el `transform`, que va al
+compositor — pero son cuatro bucles más que hay que contar al medir.
 
 **Regla:** toda animación en bucle debe **pausarse cuando su sección no está en
 pantalla** (IntersectionObserver), y todo efecto debe respetar
@@ -743,6 +842,21 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - **Menú Partners** (Producers / Platforms) añadido al navbar.
 - **Decisión consciente** de mostrar precios ilustrativos sin etiqueta en el panel de
   océano — pendiente de resolver (disclaimer o retirar) antes de lanzar.
+- **Dominio confirmado: arcacover.com.**
+- **Fondo de la página unificado:** se descarta alternar blanco/bruma; hero y cuerpo
+  comparten un único lienzo iluminado (`--color-canvas` + halos). Se probó antes un
+  gris plano y se rechazó por no verse premium.
+- **Testimonials rediseñado** a una tarjeta grande de case study, con datos mock **solo
+  de firmas legales** (salen las contables y consultoras).
+- **Fondos y visuales siempre con código:** la foto de stock del fondo de testimonios
+  se sustituyó por seda generada en CSS. Hoy **no queda ningún asset de terceros** en
+  el proyecto, así que no hay licencias que resolver antes de lanzar.
+- **Imagen de Open Graph** creada, también dibujada con código.
+- **Copy revisado por el CCO y aplicado** (metadatos, hero, un paso de Products,
+  pilares de "What we do", bloque de "How we operate").
+- **Audiencia del texto visible: abogados.** El sitio dice "lawyers" y "your practice";
+  accounting y consulting salen de la superficie aunque siguen en el ICP secundario.
+- **Inventario de copy** en `docs/copy-deck.md`, a mantener cuando cambien textos.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
