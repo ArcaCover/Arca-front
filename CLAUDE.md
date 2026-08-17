@@ -562,11 +562,16 @@ example — actual rates vary") o retirar las cifras.** Esta decisión queda pen
 ## 9. Estado de la landing institucional
 
 **Estructura de fondo:** `app/page.tsx` envuelve las cinco secciones del cuerpo
-(Products → How we operate) en un `div.page-canvas`. Ese contenedor lleva el lienzo
-y los halos; las secciones son **transparentes**, para que la luz sea continua y no
-haya costura entre ellas. El hero comparte el mismo token de base y los halos entran
+(cinta de herramientas → Testimonials) en un `div.page-canvas`. Ese contenedor lleva el
+lienzo y los halos; las secciones son **transparentes**, para que la luz sea continua y
+no haya costura entre ellas. El hero comparte el mismo token de base y los halos entran
 con una máscara en los primeros 420px, si no el corte del primer halo dibujaba una
 línea justo donde termina el hero.
+
+**Orden narrativo (decisión del CCO, agosto 2026):** problema → riesgos concretos →
+solución → prueba social → CTA. El visitante ve primero las herramientas que ya usa,
+después se entera de que su póliza no las cubre, después los escenarios que eso deja
+abiertos, y solo entonces qué vendemos.
 
 **Secciones actuales, en orden:**
 
@@ -583,11 +588,16 @@ línea justo donde termina el hero.
    partnerships", en ese orden fijo, ~3s cada una, en bucle), título, subtítulo y CTA
    dorado. Derecha: **orbe interactivo** que se inclina hacia el cursor (halo y anillos
    lo siguen más lento; flotación automática en táctil; estático con reduced-motion).
-3. **Cinta de coberturas** — franja centrada a todo el ancho, márgenes simétricos, bajo
-   el orbe sin tocar sus anillos, con fundido en los extremos. Muestra las **8 coberturas
-   definitivas** y se alimenta de `lib/coverages.ts`. Lleva encima el micro-título
-   "What we cover".
-4. **Products** — recorrido interactivo del producto:
+3. **Cinta 1 — herramientas** (`components/landing/ToolsBelt.tsx`) — micro-título
+   "Protecting firms that use" y seis nombres (Harvey · CoCounsel · Lexis+ AI ·
+   Microsoft Copilot · ChatGPT · Google Gemini) en `opacity-60`, como lista de
+   integraciones. **No dice "Trusted by"**: no son clientes ni socios.
+4. **"Your policy was written before AI"** — stats con count-up + tres cards animadas
+   (documento que falla, barra de sublímite con tooltip, feed regulatorio).
+5. **Cinta 2 — riesgos** (`components/landing/RisksBelt.tsx`) — micro-título "The risks
+   your current policy ignores" y 8 escenarios en segunda persona, a plena opacidad.
+   Hace de puente entre el problema y la solución.
+6. **Products** — recorrido interactivo del producto:
    - Sobre el lienzo de la página, tarjeta blanca de ~1080px, esquinas de ~40px.
    - **Encabezado fuera de la tarjeta (centrado):** headline "Coverage for the mistakes
      AI makes in your name." + subtítulo "One policy built for the risks your current
@@ -598,28 +608,51 @@ línea justo donde termina el hero.
      real numbers · Bind in minutes.
    - **Derecha:** panel de ~560×420 con vídeo de océano (`public/videos/ocean.mp4`) y 4
      escenas (scan → cuestionario → gauge y cotizaciones → timeline de emisión).
-   - **Nota:** las 8 coberturas ya no se muestran en esta sección — solo viven en la
-     cinta del hero. `COVERAGE_GROUPS` de `lib/coverages.ts` quedó sin consumir aquí.
-5. **"Your policy was written before AI"** — stats con count-up + tres cards animadas
-   (documento que falla, barra de sublímite con tooltip, feed regulatorio).
-6. **Testimonials** — **una sola tarjeta grande** tipo case study (no carrusel de
+   - **Nota:** las 8 coberturas ya no se muestran aquí ni en ninguna otra parte del
+     sitio. Al retirar la cinta vieja, `lib/coverages.ts` dejó de estar en la página:
+     su único consumidor hoy es `landing/CoverageBelt.tsx`, que tampoco se renderiza.
+     `COVERAGE_GROUPS` sigue sin consumir. Todo se conserva a propósito.
+7. **Testimonials** — **una sola tarjeta grande** tipo case study (no carrusel de
    tarjetas pequeñas): firma, titular, cita, autor y dos métricas en oro a la
    izquierda; bloque de iniciales a la derecha; controles `‹ ›` con fundido de 300ms
    para alternar los 3 testimonios. Datos en `lib/mock/testimonials.ts`, **solo firmas
    legales y todas ficticias**. El fondo es **seda generada con código** (`.silk`):
    cuatro manchas difuminadas orbitando sobre un degradado de la paleta, con periodos
    19/27/23/15s. Antes era una foto de stock; se retiró (ver "Hechos").
-7. **What we do** — tres pilares (Plain-English coverage · Built for how AI fails in
-   practice · A digital process, start to finish) en tarjetas bruma.
-8. **How we operate** — MGA / surplus lines / Lloyd's como aspiración, en bloque marino.
-9. **Pre-footer océano** — **vídeo** (ya no shader WebGL), "Don't navigate AI risk
+8. **Pre-footer océano** — **vídeo** (ya no shader WebGL), "Don't navigate AI risk
    alone", CTA "Start a conversation" (sin acción todavía).
-10. **Footer** — Contact, Resources, Company (Partners, Blog, Careers), Follow us.
+9. **Footer** — Contact, Resources, Company (Partners, Blog, Careers), Follow us.
 
-**Patrón de encabezado:** las cinco secciones con `<h2>` (Products, "Your policy…",
-Testimonials, What we do, pre-footer) llevan **titular + subtítulo** con el mismo
-tratamiento (18px, marino al 80%, centrado, 600px de ancho). Si se añade una sección
-nueva, seguir ese patrón.
+**Retiradas de la landing, intactas en el código:** `ValuePillars.tsx` ("What we do"),
+`HowWeOperate.tsx` ("How we operate") y `landing/CoverageBelt.tsx` (la cinta "What we
+cover"). Los tres imports siguen en `app/page.tsx` **comentados**, con la nota de por qué.
+Destino previsto: página Partners o About, y `CoverageBelt` para donde vuelva a hacer
+falta enumerar coberturas. **No borrarlas.** `CoverageBelt` se extrajo de dentro del hero
+tal cual estaba, así que conserva el `pt-24` que servía para librar los anillos del orbe y
+**no** pausa fuera de pantalla como las cintas nuevas: hay que ajustar las dos cosas si se
+revive. Ojo con una consecuencia: "How we operate" era el único sitio donde la
+landing aclaraba que el estatus de coverholder de Lloyd's **no está conseguido**, así que
+esa aclaración hoy no está en la página (§7 sigue prohibiendo afirmarlo).
+
+**Patrón de encabezado:** las secciones con `<h2>` (Products, "Your policy…",
+Testimonials, pre-footer) llevan **titular + subtítulo** con el mismo tratamiento (18px,
+marino al 80%, centrado, 600px de ancho). Si se añade una sección nueva, seguir ese
+patrón. Las dos cintas son la excepción: llevan solo micro-título (17px, semibold,
+marino al 40%), sin subtítulo.
+
+**Mecánica de las cintas:** las dos usan el keyframe `animate-marquee` de `globals.css`
+(60s lineales, `translateX(-50%)`) y un fundido `mask-image` **escrito inline** — desde
+la hoja de estilos el compilador lo descarta. Se pausan fuera de pantalla con
+`useInView({ once: false })` y heredan la regla de `prefers-reduced-motion` que ya existía
+para `.animate-marquee`. Como el keyframe viaja `-50%`, la lista se repite un número
+**par** de veces: RisksBelt 2, ToolsBelt 4 (seis nombres cortos no llenan la banda, y con
+2 copias se veía el hueco al cerrar el bucle). Solo la primera pasada se lee: las
+repeticiones van con `aria-hidden`.
+
+**Espacio bajo el hero:** el orbe exterior **sobresale del grid** y la sección recorta
+overflow, así que el `lg:pb-12` del grid del hero es lo que impide que el anillo se corte
+(a `lg:pb-0` perdía el arco inferior). Está deliberadamente justo para que la cinta 1
+rompa el pliegue: en 1440×900 el hero mide 736px y la cinta asoma 164px.
 
 **Textos clave actuales** (el inventario completo del copy está en la §9.1):
 - Título hero: "Insurance for lawyers who rely on AI."
@@ -641,6 +674,10 @@ AI Work Product Errors · AI Regulatory Sanctions · AI Bias & Discrimination ·
 AI Privacy & Confidentiality Breach · Error Remediation · AI Forensic Investigation ·
 Crisis Management · Regulatory Compliance Costs.
 **Producto único:** AI Professional Malpractice (las 8 coberturas).
+**⚠ Hoy no aparecen en el sitio.** Salieron con la cinta vieja y las cintas nuevas hablan
+de herramientas y de riesgos, no de coberturas. El menú "Coverages" del navbar solo dice
+"AI Professional Malpractice". Queda **abierto** dónde vuelve a verse el detalle: la
+landing describe el problema pero ya no enumera qué cubre la póliza.
 
 ### 9.1 Inventario completo del copy
 
@@ -671,9 +708,16 @@ Lista verificada contra los `TODO` que hay hoy en el código:
   `Testimonials.tsx`)
 - **Reemplazar eventos regulatorios** del feed por eventos reales verificados.
   (`AiGapCards.tsx`)
-- **Validar redacción regulatoria** (MGA / surplus lines / Lloyd's) con abogado.
-  (`HowWeOperate.tsx`)
-- **Validar nombres de las 8 coberturas** con abogado/carrier. (`lib/coverages.ts`)
+- **Validar redacción regulatoria** (MGA / surplus lines / Lloyd's) con abogado — sigue
+  pendiente para cuando ese texto reaparezca en Partners/About. (`HowWeOperate.tsx`, ya
+  fuera de la landing)
+- **Validar nombres de las 8 coberturas** con abogado/carrier — menos urgente ahora que
+  no se muestran, pero no resuelto. (`lib/coverages.ts`, sin consumir)
+- **Revisar con abogado los nombres de marca de la cinta 1** (Harvey, CoCounsel, Lexis+
+  AI, Microsoft Copilot, ChatGPT, Google Gemini): son marcas de terceros sin acuerdo con
+  nosotros. La frase "Protecting firms that use" se eligió justamente para no insinuar
+  patrocinio ni alianza. (`components/landing/ToolsBelt.tsx`)
+- **Decidir dónde vuelve a verse el detalle de coberturas** (ver §9).
 - **Reemplazar el correo** `hello@arca.com` del footer: es de relleno y además usa un
   dominio que ya no es el nuestro (sería `@arcacover.com`). (`Footer.tsx`)
 
@@ -697,6 +741,12 @@ Lista verificada contra los `TODO` que hay hoy en el código:
 - ~~Unificar el fondo de la página~~ en un solo lienzo iluminado (ver §5).
 - ~~Aplicar el copy deck revisado por el CCO~~ — metadatos, hero, paso 03 de Products,
   los tres pilares de "What we do" y las tres descripciones de "How we operate".
+- ~~Reestructurar la landing al orden narrativo del CCO~~ — dos cintas nuevas
+  (herramientas y riesgos) sustituyen la de coberturas, AI Gap sube por encima de
+  Products, y "What we do" y "How we operate" salen del render. La página pasó de 10 a 9
+  secciones; mide 4.490px de alto en 1440 (el alto anterior no quedó medido).
+- ~~Recortar el aire muerto bajo el hero~~ — el hero pasó de 902px a 736px en 1440×900,
+  así que la cinta 1 ya rompe el pliegue en vez de empezar justo debajo.
 
 ---
 
@@ -857,6 +907,14 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - **Audiencia del texto visible: abogados.** El sitio dice "lawyers" y "your practice";
   accounting y consulting salen de la superficie aunque siguen en el ICP secundario.
 - **Inventario de copy** en `docs/copy-deck.md`, a mantener cuando cambien textos.
+- **Landing reordenada al arco narrativo del CCO:** herramientas → problema → riesgos →
+  solución → prueba social → CTA. La cinta de coberturas se sustituye por dos cintas
+  nuevas (`ToolsBelt`, `RisksBelt`); "What we do" y "How we operate" **salen de la
+  landing sin borrarse** (imports comentados en `app/page.tsx`, destino Partners/About).
+- **Consecuencia pendiente de la reestructura:** el sitio ya no enumera las 8 coberturas
+  ni aclara que Lloyd's es una aspiración. Ambas cosas hay que recolocar antes de lanzar.
+- **Componentes nuevos de la landing viven en `components/landing/`**, no en la raíz de
+  `components/`. Es la primera subcarpeta; lo que se añada a la landing va ahí.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).

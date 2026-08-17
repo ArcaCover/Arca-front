@@ -3,8 +3,8 @@
 Transcripción literal de la landing tal como está hoy en el código. Nada reescrito, nada corregido.
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
-- **Última actualización:** 14 agosto 2026 (tras aplicar el copy deck del CCO)
-- **Secciones:** 11, en orden de lectura
+- **Última actualización:** 17 agosto 2026 (reestructura narrativa del CCO)
+- **Secciones:** 10, en orden de lectura
 - **Estado:** pre-lanzamiento
 
 > Si cambias un texto en el código, **actualízalo también aquí**. Este archivo está
@@ -78,30 +78,99 @@ Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas 
 
 ---
 
-## 03 · Cinta de coberturas
+## 03 · Cinta 1 — las herramientas
 
-*Bajo el orbe, en movimiento continuo.*
+*Bajo el orbe, en movimiento continuo. Va en opacidad reducida, como lista de integraciones.*
 
 **Micro-título**
-- What we cover
+- Protecting firms that use
 
-**Third-party** — cuando el cliente del asegurado sufre el daño
-1. AI Work Product Errors
-2. AI Regulatory Sanctions
-3. AI Bias & Discrimination
-4. AI Privacy & Confidentiality Breach
+**Los seis nombres, en este orden**
 
-**First-party** — costos directos del asegurado
-5. Error Remediation
-6. AI Forensic Investigation
-7. Crisis Management
-8. Regulatory Compliance Costs
+1. Harvey
+2. CoCounsel
+3. Lexis+ AI
+4. Microsoft Copilot
+5. ChatGPT
+6. Google Gemini
 
-*En pantalla van seguidas, sin separar los dos grupos.* 🟡 *Nombres sin validar con abogado ni carrier.*
+> **Por qué no dice "Trusted by":** no son clientes ni socios nuestros. La frase dice que
+> aseguramos a firmas que usan estas herramientas, no que estas herramientas trabajen con
+> Arca. 🟡 *Nombrar marcas de terceros sin acuerdo conviene revisarlo con abogado.*
 
 ---
 
-## 04 · Products
+## 04 · Your policy was written before AI
+
+*Estadísticas + tres tarjetas animadas.*
+
+**Titular (H2)**
+
+> Your policy was written before AI.
+
+**Subtítulo**
+
+> Most professional liability policies don't mention artificial intelligence. The ones that do, exclude it.
+
+**Las tres cifras** 🔴 *(sin fuente verificable)*
+
+| Cifra | Texto |
+|---|---|
+| 69% | of legal professionals now use generative AI at work |
+| $500K–$2M | cost of a single AI-related malpractice event |
+| 7 of 13 | major malpractice insurers report rising AI claims |
+
+### Tarjeta 01 — When AI gets it wrong
+
+> An AI-drafted brief cites a case that doesn't exist. A model misreads a reconciliation. Your client sues.
+
+En la animación aparece la etiqueta **"citation not found"**.
+
+### Tarjeta 02 — When your policy says no
+
+> You file the claim. Your carrier points to the AI exclusion. You're covering the defense yourself.
+
+Textos de la barra: "POLICY LIMIT" · "$10M" · "AI sub-limit: $500K" · "not covered for AI" · sello "ILLUSTRATIVE EXAMPLE".
+Al pasar el ratón muestra "covered for AI" / "not covered for AI".
+
+### Tarjeta 03 — When the regulator calls
+
+> Bar associations and state courts are writing AI rules. Non-compliance is a disciplinary matter, not just a claim.
+
+Feed en bucle 🔴 *(eventos inventados)*:
+- State court issues AI disclosure guidance for filings
+- Bar association opinion on supervising AI-assisted work
+- Regulator opens consultation on automated advice
+- Disciplinary action reported over unverified AI output
+
+*Cada uno lleva debajo, a la vista del visitante: "PLACEHOLDER · JURISDICTION · DATE".*
+
+---
+
+## 05 · Cinta 2 — los riesgos
+
+*Entre el problema y la solución, en movimiento continuo. A plena opacidad: aquí el texto sí tiene que pesar.*
+
+**Micro-título**
+- The risks your current policy ignores
+
+**Los ocho escenarios, en este orden**
+
+1. A hallucinated citation in your brief
+2. A client sues over biased AI advice
+3. Your AI tool exposes privileged data
+4. A regulator audits your AI workflow
+5. An AI-drafted contract with wrong terms
+6. Your AI vendor goes down during trial prep
+7. A bar complaint over undisclosed AI use
+8. A breach in AI-assisted due diligence
+
+> Son escenarios en segunda persona, no nombres de cobertura. Sustituyen a la cinta de las
+> 8 coberturas, que ya no aparece en la landing (ver apéndice).
+
+---
+
+## 06 · Products
 
 *Recorrido del producto.*
 
@@ -131,7 +200,7 @@ Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas 
 
 ---
 
-## 05 · Panel del producto
+## 07 · Panel del producto
 
 *Las cuatro escenas sobre el vídeo de océano. Cada paso de la sección anterior enciende una escena.*
 *Son maquetas de un producto que aún no funciona: todos los números de aquí son ilustrativos.*
@@ -188,54 +257,7 @@ Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas 
 
 ---
 
-## 06 · Your policy was written before AI
-
-*Estadísticas + tres tarjetas animadas.*
-
-**Titular (H2)**
-
-> Your policy was written before AI.
-
-**Subtítulo**
-
-> Most professional liability policies don't mention artificial intelligence. The ones that do, exclude it.
-
-**Las tres cifras** 🔴 *(sin fuente verificable)*
-
-| Cifra | Texto |
-|---|---|
-| 69% | of legal professionals now use generative AI at work |
-| $500K–$2M | cost of a single AI-related malpractice event |
-| 7 of 13 | major malpractice insurers report rising AI claims |
-
-### Tarjeta 01 — When AI gets it wrong
-
-> An AI-drafted brief cites a case that doesn't exist. A model misreads a reconciliation. Your client sues.
-
-En la animación aparece la etiqueta **"citation not found"**.
-
-### Tarjeta 02 — When your policy says no
-
-> You file the claim. Your carrier points to the AI exclusion. You're covering the defense yourself.
-
-Textos de la barra: "POLICY LIMIT" · "$10M" · "AI sub-limit: $500K" · "not covered for AI" · sello "ILLUSTRATIVE EXAMPLE".
-Al pasar el ratón muestra "covered for AI" / "not covered for AI".
-
-### Tarjeta 03 — When the regulator calls
-
-> Bar associations and state courts are writing AI rules. Non-compliance is a disciplinary matter, not just a claim.
-
-Feed en bucle 🔴 *(eventos inventados)*:
-- State court issues AI disclosure guidance for filings
-- Bar association opinion on supervising AI-assisted work
-- Regulator opens consultation on automated advice
-- Disciplinary action reported over unverified AI output
-
-*Cada uno lleva debajo, a la vista del visitante: "PLACEHOLDER · JURISDICTION · DATE".*
-
----
-
-## 07 · Testimonials
+## 08 · Testimonials
 
 *Tarjeta única con tres testimonios alternables.*
 
@@ -272,45 +294,7 @@ Feed en bucle 🔴 *(eventos inventados)*:
 
 ---
 
-## 08 · What we do
-
-**Titular (H2)**
-
-> What we do.
-
-**Subtítulo**
-
-> Insurance built around how your practice actually uses AI — not adapted from a generic tech policy.
-
-| # | Pilar | Descripción |
-|---|---|---|
-| 01 | Plain-English coverage | Policies written in language attorneys actually use — no jargon, no fine print games. |
-| 02 | Built for how AI fails in practice | Coverage designed around the real ways AI creates exposure — from a hallucinated citation to a disciplinary complaint. |
-| 03 | A digital process, start to finish | From assessment to bound policy, everything happens online, at the speed your firm needs. |
-
----
-
-## 09 · How we operate
-
-*Bloque marino, sin titular propio. Es el texto regulatorio del sitio.* 🟡 **Pendiente de validar con abogado.**
-
-### Managing General Agent (MGA)
-
-> Arca underwrites, issues, and manages every policy on behalf of the insurance carrier that assumes the risk.
-
-### Surplus lines
-
-> Because AI risk is new and still evolving, our coverage is placed in the surplus lines market — built for risks the standard market hasn't caught up to yet.
-
-### Building toward Lloyd's coverholder status
-
-> We are working toward Lloyd's coverholder status — a goal we're pursuing, not a status we hold today.
-
-> ⚠️ Este es el único punto donde el sitio dice explícitamente que lo de Lloyd's **todavía no está conseguido**. Esa frase es la que mantiene al sitio en regla; conviene no tocarla sin criterio legal.
-
----
-
-## 10 · Pre-footer y footer
+## 09 · Pre-footer y footer
 
 *Cierre sobre el vídeo de océano.*
 
@@ -349,6 +333,74 @@ Feed en bucle 🔴 *(eventos inventados)*:
 
 ---
 
+## ⌦ Apéndice — texto retirado de la landing
+
+Sigue en el código, ya no se ve en la página. Se guarda aquí porque el destino previsto es
+la página Partners o una futura About.
+
+### Cinta de coberturas — *"What we cover"*
+
+*Estaba bajo el orbe. La sustituyen las dos cintas nuevas (§03 y §05).* El componente vive
+ahora en `components/landing/CoverageBelt.tsx`, intacto y sin renderizar. Los ocho nombres
+siguen en `lib/coverages.ts`, pero **ya no aparecen en ninguna parte del sitio**: el menú
+"Coverages" del navbar solo dice "AI Professional Malpractice".
+
+**Third-party** — cuando el cliente del asegurado sufre el daño
+1. AI Work Product Errors
+2. AI Regulatory Sanctions
+3. AI Bias & Discrimination
+4. AI Privacy & Confidentiality Breach
+
+**First-party** — costos directos del asegurado
+5. Error Remediation
+6. AI Forensic Investigation
+7. Crisis Management
+8. Regulatory Compliance Costs
+
+🟡 *Nombres sin validar con abogado ni carrier.*
+
+### What we do
+
+*Componente `ValuePillars.tsx`, intacto y sin consumir.*
+
+**Titular (H2)**
+
+> What we do.
+
+**Subtítulo**
+
+> Insurance built around how your practice actually uses AI — not adapted from a generic tech policy.
+
+| # | Pilar | Descripción |
+|---|---|---|
+| 01 | Plain-English coverage | Policies written in language attorneys actually use — no jargon, no fine print games. |
+| 02 | Built for how AI fails in practice | Coverage designed around the real ways AI creates exposure — from a hallucinated citation to a disciplinary complaint. |
+| 03 | A digital process, start to finish | From assessment to bound policy, everything happens online, at the speed your firm needs. |
+
+### How we operate
+
+*Componente `HowWeOperate.tsx`, intacto y sin consumir. Era el texto regulatorio del sitio.*
+🟡 **Pendiente de validar con abogado.**
+
+#### Managing General Agent (MGA)
+
+> Arca underwrites, issues, and manages every policy on behalf of the insurance carrier that assumes the risk.
+
+#### Surplus lines
+
+> Because AI risk is new and still evolving, our coverage is placed in the surplus lines market — built for risks the standard market hasn't caught up to yet.
+
+#### Building toward Lloyd's coverholder status
+
+> We are working toward Lloyd's coverholder status — a goal we're pursuing, not a status we hold today.
+
+> ⚠️ Era el único punto donde el sitio decía explícitamente que lo de Lloyd's **todavía no
+> está conseguido**. Al retirar la sección, **esa aclaración ya no está en la landing.** Si
+> en algún momento el sitio vuelve a insinuar el estatus de Lloyd's, la frase tiene que
+> volver con él.
+
+---
+
 ## ↯ Qué no puede salir así
 
 Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurrido o que no están verificadas — en una aseguradora eso no es un detalle de redacción.
@@ -356,16 +408,22 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 | Dónde | Qué dice | Problema |
 |---|---|---|
 | Testimonials | 3 firmas, citas y 6 métricas | Íntegramente inventado. No hay clientes. |
-| Sección 06 | 69% · $500K–$2M · 7 of 13 | Sin fuente verificable. |
-| Sección 06 · tarjeta 03 | Cuatro eventos regulatorios | Inventados. Llevan "PLACEHOLDER" a la vista. |
+| Sección 04 | 69% · $500K–$2M · 7 of 13 | Sin fuente verificable. |
+| Sección 04 · tarjeta 03 | Cuatro eventos regulatorios | Inventados. Llevan "PLACEHOLDER" a la vista. |
 | Panel · escena 03 | $3,150 · $4,420 · $6,900 | Primas inventadas, sin aviso de que son ejemplo. |
 | Panel · escenas 01 y 03 | Scores 72 y 86 | El Score Engine no existe todavía. |
 | Footer | hello@arca.com | Dirección de relleno y dominio equivocado. |
-| How we operate | MGA / surplus lines / Lloyd's | Redacción regulatoria sin validar con abogado. |
-| Cinta de coberturas | Las 8 coberturas | Nombres sin validar con abogado ni carrier. |
+| Cinta 1 | Harvey · CoCounsel · Lexis+ AI · Copilot · ChatGPT · Gemini | Marcas de terceros nombradas sin acuerdo. Revisar con abogado. |
 | Hero y pre-footer | "Get a quote" · "Start a conversation" | Botones visibles que no hacen nada. |
 
-### Resuelto en esta revisión
+### Abierto por la reestructura
+
+- **El sitio ya no dice qué cubre.** Las 8 coberturas salieron con la cinta vieja; las
+  sustituyen 8 escenarios de riesgo, que describen el problema, no la póliza. Falta decidir
+  dónde vuelve a aparecer el detalle de coberturas.
+- **La aclaración de Lloyd's salió de la landing** junto con "How we operate" (ver apéndice).
+
+### Resuelto en revisiones anteriores
 
 - La descripción SEO ya **no promete** "Get a quote in minutes".
 - La página ya no mezcla tres audiencias: metadatos, badge, titular y subtítulo hablan

@@ -2,13 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
-import { COVERAGES } from "@/lib/coverages";
 import RotatingBadge from "./RotatingBadge";
-
-// Fades the marquee in and out at both ends of its band. Applied inline
-// because the CSS pipeline strips mask-image declarations from stylesheets.
-const BAND_FADE =
-  "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)";
 
 export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
@@ -115,8 +109,12 @@ export default function Hero() {
       />
 
       {/* The top padding is on the grid, not on a single column, so both the
-          copy and the orb centre on the same axis and the badge clears the nav. */}
-      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-16 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:px-[76px] lg:pb-0 lg:pt-32">
+          copy and the orb centre on the same axis and the badge clears the nav.
+          The bottom padding is what the outer ring hangs into: it reaches past
+          the grid, and the section clips overflow, so at lg:pb-0 the ring lost
+          its lower arc. Kept tight on purpose — the next section has to break
+          the fold to read as an invitation to scroll. */}
+      <div className="relative mx-auto grid min-h-[660px] max-w-[1240px] items-center gap-16 px-8 pb-24 pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:px-[76px] lg:pb-12 lg:pt-32">
         {/* Sits above the orb: the outer rings drift with the cursor and would
             otherwise sweep across the badge, the headline and the CTA. */}
         <div className="relative z-10 flex max-w-[540px] flex-col items-start gap-7">
@@ -170,36 +168,6 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Coverages marquee — decorative. A single band centered on the page,
-          sitting below the orb with equal margins on both sides. */}
-      <div className="relative mx-auto max-w-[1240px] px-8 pb-12 pt-24 lg:px-[76px]">
-        {/* Stays under the hero's own voice: below the 19px subtitle and level
-            with the CTA, a step over the 16px items it introduces. Its presence
-            comes from the weight, since going bigger outranks the subtitle. */}
-        <p className="mb-5 text-center font-heading text-[17px] font-semibold tracking-tight text-marino/40">
-          What we cover
-        </p>
-        <div
-          aria-hidden="true"
-          style={{ WebkitMaskImage: BAND_FADE, maskImage: BAND_FADE }}
-          className="overflow-hidden"
-        >
-          <div className="flex w-max animate-marquee">
-            {[0, 1].map((copy) => (
-              <div key={copy} className="flex items-center gap-10 pr-10">
-                {COVERAGES.map((coverage) => (
-                  <span
-                    key={coverage}
-                    className="whitespace-nowrap font-heading text-base font-medium tracking-tight text-marino/40"
-                  >
-                    {coverage}
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </section>
   );
 }
