@@ -8,7 +8,7 @@ export type TierStyle = {
   // Full Tailwind class names on purpose: the scanner cannot see a class that
   // is assembled from pieces at runtime.
   stroke: string;
-  text: string;
+  icon: string;
   background: string;
 };
 
@@ -16,31 +16,31 @@ const TIER_STYLES: Record<Tier, TierStyle> = {
   1: {
     name: "FORTRESS",
     stroke: "stroke-cielo",
-    text: "text-cielo",
+    icon: "text-cielo",
     background: "bg-cielo/15",
   },
   2: {
     name: "FORTIFIED",
     stroke: "stroke-cielo/80",
-    text: "text-cielo/80",
+    icon: "text-cielo/80",
     background: "bg-cielo/15",
   },
   3: {
     name: "GUARDED",
     stroke: "stroke-oro",
-    text: "text-oro",
+    icon: "text-oro",
     background: "bg-oro/15",
   },
   4: {
     name: "EXPOSED",
     stroke: "stroke-oro-oscuro",
-    text: "text-oro-oscuro",
+    icon: "text-oro-oscuro",
     background: "bg-oro-oscuro/15",
   },
   5: {
     name: "CRITICAL",
     stroke: "stroke-rojo",
-    text: "text-rojo",
+    icon: "text-rojo",
     background: "bg-rojo/15",
   },
 };

@@ -9,17 +9,19 @@ export const MOCK_PRE_SCORE = {
     practiceArea: "Personal Injury",
     size: 12,
   },
-  score: 72,
+  // 62 is the weighted sum of the domains below, and lands in the 50-69 band
+  // that CLAUDE.md §6.3 calls GUARDED.
+  score: 62,
   tier: 3 as const,
   tierName: "GUARDED" as const,
   confidence: "MEDIUM" as const,
   domains: [
-    { id: "d1", name: "AI Governance & Policy", score: 65, weight: "25%" },
-    { id: "d2", name: "AI Tool Environment", score: 78, weight: "20%" },
-    { id: "d3", name: "Human Oversight & Review", score: 80, weight: "20%" },
-    { id: "d4", name: "Data Protection & Confidentiality", score: 70, weight: "15%" },
-    { id: "d5", name: "Training & Competency", score: 55, weight: "10%" },
-    { id: "d6", name: "Incident Preparedness", score: 60, weight: "10%" },
+    { id: "d1", name: "AI Governance & Policy", score: 58, weight: "25%" },
+    { id: "d2", name: "AI Tool Environment", score: 69, weight: "20%" },
+    { id: "d3", name: "Human Oversight & Review", score: 71, weight: "20%" },
+    { id: "d4", name: "Data Protection & Confidentiality", score: 62, weight: "15%" },
+    { id: "d5", name: "Training & Competency", score: 49, weight: "10%" },
+    { id: "d6", name: "Incident Preparedness", score: 53, weight: "10%" },
   ],
   signals: [
     { id: "s1", label: "AI usage policy found on website", source: "Website scan", positive: true },
