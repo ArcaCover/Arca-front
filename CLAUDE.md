@@ -797,6 +797,11 @@ Define criterios de éxito y verifícalos **midiendo en el navegador**, no a ojo
   de proceder.
 - **Guarda en git** al terminar cada tarea, con mensaje en inglés. Si un commit falla,
   **avisa de inmediato** (ya pasó una vez por permisos y se acumuló trabajo sin guardar).
+- **Quién cierra el merge a `main`** (decidido agosto 2026): los cambios de
+  **documentación** (CLAUDE.md, `docs/`, README, copy deck) los fusiona Claude a `main`
+  sin esperar al fundador. Los cambios de **código** se dejan en su PR abierto: el
+  merge lo hace el fundador a mano, para poder revisar la previsualización antes de
+  que salga a producción. Ante la duda, dejar el PR abierto.
 
 ### Rendimiento (vigilar)
 
