@@ -81,12 +81,11 @@ export default function AiGapSection() {
     threshold: 0.01,
     once: false,
   });
-  // The panel is a wide, open stretch of water, so it needs a longer fade than
-  // the pre-footer to hide the seam.
-  const { frontRef, backRef, play, pause } = useVideoLoop({
-    handoffSeconds: 2,
-    crossfadeMs: 1400,
-  });
+  // Was overridden to hand over 2s early with a 1.4s fade, on the theory that
+  // wider water needs a longer one. On a 5.2s clip that put the panel in the
+  // blended state 44% of the time, which is what read as the light flickering.
+  // It now uses the shared defaults, which put it at about 11%.
+  const { frontRef, backRef, play, pause } = useVideoLoop();
   // Tracked apart from the section: the panel sits at the bottom of a tall
   // block, so this keeps it from decoding while only the stats are on screen.
   const [panelRef, panelOnScreen] = useInView<HTMLDivElement>({

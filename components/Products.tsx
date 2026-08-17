@@ -107,7 +107,7 @@ export default function Products() {
           </p>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-8 rounded-[40px] bg-white p-6 shadow-[0_26px_60px_-34px_color-mix(in_srgb,var(--color-marino)_35%,transparent)] min-[861px]:flex-row min-[861px]:gap-10 min-[861px]:p-10">
+        <div className="card-on-canvas flex w-full flex-col items-center gap-8 rounded-[40px] bg-white p-6 min-[861px]:flex-row min-[861px]:gap-10 min-[861px]:p-10">
           {/* Panel first on narrow screens, beside the list from 861px up. */}
           <div className="order-1 w-full min-[861px]:order-2 min-[861px]:w-[560px] min-[861px]:flex-none">
             <OceanPanel

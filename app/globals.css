@@ -169,6 +169,18 @@ body {
   );
 }
 
+/* A white card sitting on the lit canvas. The canvas is only ~2% off white,
+   so a single wide shadow left the card's edge dissolving into it. The fix is
+   the tight first layer: an 8px blur hugging the edge reads as a boundary
+   without drawing a line, which keeps it soft. The two wider layers below it
+   carry the depth. No border on purpose — a hairline was too hard an edge. */
+.card-on-canvas {
+  box-shadow:
+    0 2px 8px -1px color-mix(in srgb, var(--color-marino) 10%, transparent),
+    0 14px 30px -14px color-mix(in srgb, var(--color-marino) 18%, transparent),
+    0 40px 80px -40px color-mix(in srgb, var(--color-marino) 34%, transparent);
+}
+
 /* Product card. Rises into place once on scroll, then only its shadow reacts. */
 .product-card {
   opacity: 0;

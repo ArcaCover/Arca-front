@@ -14,12 +14,29 @@ import { useCallback, useEffect, useRef } from "react";
  *
  * The hand-over starts `handoffSeconds` before the end and the fade takes
  * `crossfadeMs`; keep the first comfortably longer than the second so the fade
- * always finishes while the outgoing player still has frames left. The wider
- * the water on screen, the longer the fade needs to be to go unnoticed.
+ * always finishes while the outgoing player still has frames left.
+ *
+ * Keep the fade SHORT. It is tempting to lengthen it to make the seam gentler,
+ * but the two frames being blended are the clip's last and its first, and on
+ * ocean.mp4 those differ by about 35 luminance levels per pixel — the waves sit
+ * in entirely different places. Blending them halves nothing and instead drops
+ * about 12% of the contrast, so the water turns milky for as long as the fade
+ * lasts and reads as the light flickering. A longer fade does not hide the
+ * seam, it just spends more time in the state you were trying to hide.
+ *
+ * Do not shrink `handoffSeconds` to buy the same result — the trigger is a
+ * `timeupdate`, whose rate the browser is free to drop when the tab is busy or
+ * throttled. If the threshold is tighter than the gap between two of those
+ * events the hand-over never fires at all and the player falls back on its own
+ * `loop`, which is a hard cut. 1.2s leaves room for a late event and still
+ * finishes the fade well before the clip runs out.
+ *
+ * The defaults suit the 5.2s ocean clip: the blend is on screen for roughly a
+ * ninth of each cycle. If a longer clip is ever used, these can grow with it.
  */
 export function useVideoLoop({
   handoffSeconds = 1.2,
-  crossfadeMs = 700,
+  crossfadeMs = 450,
 }: { handoffSeconds?: number; crossfadeMs?: number } = {}) {
   const frontRef = useRef<HTMLVideoElement>(null);
   const backRef = useRef<HTMLVideoElement>(null);
