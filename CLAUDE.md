@@ -136,6 +136,9 @@ distintos hacia la misma lógica.
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando lógica y
   validaciones en TypeScript.
 - **Hosting frontend:** **Vercel**.
+- **Repositorio:** organización `ArcaCover` en GitHub. Frontend: `Arca-front`
+  (`https://github.com/ArcaCover/Arca-front`). Backend: repo de Jesús (pendiente).
+  Claude Code corre en la nube, ya no en local.
 - **Dominio:** **arcacover.com** (confirmado). Vive como valor por defecto en
   `app/layout.tsx` para que producción no dependa de configurar nada;
   `NEXT_PUBLIC_SITE_URL` existe solo para apuntar previews o staging a sí mismos.
@@ -915,6 +918,11 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   ni aclara que Lloyd's es una aspiración. Ambas cosas hay que recolocar antes de lanzar.
 - **Componentes nuevos de la landing viven en `components/landing/`**, no en la raíz de
   `components/`. Es la primera subcarpeta; lo que se añada a la landing va ahí.
+- **Repo migrado a organización GitHub** (agosto 2026): el frontend pasó de
+  `jotaotonomi/arcacc` a la organización `ArcaCover` como `Arca-front`
+  (`https://github.com/ArcaCover/Arca-front`). Owners: cuenta de empresa + cuenta
+  personal del CEO. Claude Code corre en la nube (ya no local). Jesús tendrá su propio
+  repo de backend en la misma organización.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
