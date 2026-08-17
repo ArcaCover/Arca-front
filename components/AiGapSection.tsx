@@ -81,11 +81,11 @@ export default function AiGapSection() {
     threshold: 0.01,
     once: false,
   });
-  // Was overridden to hand over 2s early with a 1.4s fade, on the theory that
-  // wider water needs a longer one. On a 5.2s clip that put the panel in the
-  // blended state 44% of the time, which is what read as the light flickering.
-  // It now uses the shared defaults, which put it at about 11%.
-  const { frontRef, backRef, play, pause } = useVideoLoop();
+  // This is the one panel people read across, so the water behind it has to
+  // stay out of the way. Half speed calms it and, since the hand-over is
+  // scheduled off the clip's clock, also halves how often the seam comes
+  // round — the 5.2s clip turns over every eight seconds instead of four.
+  const { frontRef, backRef, play, pause } = useVideoLoop({ rate: 0.5 });
   // Tracked apart from the section: the panel sits at the bottom of a tall
   // block, so this keeps it from decoding while only the stats are on screen.
   const [panelRef, panelOnScreen] = useInView<HTMLDivElement>({

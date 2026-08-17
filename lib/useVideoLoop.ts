@@ -37,7 +37,19 @@ import { useCallback, useEffect, useRef } from "react";
 export function useVideoLoop({
   handoffSeconds = 1.2,
   crossfadeMs = 450,
-}: { handoffSeconds?: number; crossfadeMs?: number } = {}) {
+  rate = 1,
+}: {
+  handoffSeconds?: number;
+  crossfadeMs?: number;
+  /**
+   * Playback speed. Below 1 the water calms down and, because the hand-over
+   * is scheduled off the clip's own clock, the seam also arrives that much
+   * less often: at 0.5 a 5.2s clip turns over every eight seconds instead of
+   * every four. On a short clip that is the only lever left for making the
+   * loop stop calling attention to itself.
+   */
+  rate?: number;
+} = {}) {
   const frontRef = useRef<HTMLVideoElement>(null);
   const backRef = useRef<HTMLVideoElement>(null);
   const activeRef = useRef(0);
@@ -75,6 +87,7 @@ export function useVideoLoop({
       next.style.zIndex = "0";
       next.style.opacity = "1";
       next.currentTime = 0;
+      next.playbackRate = rate;
       next.play().catch(() => {});
 
       // Outgoing: rises above it and fades away.
@@ -90,7 +103,13 @@ export function useVideoLoop({
       }, crossfadeMs);
     };
 
-    players.forEach((player) => player.addEventListener("timeupdate", handOff));
+    players.forEach((player) => {
+      // defaultPlaybackRate as well: play() calls load() on the standby to
+      // buffer it, and that resets playbackRate to the default.
+      player.defaultPlaybackRate = rate;
+      player.playbackRate = rate;
+      player.addEventListener("timeupdate", handOff);
+    });
 
     return () => {
       players.forEach((player) =>
@@ -98,7 +117,7 @@ export function useVideoLoop({
       );
       window.clearTimeout(fadeTimer);
     };
-  }, [handoffSeconds, crossfadeMs]);
+  }, [handoffSeconds, crossfadeMs, rate]);
 
   const play = useCallback(() => {
     const players = [frontRef.current, backRef.current];

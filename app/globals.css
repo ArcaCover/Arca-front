@@ -176,6 +176,9 @@ body {
    carry the depth. No border on purpose — a hairline was too hard an edge. */
 .card-on-canvas {
   box-shadow:
+    /* No vertical offset, so this one reaches the top edge too. The three
+       below are all pushed downwards and left the top side with nothing. */
+    0 0 14px -3px color-mix(in srgb, var(--color-marino) 13%, transparent),
     0 2px 8px -1px color-mix(in srgb, var(--color-marino) 10%, transparent),
     0 14px 30px -14px color-mix(in srgb, var(--color-marino) 18%, transparent),
     0 40px 80px -40px color-mix(in srgb, var(--color-marino) 34%, transparent);
