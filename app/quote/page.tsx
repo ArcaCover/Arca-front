@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Globe, Loader2, Mail } from "lucide-react";
 
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
@@ -24,6 +25,7 @@ const INPUT_CLASS =
   "w-full rounded-xl border border-bruma bg-white py-3.5 pl-12 pr-4 text-marino transition-colors placeholder:text-marino/40 focus:border-cielo focus:outline-none";
 
 export default function QuotePage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [domain, setDomain] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
@@ -53,11 +55,12 @@ export default function QuotePage() {
     if (!EMAIL_PATTERN.test(email.trim()) || !domain.trim()) return;
 
     // TODO: save lead to Supabase
-    // TODO: remove this log before launch — no personal data in logs (CLAUDE.md §8)
-    console.log({ email: email.trim(), domain: domain.trim() });
-
-    // TODO: navigate to the scanning screen
     setSubmitting(true);
+
+    // The two values ride in the query string rather than storage or global
+    // state, so the scan is reproducible from the URL alone.
+    const params = new URLSearchParams({ email: email.trim(), domain: domain.trim() });
+    router.push(`/quote/scanning?${params}`);
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import RotatingBadge from "./RotatingBadge";
 
@@ -127,16 +128,15 @@ export default function Hero() {
             watches over your practice, from AI-drafted errors to automated
             decisions, so you stay protected.
           </p>
-          {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
-          <button
-            type="button"
+          <Link
+            href="/quote"
             className="cta-glow group inline-flex animate-fade-up cursor-pointer items-center gap-3.5 rounded-full bg-oro py-2.5 pl-7 pr-2.5 font-heading text-[17px] font-medium tracking-tight text-marino transition-transform duration-200 [animation-delay:300ms] hover:-translate-y-px"
           >
             Get a quote
             <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5">
               <ArrowRight aria-hidden="true" className="h-4 w-4" />
             </span>
-          </button>
+          </Link>
         </div>
 
         <div
