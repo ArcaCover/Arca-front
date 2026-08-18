@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Info } from "lucide-react";
 
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score";
 import { MOCK_PRE_SCORE } from "@/lib/mock/score-data";
 
 export default function ScorePage() {
+  // TODO: read scan results from API instead of mock data
   const { firm, score, tier, confidence, domains, signals } = MOCK_PRE_SCORE;
 
   // Positive findings read first. Sorted rather than hand-ordered so the
@@ -23,7 +24,12 @@ export default function ScorePage() {
           <ArcaWordmark className="h-7 w-auto text-marino" />
         </header>
 
-        <section className="mt-12 flex flex-col items-center gap-10 md:flex-row md:items-center md:justify-between md:gap-16">
+        <p className="mt-8 flex items-center justify-center gap-2 text-sm text-marino/50 md:justify-start">
+          <Info aria-hidden className="h-4 w-4 shrink-0" />
+          This is an illustrative example — not a real assessment.
+        </p>
+
+        <section className="mt-8 flex flex-col items-center gap-10 md:flex-row md:items-center md:justify-between md:gap-16">
           <div className="text-center md:text-left">
             <h1 className="font-heading text-3xl font-semibold tracking-tight text-marino sm:text-4xl">
               {firm.name}

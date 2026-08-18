@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { INDUSTRIES } from "@/lib/industries";
 import { ArcaWordmark } from "./brand/ArcaWordmark";
 import NavDropdown from "./NavDropdown";
@@ -127,19 +128,18 @@ export default function Navbar() {
           >
             My account
           </a>
-          {/* TODO: connect Get a quote flow (Lemonade-style) before launch */}
-          <button
-            type="button"
+          <Link
+            href="/quote"
             aria-hidden={!scrolled}
             tabIndex={scrolled ? 0 : -1}
-            className={`cursor-pointer overflow-hidden whitespace-nowrap rounded-full bg-oro text-sm font-bold text-marino transition-all duration-300 hover:bg-oro-oscuro ${
+            className={`block cursor-pointer overflow-hidden whitespace-nowrap rounded-full bg-oro text-sm font-bold text-marino transition-all duration-300 hover:bg-oro-oscuro ${
               scrolled
                 ? "ml-0 max-w-40 px-4 py-2 opacity-100 md:ml-4"
                 : "pointer-events-none ml-0 max-w-0 px-0 py-2 opacity-0"
             }`}
           >
             Get a quote
-          </button>
+          </Link>
         </div>
       </nav>
 
