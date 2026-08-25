@@ -165,6 +165,15 @@ distintos hacia la misma lógica.
 - **Colores fuera de paleta:** si el diseño trae un color que no está en la paleta
   (p. ej. un verde), sustituirlo por el token más cercano (cielo, oro, etc.) y avisar.
   No ampliar la paleta sin decisión del fundador.
+- **No se pueden componer colores leyendo `getComputedStyle`.** Tailwind v4 devuelve
+  los colores con alfa como `oklab(L a b / α)`, con negativos y notación científica, así
+  que sacar los canales con un regex de números da basura silenciosa. Pasó dos veces:
+  midiendo el footer sobre marino y midiendo el contraste del bloque marino de
+  `/platforms`, y en los dos casos el resultado parecía un fallo real de diseño que no
+  existía. Componer con `<canvas>` tampoco vale: `fillStyle` se come el alfa. Formas
+  fiables: **muestrear píxeles reales** de una captura (así se comprobó el footer), o
+  hacer la **aritmética a partir de los tokens** de la paleta y contrastarla con los
+  casos opacos, que el navegador sí reporta en `rgb()`.
 - **El compilador puede descartar CSS válido en silencio.** Una capa de degradado
   con `var()` y una parada en `0` sin unidad desapareció de `background` sin dar
   error, y el efecto simplemente no ocurría. Se resolvió con `mask-image`. Moraleja:
@@ -704,7 +713,8 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
 | `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. |
 
-Fuera de ese flujo está `/partners` (§9.3), que no depende del backend.
+Fuera de ese flujo están `/partners` (§9.3) y `/platforms` (§9.4), que no dependen
+del backend.
 
 **El email y el dominio viajan por query params** por toda la cadena, de pantalla en
 pantalla. Es lo único que identifica a la firma mientras no haya backend, así que si
@@ -747,12 +757,9 @@ literal.
 tarjetas) → "From partner to placement" (3 pasos) → "Become a partner" (formulario). La
 página cierra directamente en el footer.
 
-**Retirado:** el bloque marino "For legal platforms". `PlatformsSection.tsx` sigue en
-`components/partners/` con su import comentado en `app/partners/page.tsx`, igual que se
-hizo con `ValuePillars` y `HowWeOperate` en la landing. Consecuencia: el menú "Platforms"
-del navbar ya no puede apuntar al ancla `#platforms`, así que **lleva a `/partners` igual
-que "Producers"** — dos entradas del menú al mismo destino, pendiente de decidir si una
-se retira.
+**Retirado:** el bloque marino "For legal platforms". `PlatformsSection.tsx` se **borró**
+al construir `/platforms` (§9.4), que es donde ese pitch vive ahora desarrollado. Con eso
+el menú "Platforms" del navbar dejó de duplicar destino con "Producers".
 
 **Fondo:** el mismo lienzo iluminado de la landing (`.page-canvas`). Se probó antes
 `bg-canvas` liso por miedo a que los halos, calibrados para los 4.500px de la landing,
@@ -793,9 +800,39 @@ cartera hay que preguntarlas en esa llamada.
 incluye, así que **no se añadieron**. La consecuencia de la §9 sigue viva: la aclaración
 de que Lloyd's es una aspiración y no un logro **no está en ninguna página del sitio**.
 
+### 9.4 Página Platforms
+
+`/platforms` le habla a empresas de legal tech que quieran integrar scoring, cotización y
+emisión por API. Marketing puro, sin backend. Copy del CCO, literal.
+
+**Cinco bloques:** hero limpio → "What you can build" (4 bloques, **fondo marino**) →
+"How integration works" (3 pasos) → "Why integrate" (3 tarjetas) → "Let's build together"
+(formulario de 3 campos).
+
+**Es la única página con una banda oscura en medio del cuerpo.** Es lo que le da el tono
+técnico que pidió el CCO, y se consigue **sin fuentes nuevas**: la §5 solo admite Space
+Grotesk y Mulish, así que no hay monoespaciada. Contraste medido sobre marino: titular
+13.46:1, títulos de tarjeta 11.71:1, cuerpo 7.29:1 — los tres pasan AA.
+
+**Cierra igual que `/partners`:** `OceanPrefooter showCta={false}` con el footer dentro.
+Las dos páginas institucionales terminan idénticas, comprobado comparando clases y
+estilos computados del bloque de océano y del footer.
+
+**El formulario está duplicado a propósito.** `PlatformForm` pide los mismos tres campos
+que `PartnerForm` pero postea a otro sitio y tiene otro botón y otra nota. Se decidió
+duplicar en vez de extraer un componente compartido: es probable que divergan, y una
+abstracción de un solo uso es peor que la repetición. **Si dentro de un tiempo siguen
+idénticos, ahí sí conviene unificarlos.** Tampoco está conectado: `console.log` y éxito
+en línea, con su `TODO: POST to backend`.
+
+**CTA del hero:** `mailto:hello@arcacover.com`, con `TODO` para sustituirlo por
+formulario o Calendly.
+
 ### Pendientes marcados en el código (TODO)
 
-Lista verificada contra los `TODO` que hay hoy en el código:
+Lista verificada contra los `TODO` que hay hoy en el código (última revisión: al
+construir `/platforms`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
+lista vuelve a mentir sobre estar verificada.
 
 - **Conectar Supabase** — sigue sin conectar.
 - **Conectar "Start a conversation"** del pre-footer — es el **único** CTA de la landing
@@ -811,8 +848,10 @@ Lista verificada contra los `TODO` que hay hoy en el código:
 - **Reexportar wordmark** con contraformas fusionadas si llega una versión nueva del
   diseñador.
 - **Verificar estadísticas** y añadir fuentes antes de lanzar. (`AiGapSection.tsx`)
-- **Reemplazar testimonios** ficticios por reales. (`lib/mock/testimonials.ts`,
-  `Testimonials.tsx`)
+- **Reemplazar testimonios** ficticios por reales. Va con ello el bloque de iniciales:
+  el `TODO` de `Testimonials.tsx` prevé sustituirlo por una foto real de la firma cuando
+  haya testimonios de verdad. No es un asset de terceros pendiente — hoy no hay ninguna
+  imagen en `public/`. (`lib/mock/testimonials.ts`, `Testimonials.tsx`)
 - **Reemplazar eventos regulatorios** del feed por eventos reales verificados.
   (`AiGapCards.tsx`)
 - **Validar redacción regulatoria** (MGA / surplus lines / Lloyd's) con abogado — sigue
@@ -824,6 +863,18 @@ Lista verificada contra los `TODO` que hay hoy en el código:
   AI, Microsoft Copilot, ChatGPT, Google Gemini): son marcas de terceros sin acuerdo con
   nosotros. La frase "Protecting firms that use" se eligió justamente para no insinuar
   patrocinio ni alianza. (`components/landing/ToolsBelt.tsx`)
+- **Conectar los dos formularios institucionales** — ninguno postea a nada: hacen
+  `console.log` y muestran el éxito en línea. `TODO: POST /api/v1/partners/request`
+  (`components/partners/PartnerForm.tsx`) y `TODO: POST to backend`
+  (`components/platforms/PlatformForm.tsx`).
+- **Sustituir el `mailto` del hero de Platforms** por formulario de contacto o Calendly.
+  (`components/platforms/PlatformsHero.tsx`)
+- **Guardar el lead de `/quote` en Supabase** — hoy el email y el dominio solo viajan por
+  query params y no se persisten en ningún sitio, así que un visitante que abandona a
+  mitad del flujo se pierde. Es la premisa del registro estilo Lemonade de la §6.4.
+  (`app/quote/page.tsx`)
+- **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
+  páginas que no existen. (`app/quote/page.tsx`)
 - **Decidir dónde vuelve a verse el detalle de coberturas** (ver §9).
 
 **Hechos (completados):**
@@ -1041,6 +1092,12 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   en §9.3 para que no se reutilice a ciegas sobre claro.
 - **Correo del footer corregido** a `hello@arcacover.com`, y su enlace "Partners" ya
   lleva a `/partners`.
+- **Página Platforms construida** (§9.4): hero, 4 capacidades sobre marino, 3 pasos,
+  3 razones y formulario de acceso a API. Copy del CCO, literal.
+- **`OceanPrefooter` acepta `showCta`**: las páginas institucionales cierran con el
+  footer de cristal sobre el océano, sin el bloque de CTA de la landing.
+- **`PlatformsSection` borrado** de `components/partners/`: su copy vive ahora en
+  `/platforms`.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
