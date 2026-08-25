@@ -1,12 +1,18 @@
 "use client";
 
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Info } from "lucide-react";
 
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score";
 import { MOCK_PRE_SCORE } from "@/lib/mock/score-data";
 
-export default function ScorePage() {
+function ScoreScreen() {
+  const router = useRouter();
+  // Carried over from the scan so the assessment knows which firm it is for.
+  const query = useSearchParams().toString();
+
   // TODO: read scan results from API instead of mock data
   const { firm, score, tier, confidence, domains, signals } = MOCK_PRE_SCORE;
 
@@ -79,9 +85,7 @@ export default function ScorePage() {
         <section className="mt-16 flex flex-col items-center">
           <button
             type="button"
-            onClick={() => {
-              // TODO: navigate to questionnaire
-            }}
+            onClick={() => router.push(`/assessment?${query}`)}
             className="cta-glow group inline-flex cursor-pointer items-center gap-3.5 rounded-full bg-oro py-2.5 pl-7 pr-2.5 font-heading text-[17px] font-medium tracking-tight text-marino transition-transform duration-200 hover:-translate-y-px"
           >
             Complete full assessment
@@ -104,5 +108,15 @@ export default function ScorePage() {
         <footer className="mt-20 text-center text-xs text-marino/45">© 2026 Arca</footer>
       </div>
     </div>
+  );
+}
+
+export default function ScorePage() {
+  // useSearchParams needs a boundary above it or the route cannot be
+  // prerendered.
+  return (
+    <Suspense fallback={null}>
+      <ScoreScreen />
+    </Suspense>
   );
 }

@@ -35,6 +35,9 @@ function ScanningScreen() {
   const params = useSearchParams();
   const email = params.get("email");
   const domain = params.get("domain");
+  // Carried through to the score and on to the assessment: the firm's answers
+  // are the only thing identifying who we are scoring.
+  const query = params.toString();
 
   const [index, setIndex] = useState(0);
   const [previous, setPrevious] = useState<number | null>(null);
@@ -71,7 +74,7 @@ function ScanningScreen() {
       setProgress(100);
     }, SCAN_MS);
 
-    const leave = setTimeout(() => router.push("/score"), SCAN_MS + DONE_PAUSE_MS);
+    const leave = setTimeout(() => router.push(`/score?${query}`), SCAN_MS + DONE_PAUSE_MS);
 
     // Animated here rather than with a keyframe: the pulse belongs to this
     // screen alone. globals.css already neutralises .orb-sphere transforms
@@ -92,7 +95,7 @@ function ScanningScreen() {
       clearTimeout(leave);
       pulse?.cancel();
     };
-  }, [incomplete, router]);
+  }, [incomplete, query, router]);
 
   if (incomplete) return null;
 
