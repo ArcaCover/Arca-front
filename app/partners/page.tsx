@@ -5,9 +5,11 @@ import {
   PartnerForm,
   PartnerSteps,
   PartnersHero,
-  PlatformsSection,
   WhyPartner,
 } from "@/components/partners";
+// Removed from the page — kept in components/partners/ in case the platforms
+// pitch finds a home later
+// import { PlatformsSection } from "@/components/partners";
 
 export default function PartnersPage() {
   return (
@@ -21,11 +23,9 @@ export default function PartnersPage() {
         <PartnerSteps />
         <PartnerForm />
       </main>
-      <PlatformsSection />
       {/* The footer is a glass panel, so it needs the ocean behind it to read
-          as designed — the same closing treatment as the landing. The CTA that
-          block carries there is suppressed: this page closes on the platforms
-          message instead. */}
+          as designed — the same closing treatment as the landing, minus the
+          prefooter block that page carries above it. */}
       <OceanPrefooter showCta={false}>
         <Footer />
       </OceanPrefooter>

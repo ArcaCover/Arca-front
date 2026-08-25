@@ -10,7 +10,7 @@ const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
 
 const PARTNERS = [
   { label: "Producers", href: "/partners" },
-  { label: "Platforms", href: "/partners#platforms" },
+  { label: "Platforms", href: "/partners" },
 ];
 
 export default function Navbar() {
