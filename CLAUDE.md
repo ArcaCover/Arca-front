@@ -713,7 +713,8 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
 | `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. |
 
-Fuera de ese flujo está `/partners` (§9.3), que no depende del backend.
+Fuera de ese flujo están `/partners` (§9.3) y `/platforms` (§9.4), que no dependen
+del backend.
 
 **El email y el dominio viajan por query params** por toda la cadena, de pantalla en
 pantalla. Es lo único que identifica a la firma mientras no haya backend, así que si
@@ -829,7 +830,9 @@ formulario o Calendly.
 
 ### Pendientes marcados en el código (TODO)
 
-Lista verificada contra los `TODO` que hay hoy en el código:
+Lista verificada contra los `TODO` que hay hoy en el código (última revisión: al
+construir `/platforms`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
+lista vuelve a mentir sobre estar verificada.
 
 - **Conectar Supabase** — sigue sin conectar.
 - **Conectar "Start a conversation"** del pre-footer — es el **único** CTA de la landing
@@ -845,8 +848,10 @@ Lista verificada contra los `TODO` que hay hoy en el código:
 - **Reexportar wordmark** con contraformas fusionadas si llega una versión nueva del
   diseñador.
 - **Verificar estadísticas** y añadir fuentes antes de lanzar. (`AiGapSection.tsx`)
-- **Reemplazar testimonios** ficticios por reales. (`lib/mock/testimonials.ts`,
-  `Testimonials.tsx`)
+- **Reemplazar testimonios** ficticios por reales. Va con ello el bloque de iniciales:
+  el `TODO` de `Testimonials.tsx` prevé sustituirlo por una foto real de la firma cuando
+  haya testimonios de verdad. No es un asset de terceros pendiente — hoy no hay ninguna
+  imagen en `public/`. (`lib/mock/testimonials.ts`, `Testimonials.tsx`)
 - **Reemplazar eventos regulatorios** del feed por eventos reales verificados.
   (`AiGapCards.tsx`)
 - **Validar redacción regulatoria** (MGA / surplus lines / Lloyd's) con abogado — sigue
@@ -858,6 +863,18 @@ Lista verificada contra los `TODO` que hay hoy en el código:
   AI, Microsoft Copilot, ChatGPT, Google Gemini): son marcas de terceros sin acuerdo con
   nosotros. La frase "Protecting firms that use" se eligió justamente para no insinuar
   patrocinio ni alianza. (`components/landing/ToolsBelt.tsx`)
+- **Conectar los dos formularios institucionales** — ninguno postea a nada: hacen
+  `console.log` y muestran el éxito en línea. `TODO: POST /api/v1/partners/request`
+  (`components/partners/PartnerForm.tsx`) y `TODO: POST to backend`
+  (`components/platforms/PlatformForm.tsx`).
+- **Sustituir el `mailto` del hero de Platforms** por formulario de contacto o Calendly.
+  (`components/platforms/PlatformsHero.tsx`)
+- **Guardar el lead de `/quote` en Supabase** — hoy el email y el dominio solo viajan por
+  query params y no se persisten en ningún sitio, así que un visitante que abandona a
+  mitad del flujo se pierde. Es la premisa del registro estilo Lemonade de la §6.4.
+  (`app/quote/page.tsx`)
+- **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
+  páginas que no existen. (`app/quote/page.tsx`)
 - **Decidir dónde vuelve a verse el detalle de coberturas** (ver §9).
 
 **Hechos (completados):**
