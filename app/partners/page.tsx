@@ -7,10 +7,6 @@ import {
   PartnersHero,
   WhyPartner,
 } from "@/components/partners";
-// Removed from the page — kept in components/partners/ in case the platforms
-// pitch finds a home later
-// import { PlatformsSection } from "@/components/partners";
-
 export default function PartnersPage() {
   return (
     <>

@@ -747,12 +747,9 @@ literal.
 tarjetas) → "From partner to placement" (3 pasos) → "Become a partner" (formulario). La
 página cierra directamente en el footer.
 
-**Retirado:** el bloque marino "For legal platforms". `PlatformsSection.tsx` sigue en
-`components/partners/` con su import comentado en `app/partners/page.tsx`, igual que se
-hizo con `ValuePillars` y `HowWeOperate` en la landing. Consecuencia: el menú "Platforms"
-del navbar ya no puede apuntar al ancla `#platforms`, así que **lleva a `/partners` igual
-que "Producers"** — dos entradas del menú al mismo destino, pendiente de decidir si una
-se retira.
+**Retirado:** el bloque marino "For legal platforms". `PlatformsSection.tsx` se **borró**
+al construir `/platforms` (§9.4), que es donde ese pitch vive ahora desarrollado. Con eso
+el menú "Platforms" del navbar dejó de duplicar destino con "Producers".
 
 **Fondo:** el mismo lienzo iluminado de la landing (`.page-canvas`). Se probó antes
 `bg-canvas` liso por miedo a que los halos, calibrados para los 4.500px de la landing,
@@ -792,6 +789,34 @@ cartera hay que preguntarlas en esa llamada.
 `HowWeOperate` tenían como destino previsto esta página, pero el copy del CCO no los
 incluye, así que **no se añadieron**. La consecuencia de la §9 sigue viva: la aclaración
 de que Lloyd's es una aspiración y no un logro **no está en ninguna página del sitio**.
+
+### 9.4 Página Platforms
+
+`/platforms` le habla a empresas de legal tech que quieran integrar scoring, cotización y
+emisión por API. Marketing puro, sin backend. Copy del CCO, literal.
+
+**Cinco bloques:** hero limpio → "What you can build" (4 bloques, **fondo marino**) →
+"How integration works" (3 pasos) → "Why integrate" (3 tarjetas) → "Let's build together"
+(formulario de 3 campos).
+
+**Es la única página con una banda oscura en medio del cuerpo.** Es lo que le da el tono
+técnico que pidió el CCO, y se consigue **sin fuentes nuevas**: la §5 solo admite Space
+Grotesk y Mulish, así que no hay monoespaciada. Contraste medido sobre marino: titular
+13.46:1, títulos de tarjeta 11.71:1, cuerpo 7.29:1 — los tres pasan AA.
+
+**Cierra igual que `/partners`:** `OceanPrefooter showCta={false}` con el footer dentro.
+Las dos páginas institucionales terminan idénticas, comprobado comparando clases y
+estilos computados del bloque de océano y del footer.
+
+**El formulario está duplicado a propósito.** `PlatformForm` pide los mismos tres campos
+que `PartnerForm` pero postea a otro sitio y tiene otro botón y otra nota. Se decidió
+duplicar en vez de extraer un componente compartido: es probable que divergan, y una
+abstracción de un solo uso es peor que la repetición. **Si dentro de un tiempo siguen
+idénticos, ahí sí conviene unificarlos.** Tampoco está conectado: `console.log` y éxito
+en línea, con su `TODO: POST to backend`.
+
+**CTA del hero:** `mailto:hello@arcacover.com`, con `TODO` para sustituirlo por
+formulario o Calendly.
 
 ### Pendientes marcados en el código (TODO)
 
@@ -1041,6 +1066,12 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   en §9.3 para que no se reutilice a ciegas sobre claro.
 - **Correo del footer corregido** a `hello@arcacover.com`, y su enlace "Partners" ya
   lleva a `/partners`.
+- **Página Platforms construida** (§9.4): hero, 4 capacidades sobre marino, 3 pasos,
+  3 razones y formulario de acceso a API. Copy del CCO, literal.
+- **`OceanPrefooter` acepta `showCta`**: las páginas institucionales cierran con el
+  footer de cristal sobre el océano, sin el bloque de CTA de la landing.
+- **`PlatformsSection` borrado** de `components/partners/`: su copy vive ahora en
+  `/platforms`.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
