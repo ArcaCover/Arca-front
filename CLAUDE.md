@@ -747,16 +747,27 @@ literal.
 tarjetas) → "From partner to placement" (3 pasos) → "Become a partner" (formulario) →
 "For legal platforms" (bloque marino).
 
-**Fondo:** `bg-canvas` liso, **sin los halos** de `.page-canvas`. Esos halos están
-calibrados para los 4.500px de la landing; en una página corta se leen como manchas.
+**Fondo:** el mismo lienzo iluminado de la landing (`.page-canvas`). Se probó antes
+`bg-canvas` liso por miedo a que los halos, calibrados para los 4.500px de la landing,
+se leyeran como manchas en una página corta; medido en el navegador **no pasa**, y el
+blanco plano se notaba como una página de otro sitio.
 
 **El footer es un panel de cristal, no un componente autónomo.** `Footer.tsx` es
-`bg-marino/60` con `backdrop-blur`, diseñado para ir encima del vídeo de océano — por eso
-`OceanPrefooter` lo recibe como `children` y no como hermano. Sobre fondo claro se vería
-lavado. Aquí funciona porque la página **cierra en marino**: el bloque de platforms y un
-contenedor `bg-marino` alrededor del footer. Marino al 60% sobre marino sólido da marino
-sólido; medido con píxeles reales, `[27,43,91]` ≈ `#1C2C5B`. **Si alguna vez se pone el
-footer sobre fondo claro, hay que darle un fondo propio.**
+`bg-marino/60` con `backdrop-blur`, así que necesita el océano detrás para leerse como
+fue diseñado — por eso `OceanPrefooter` lo recibe como `children` y no como hermano.
+Partners cierra igual que la landing: `OceanPrefooter` con el footer dentro. **Si alguna
+vez se pone el footer sobre fondo claro, hay que darle un fondo propio.**
+
+**`OceanPrefooter` acepta `showCta`** (por defecto `true`). El bloque "Don't navigate AI
+risk alone" con su botón es de la landing; Partners lo pasa a `false` porque cierra con
+su propio mensaje. Consecuencia a tener en cuenta: sin ese bloque, el océano mide solo
+lo que mide el footer, así que **el mar se ve a través del cristal y no por encima**. Si
+alguna vez se quiere una franja de mar despejada, hay que añadirla aparte.
+
+**El océano no se puede verificar en este entorno.** Ni el Chromium de Playwright ni su
+`ffmpeg` traen H.264 (`canPlayType` vacío, `error: 4` en el `<video>`), y da el mismo
+resultado en la landing, así que es el navegador y no la página. Cualquier cambio en el
+bloque de océano hay que **mirarlo en un navegador real**.
 
 **El formulario no está conectado.** Al enviar hace `console.log` y muestra el éxito en
 línea. El `TODO: POST /api/v1/partners/request` está en el handler.
