@@ -9,8 +9,8 @@ import NavDropdown from "./NavDropdown";
 const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
 
 const PARTNERS = [
-  { label: "Producers", href: "#" },
-  { label: "Platforms", href: "#" },
+  { label: "Producers", href: "/partners" },
+  { label: "Platforms", href: "/partners#platforms" },
 ];
 
 export default function Navbar() {

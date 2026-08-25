@@ -704,6 +704,8 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
 | `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. |
 
+Fuera de ese flujo está `/partners` (§9.3), que no depende del backend.
+
 **El email y el dominio viajan por query params** por toda la cadena, de pantalla en
 pantalla. Es lo único que identifica a la firma mientras no haya backend, así que si
 una pantalla se los come, las siguientes se quedan sin contexto y rebotan a `/quote`.
@@ -734,6 +736,41 @@ cumple la §7. Antes de lanzar hay que decidir si se retiran las cifras.
 **Aún no conectado:** el botón "Get coverage" (falta Stripe), "Connect with a broker",
 la descarga de los dos PDF y todos los `TODO` de llamada a API. Las respuestas del
 cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
+
+### 9.3 Página Partners
+
+`/partners` es la primera página institucional fuera de la landing. Es marketing puro:
+no toca el backend y no depende del flujo de cotización. Copy aprobado por el CCO,
+literal.
+
+**Cinco bloques:** hero limpio (sin orbe ni badge rotativo) → "Why partner with us" (4
+tarjetas) → "From partner to placement" (3 pasos) → "Become a partner" (formulario) →
+"For legal platforms" (bloque marino).
+
+**Fondo:** `bg-canvas` liso, **sin los halos** de `.page-canvas`. Esos halos están
+calibrados para los 4.500px de la landing; en una página corta se leen como manchas.
+
+**El footer es un panel de cristal, no un componente autónomo.** `Footer.tsx` es
+`bg-marino/60` con `backdrop-blur`, diseñado para ir encima del vídeo de océano — por eso
+`OceanPrefooter` lo recibe como `children` y no como hermano. Sobre fondo claro se vería
+lavado. Aquí funciona porque la página **cierra en marino**: el bloque de platforms y un
+contenedor `bg-marino` alrededor del footer. Marino al 60% sobre marino sólido da marino
+sólido; medido con píxeles reales, `[27,43,91]` ≈ `#1C2C5B`. **Si alguna vez se pone el
+footer sobre fondo claro, hay que darle un fondo propio.**
+
+**El formulario no está conectado.** Al enviar hace `console.log` y muestra el éxito en
+línea. El `TODO: POST /api/v1/partners/request` está en el handler. Ojo con un detalle:
+HTML5 no sabe exigir "al menos uno de este grupo" en checkboxes, así que los estados
+llevan `required` **mientras no haya ninguno marcado**, y el requisito se levanta solo.
+Así el mensaje y el foco los pone el navegador, sin validación a mano.
+
+**Anclas:** el navbar es `fixed` de 64px, así que las secciones destino llevan
+`scroll-mt-24`. Sin eso el CTA del hero deja el titular del formulario debajo de la barra.
+
+**⚠ Los textos retirados de la landing siguen sin recolocar.** `ValuePillars` y
+`HowWeOperate` tenían como destino previsto esta página, pero el copy del CCO no los
+incluye, así que **no se añadieron**. La consecuencia de la §9 sigue viva: la aclaración
+de que Lloyd's es una aspiración y no un logro **no está en ninguna página del sitio**.
 
 ### Pendientes marcados en el código (TODO)
 
@@ -767,8 +804,6 @@ Lista verificada contra los `TODO` que hay hoy en el código:
   nosotros. La frase "Protecting firms that use" se eligió justamente para no insinuar
   patrocinio ni alianza. (`components/landing/ToolsBelt.tsx`)
 - **Decidir dónde vuelve a verse el detalle de coberturas** (ver §9).
-- **Reemplazar el correo** `hello@arca.com` del footer: es de relleno y además usa un
-  dominio que ya no es el nuestro (sería `@arcacover.com`). (`Footer.tsx`)
 
 **Hechos (completados):**
 - ~~Recomprimir `ocean.mp4`~~ — 13.3 MB → 4.4 MB (1600×900, H.264 CRF 25 con
@@ -979,6 +1014,12 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   por query params por toda la cadena.
 - **Cuestionario de Capa 2 construido:** 10 preguntas mock con la lógica de saltos de la
   Capa 1, una pregunta a la vez, respuestas solo en memoria.
+- **Página Partners construida** (§9.3): hero, 4 razones, 3 pasos, formulario de
+  solicitud (sin backend) y bloque marino para plataformas. Copy del CCO, literal.
+- **El footer solo funciona sobre fondo oscuro** — es un panel de cristal. Documentado
+  en §9.3 para que no se reutilice a ciegas sobre claro.
+- **Correo del footer corregido** a `hello@arcacover.com`, y su enlace "Partners" ya
+  lleva a `/partners`.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
