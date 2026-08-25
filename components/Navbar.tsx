@@ -52,12 +52,12 @@ export default function Navbar() {
           <NavDropdown label="Industries">
             <ul className="space-y-3">
               {INDUSTRIES.map((industry) => (
-                <li key={industry}>
+                <li key={industry.label}>
                   <a
-                    href="#"
+                    href={industry.href}
                     className="whitespace-nowrap text-sm font-semibold text-marino hover:text-oro-oscuro"
                   >
-                    {industry}
+                    {industry.label}
                   </a>
                 </li>
               ))}
@@ -170,13 +170,13 @@ export default function Navbar() {
             </summary>
             <ul className="mt-2 space-y-2 pl-4">
               {INDUSTRIES.map((industry) => (
-                <li key={industry}>
+                <li key={industry.label}>
                   <a
-                    href="#"
+                    href={industry.href}
                     onClick={() => setMobileOpen(false)}
                     className="text-sm font-semibold text-marino"
                   >
-                    {industry}
+                    {industry.label}
                   </a>
                 </li>
               ))}
