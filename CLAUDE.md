@@ -743,9 +743,16 @@ cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
 no toca el backend y no depende del flujo de cotización. Copy aprobado por el CCO,
 literal.
 
-**Cinco bloques:** hero limpio (sin orbe ni badge rotativo) → "Why partner with us" (4
-tarjetas) → "From partner to placement" (3 pasos) → "Become a partner" (formulario) →
-"For legal platforms" (bloque marino).
+**Cuatro bloques:** hero limpio (sin orbe ni badge rotativo) → "Why partner with us" (4
+tarjetas) → "From partner to placement" (3 pasos) → "Become a partner" (formulario). La
+página cierra directamente en el footer.
+
+**Retirado:** el bloque marino "For legal platforms". `PlatformsSection.tsx` sigue en
+`components/partners/` con su import comentado en `app/partners/page.tsx`, igual que se
+hizo con `ValuePillars` y `HowWeOperate` en la landing. Consecuencia: el menú "Platforms"
+del navbar ya no puede apuntar al ancla `#platforms`, así que **lleva a `/partners` igual
+que "Producers"** — dos entradas del menú al mismo destino, pendiente de decidir si una
+se retira.
 
 **Fondo:** el mismo lienzo iluminado de la landing (`.page-canvas`). Se probó antes
 `bg-canvas` liso por miedo a que los halos, calibrados para los 4.500px de la landing,
@@ -759,10 +766,10 @@ Partners cierra igual que la landing: `OceanPrefooter` con el footer dentro. **S
 vez se pone el footer sobre fondo claro, hay que darle un fondo propio.**
 
 **`OceanPrefooter` acepta `showCta`** (por defecto `true`). El bloque "Don't navigate AI
-risk alone" con su botón es de la landing; Partners lo pasa a `false` porque cierra con
-su propio mensaje. Consecuencia a tener en cuenta: sin ese bloque, el océano mide solo
-lo que mide el footer, así que **el mar se ve a través del cristal y no por encima**. Si
-alguna vez se quiere una franja de mar despejada, hay que añadirla aparte.
+risk alone" con su botón es de la landing; Partners lo pasa a `false`. Consecuencia a
+tener en cuenta: sin ese bloque, el océano mide solo lo que mide el footer, así que **el
+mar se ve a través del cristal y no por encima**. Se ofreció añadir una franja de mar
+despejada y el fundador la descartó: quiere el mismo footer, sin prefooter, y nada más.
 
 **El océano no se puede verificar en este entorno.** Ni el Chromium de Playwright ni su
 `ffmpeg` traen H.264 (`canPlayType` vacío, `error: 4` en el `<video>`), y da el mismo
