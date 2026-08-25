@@ -690,16 +690,63 @@ fuentes del escaneo, el feed regulatorio, el timeline de emisión), vive en
 `docs/copy-deck.md`. Lleva marcado qué es ficticio y qué está sin verificar. **Al
 cambiar copy, actualizar también ese archivo** o vuelve a quedar desfasado.
 
+### 9.2 Flujo de producto (fuera de la landing)
+
+Además de la landing existe ya un **recorrido de cotización completo**, todo con datos
+mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
+`bg-canvas`:
+
+| Ruta | Qué hace |
+|---|---|
+| `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. |
+| `/quote/scanning` | Espera del scan de Capa 1: 25s de trabajo simulado, mensajes rotando y orbe latiendo. |
+| `/score` | Pre-Score: gauge, tier, 6 dominios y las señales detectadas. |
+| `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
+| `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. |
+
+**El email y el dominio viajan por query params** por toda la cadena, de pantalla en
+pantalla. Es lo único que identifica a la firma mientras no haya backend, así que si
+una pantalla se los come, las siguientes se quedan sin contexto y rebotan a `/quote`.
+Ya pasó una vez: `scanning` navegaba a `/score` sin params y la cadena se cortaba ahí.
+**Al añadir una pantalla nueva al flujo, arrastrar los params.**
+
+Toda pantalla que lea `useSearchParams` necesita un `<Suspense>` por encima o la ruta
+no se puede prerenderizar. El patrón está en las cuatro.
+
+**Datos mock:** `lib/mock/score-data.ts` (Pre-Score), `lib/mock/assessment-questions.ts`
+(las 10 preguntas) y `lib/mock/assessment-results.ts` (score completo + pricing). Los
+tipos que devolverá la API de Jesús viven aparte, en `lib/types/`.
+
+**Componentes:** `components/score/` (gauge, tier, barras, señales) y
+`components/assessment/` (tarjeta de pregunta, progreso, dominio, navegación). Las
+páginas de assessment **reutilizan** `ScoreGauge`, `TierBadge` y `DomainBar` de
+`components/score/`.
+
+**Selección adaptativa de preguntas:** el mock simula un scan que encontró AI policy y
+Clio, así que Q1.1 y Q2.1 se saltan y en su lugar van sus preguntas de seguimiento. La
+pantalla acredita el ahorro ("Skipped for you: …"). Es la demostración visible de por
+qué la Capa 1 existe.
+
+**⚠ Todo el pricing que se ve en `/assessment/results` es placeholder** — no hay carrier
+ni tarifas presentadas. Las dos pantallas llevan disclaimer visible, que es lo que hoy
+cumple la §7. Antes de lanzar hay que decidir si se retiran las cifras.
+
+**Aún no conectado:** el botón "Get coverage" (falta Stripe), "Connect with a broker",
+la descarga de los dos PDF y todos los `TODO` de llamada a API. Las respuestas del
+cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
+
 ### Pendientes marcados en el código (TODO)
 
 Lista verificada contra los `TODO` que hay hoy en el código:
 
 - **Conectar Supabase** — sigue sin conectar.
-- **Flujo "Get a quote"** — el formulario de captación fue **eliminado** de la página.
-  Todos los botones "Get a quote" y "Start a conversation" están **visibles pero sin
-  acción**. El primer paso es un **input de email + dominio** (estilo Lemonade) que
-  guarda el lead inmediatamente y dispara el scan de Capa 1. Implementación técnica y
-  diseño visual pendientes. (`Hero.tsx`, `Navbar.tsx`, `OceanPrefooter.tsx`)
+- **Conectar los CTA de la landing con `/quote`** — el recorrido de cotización ya
+  existe (§9.2), pero los botones "Get a quote" y "Start a conversation" de la landing
+  siguen **visibles y sin acción**: no llevan a ninguna parte. (`Hero.tsx`,
+  `Navbar.tsx`, `OceanPrefooter.tsx`)
+- **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
+  `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
+  tiene su `TODO` en el código.
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
   (ver §7). (`OceanPanel.tsx`)
 - **Scores ilustrativos** 72 y 86 del panel — el Score Engine no existe todavía.
@@ -928,6 +975,11 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   (`https://github.com/ArcaCover/Arca-front`). Owners: cuenta de empresa + cuenta
   personal del CEO. Claude Code corre en la nube (ya no local). Jesús tendrá su propio
   repo de backend en la misma organización.
+- **Recorrido de cotización construido** (§9.2): `/quote` → `/quote/scanning` → `/score`
+  → `/assessment` → `/assessment/results`, todo con datos mock. Email y dominio viajan
+  por query params por toda la cadena.
+- **Cuestionario de Capa 2 construido:** 10 preguntas mock con la lógica de saltos de la
+  Capa 1, una pregunta a la vez, respuestas solo en memoria.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
