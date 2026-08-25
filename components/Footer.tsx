@@ -1,5 +1,9 @@
 const RESOURCES = ["Terms of Service", "Privacy Policy", "FAQ"];
-const COMPANY = ["Partners", "Blog", "Careers"];
+const COMPANY = [
+  { label: "Partners", href: "/partners" },
+  { label: "Blog", href: "#" },
+  { label: "Careers", href: "#" },
+];
 
 export default function Footer() {
   return (
@@ -9,10 +13,9 @@ export default function Footer() {
           <h3 className="font-heading text-xs font-medium uppercase tracking-widest text-white/50">
             Contact
           </h3>
-          {/* TODO: replace placeholder email before launch */}
           <p className="mt-4 text-sm text-white/70">
-            <a href="mailto:hello@arca.com" className="hover:text-white">
-              hello@arca.com
+            <a href="mailto:hello@arcacover.com" className="hover:text-white">
+              hello@arcacover.com
             </a>
           </p>
           <p className="mt-2 text-sm text-white/70">
@@ -39,9 +42,12 @@ export default function Footer() {
           </h3>
           <ul className="mt-4 space-y-2">
             {COMPANY.map((link) => (
-              <li key={link}>
-                <a href="#" className="text-sm text-white/75 transition-colors hover:text-white">
-                  {link}
+              <li key={link.label}>
+                <a
+                  href={link.href}
+                  className="text-sm text-white/75 transition-colors hover:text-white"
+                >
+                  {link.label}
                 </a>
               </li>
             ))}

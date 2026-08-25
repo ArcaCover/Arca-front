@@ -9,8 +9,8 @@ import NavDropdown from "./NavDropdown";
 const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
 
 const PARTNERS = [
-  { label: "Producers", href: "#" },
-  { label: "Platforms", href: "#" },
+  { label: "Producers", href: "/partners" },
+  { label: "Platforms", href: "/partners#platforms" },
 ];
 
 export default function Navbar() {
@@ -207,6 +207,15 @@ export default function Navbar() {
           >
             My account
           </a>
+          {/* The panel covers the gold CTA in the bar above it, so without this
+              a phone user who opens the menu has no way through to a quote. */}
+          <Link
+            href="/quote"
+            className="mt-3 block rounded-full bg-oro py-3 text-center text-sm font-bold text-marino transition-colors hover:bg-oro-oscuro"
+            onClick={() => setMobileOpen(false)}
+          >
+            Get a quote
+          </Link>
         </div>
       )}
     </header>
