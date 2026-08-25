@@ -713,8 +713,8 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
 | `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. |
 
-Fuera de ese flujo están `/partners` (§9.3) y `/platforms` (§9.4), que no dependen
-del backend.
+Fuera de ese flujo están `/partners` (§9.3), `/platforms` (§9.4) y
+`/industries/legal` (§9.5), que no dependen del backend.
 
 **El email y el dominio viajan por query params** por toda la cadena, de pantalla en
 pantalla. Es lo único que identifica a la firma mientras no haya backend, así que si
@@ -828,6 +828,37 @@ en línea, con su `TODO: POST to backend`.
 **CTA del hero:** `mailto:hello@arcacover.com`, con `TODO` para sustituirlo por
 formulario o Calendly.
 
+### 9.5 Página Industries / Legal
+
+`/industries/legal` es la primera página del menú "Industries". Tono editorial: informa
+sobre lo que está pasando en el sector, no vende producto hasta el cierre. Copy del CCO,
+literal.
+
+**Cinco bloques:** hero → "What's happening in legal" (3 bloques **alineados a la
+izquierda** con 01/02/03) → "Why legal is uniquely exposed" (4 tarjetas) → "Who we work
+with" (intro + 3 tarjetas) → "Built for your practice" (cierre marino con CTA a `/quote`).
+
+**Tercera variante del patrón numerado.** Partners y Platforms llevan los pasos
+centrados en tres columnas; aquí van en filas, a la izquierda y con separador, porque el
+texto es mucho más largo y el CCO lo pidió así. No unificar sin decidirlo.
+
+**⚠ La página cierra con tres tramos oscuros seguidos:** sección marino (494px) → vídeo
+de océano → footer de cristal (334px). El gap entre ellos es **0px** y lo único que los
+separa es el borde de 1px al 10% de blanco del footer. Con el vídeo corriendo debería
+leerse como dos cosas distintas; **sin poder verlo aquí** (§9.3: no hay H.264 en el
+navegador de pruebas) queda **pendiente de juicio en la preview**. Si se lee como un solo
+ladrillo oscuro de 828px, la solución es separar la sección marino del cierre, no
+retocar el footer.
+
+**Menú Industries conectado:** `lib/industries.ts` pasó de `["Legal"]` a
+`[{ label, href }]`, la misma forma que ya usaban `COVERAGES` y `PARTNERS` en el navbar.
+Lo consumen el desplegable de escritorio y el panel móvil. De paso se corrigió el
+comentario del archivo, que decía que existía para sincronizar el menú con "la cinta del
+hero" — esa cinta dejó de consumirlo hace tiempo.
+
+**⚠ `/industries` (sin `/legal`) da 404.** Nada enlaza ahí — en el navbar "Industries" es
+solo el disparador del desplegable — pero la URL escrita a mano no existe.
+
 ### Pendientes marcados en el código (TODO)
 
 Lista verificada contra los `TODO` que hay hoy en el código (última revisión: al
@@ -875,6 +906,8 @@ lista vuelve a mentir sobre estar verificada.
   (`app/quote/page.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
+- **Crear `/coverage`** — el CTA secundario del cierre de `/industries/legal` es un
+  `href="#"` esperando esa página. (`components/industries-legal/BuiltForPractice.tsx`)
 - **Decidir dónde vuelve a verse el detalle de coberturas** (ver §9).
 
 **Hechos (completados):**
@@ -1098,6 +1131,9 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   footer de cristal sobre el océano, sin el bloque de CTA de la landing.
 - **`PlatformsSection` borrado** de `components/partners/`: su copy vive ahora en
   `/platforms`.
+- **Página Industries / Legal construida** (§9.5): primera página del menú Industries,
+  tono editorial, cierre marino con CTA a `/quote`. Copy del CCO, literal.
+- **`lib/industries.ts` pasa a `{label, href}`** para que el menú pueda enlazar.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
