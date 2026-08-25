@@ -11,7 +11,16 @@ import { useVideoLoop } from "@/lib/useVideoLoop";
  * as `children` instead of being a sibling, which is what keeps them on the
  * same backdrop.
  */
-export default function OceanPrefooter({ children }: { children?: ReactNode }) {
+export default function OceanPrefooter({
+  children,
+  // The CTA belongs to the landing, where the closing block asks a visitor to
+  // get in touch. Pages with their own closing message reuse the ocean and the
+  // glass footer without it.
+  showCta = true,
+}: {
+  children?: ReactNode;
+  showCta?: boolean;
+}) {
   // Kept live (once: false) so the loop only decodes while the block shows.
   const [sectionRef, onScreen] = useInView<HTMLDivElement>({
     threshold: 0.01,
@@ -56,25 +65,27 @@ export default function OceanPrefooter({ children }: { children?: ReactNode }) {
       />
       <div className="ocean-scrim pointer-events-none absolute inset-0 z-[2]" />
 
-      <section
-        aria-label="Talk to Arca"
-        className="relative z-10 flex h-[280px] flex-col items-center justify-center gap-6 px-6 text-center min-[721px]:h-[330px]"
-      >
-        <h2 className="ocean-title text-pretty font-heading text-[clamp(34px,5.2vw,56px)] font-medium leading-[1.05] tracking-[-0.04em] text-white">
-          Don&rsquo;t navigate AI risk alone
-        </h2>
-        <p className="ocean-copy max-w-[520px] text-pretty text-[clamp(16px,2vw,19px)] leading-relaxed text-white/80">
-          Whether you&rsquo;re exploring coverage or ready to get a quote,
-          we&rsquo;re here.
-        </p>
-        {/* TODO: open contact form modal (name, last name, email, phone, message) + connect to Supabase */}
-        <button
-          type="button"
-          className="ocean-cta mt-2 cursor-pointer rounded-full bg-oro px-6 py-3.5 font-heading text-base font-bold tracking-[-0.01em] text-marino transition-colors duration-300 hover:bg-oro-oscuro min-[721px]:px-8 min-[721px]:py-4 min-[721px]:text-[18px]"
+      {showCta ? (
+        <section
+          aria-label="Talk to Arca"
+          className="relative z-10 flex h-[280px] flex-col items-center justify-center gap-6 px-6 text-center min-[721px]:h-[330px]"
         >
-          Start a conversation
-        </button>
-      </section>
+          <h2 className="ocean-title text-pretty font-heading text-[clamp(34px,5.2vw,56px)] font-medium leading-[1.05] tracking-[-0.04em] text-white">
+            Don&rsquo;t navigate AI risk alone
+          </h2>
+          <p className="ocean-copy max-w-[520px] text-pretty text-[clamp(16px,2vw,19px)] leading-relaxed text-white/80">
+            Whether you&rsquo;re exploring coverage or ready to get a quote,
+            we&rsquo;re here.
+          </p>
+          {/* TODO: open contact form modal (name, last name, email, phone, message) + connect to Supabase */}
+          <button
+            type="button"
+            className="ocean-cta mt-2 cursor-pointer rounded-full bg-oro px-6 py-3.5 font-heading text-base font-bold tracking-[-0.01em] text-marino transition-colors duration-300 hover:bg-oro-oscuro min-[721px]:px-8 min-[721px]:py-4 min-[721px]:text-[18px]"
+          >
+            Start a conversation
+          </button>
+        </section>
+      ) : null}
 
       <div className="relative z-10">{children}</div>
     </div>
