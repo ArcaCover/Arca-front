@@ -743,9 +743,6 @@ Lista verificada contra los `TODO` que hay hoy en el código:
 - **Conectar "Start a conversation"** del pre-footer — es el **único** CTA de la landing
   que sigue sin acción. No es un CTA de cotización: pide un formulario de contacto
   (nombre, email, teléfono, mensaje) contra Supabase. (`OceanPrefooter.tsx`)
-- **La landing no ofrece cotizar desde el menú móvil** — el CTA dorado del navbar sí
-  aparece en móvil al hacer scroll, pero el panel de la hamburguesa solo lleva
-  "My account". Sin decidir si hace falta. (`Navbar.tsx`)
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
   `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
   tiene su `TODO` en el código.
