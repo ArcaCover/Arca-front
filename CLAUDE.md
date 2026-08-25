@@ -165,6 +165,15 @@ distintos hacia la misma lógica.
 - **Colores fuera de paleta:** si el diseño trae un color que no está en la paleta
   (p. ej. un verde), sustituirlo por el token más cercano (cielo, oro, etc.) y avisar.
   No ampliar la paleta sin decisión del fundador.
+- **No se pueden componer colores leyendo `getComputedStyle`.** Tailwind v4 devuelve
+  los colores con alfa como `oklab(L a b / α)`, con negativos y notación científica, así
+  que sacar los canales con un regex de números da basura silenciosa. Pasó dos veces:
+  midiendo el footer sobre marino y midiendo el contraste del bloque marino de
+  `/platforms`, y en los dos casos el resultado parecía un fallo real de diseño que no
+  existía. Componer con `<canvas>` tampoco vale: `fillStyle` se come el alfa. Formas
+  fiables: **muestrear píxeles reales** de una captura (así se comprobó el footer), o
+  hacer la **aritmética a partir de los tokens** de la paleta y contrastarla con los
+  casos opacos, que el navegador sí reporta en `rgb()`.
 - **El compilador puede descartar CSS válido en silencio.** Una capa de degradado
   con `var()` y una parada en `0` sin unidad desapareció de `background` sin dar
   error, y el efecto simplemente no ocurría. Se resolvió con `mask-image`. Moraleja:
