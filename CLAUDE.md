@@ -698,7 +698,7 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 
 | Ruta | Qué hace |
 |---|---|
-| `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. |
+| `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. Entra desde los CTA "Get a quote" del hero y del navbar. |
 | `/quote/scanning` | Espera del scan de Capa 1: 25s de trabajo simulado, mensajes rotando y orbe latiendo. |
 | `/score` | Pre-Score: gauge, tier, 6 dominios y las señales detectadas. |
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
@@ -740,10 +740,12 @@ cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
 Lista verificada contra los `TODO` que hay hoy en el código:
 
 - **Conectar Supabase** — sigue sin conectar.
-- **Conectar los CTA de la landing con `/quote`** — el recorrido de cotización ya
-  existe (§9.2), pero los botones "Get a quote" y "Start a conversation" de la landing
-  siguen **visibles y sin acción**: no llevan a ninguna parte. (`Hero.tsx`,
-  `Navbar.tsx`, `OceanPrefooter.tsx`)
+- **Conectar "Start a conversation"** del pre-footer — es el **único** CTA de la landing
+  que sigue sin acción. No es un CTA de cotización: pide un formulario de contacto
+  (nombre, email, teléfono, mensaje) contra Supabase. (`OceanPrefooter.tsx`)
+- **La landing no ofrece cotizar desde el menú móvil** — el CTA dorado del navbar sí
+  aparece en móvil al hacer scroll, pero el panel de la hamburguesa solo lleva
+  "My account". Sin decidir si hace falta. (`Navbar.tsx`)
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
   `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
   tiene su `TODO` en el código.
