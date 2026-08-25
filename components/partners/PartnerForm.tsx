@@ -3,15 +3,10 @@
 import { useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
 
-const LICENSED_STATES = ["FL", "TX", "CA", "NY", "Other"];
-
-const BOOK_SIZES = ["1-20", "21-50", "51-100", "100+"];
-
 const FIELDS = [
   { name: "fullName", label: "Full name", type: "text", autoComplete: "name" },
   { name: "company", label: "Company", type: "text", autoComplete: "organization" },
   { name: "workEmail", label: "Work email", type: "email", autoComplete: "email" },
-  { name: "licenseNumber", label: "License number", type: "text", autoComplete: "off" },
 ];
 
 const INPUT_CLASS =
@@ -20,16 +15,7 @@ const INPUT_CLASS =
 const LABEL_CLASS = "block font-heading text-sm font-semibold text-marino";
 
 export default function PartnerForm() {
-  const [states, setStates] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
-
-  function toggleState(state: string) {
-    setStates((current) =>
-      current.includes(state)
-        ? current.filter((entry) => entry !== state)
-        : [...current, state],
-    );
-  }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,9 +26,6 @@ export default function PartnerForm() {
       fullName: data.get("fullName"),
       company: data.get("company"),
       workEmail: data.get("workEmail"),
-      licenseNumber: data.get("licenseNumber"),
-      licensedStates: states,
-      bookSize: data.get("bookSize"),
     });
 
     setSubmitted(true);
@@ -85,62 +68,6 @@ export default function PartnerForm() {
                   />
                 </div>
               ))}
-
-              <fieldset>
-                <legend className={LABEL_CLASS}>Licensed states</legend>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {LICENSED_STATES.map((state) => {
-                    const checked = states.includes(state);
-
-                    return (
-                      <label
-                        key={state}
-                        className={`cursor-pointer rounded-full border px-5 py-2.5 text-sm font-semibold transition-colors has-[:focus-visible]:border-cielo ${
-                          checked
-                            ? "border-cielo bg-cielo/10 text-marino"
-                            : "border-bruma text-marino/70 hover:border-cielo/50"
-                        }`}
-                      >
-                        {/* HTML5 cannot express "at least one of this group", so
-                            the requirement sits on every box until one is
-                            checked. That way the browser supplies its own
-                            message and focus instead of a hand-rolled one. */}
-                        <input
-                          type="checkbox"
-                          name="licensedStates"
-                          value={state}
-                          checked={checked}
-                          onChange={() => toggleState(state)}
-                          required={states.length === 0}
-                          className="sr-only"
-                        />
-                        {state}
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              <fieldset>
-                <legend className={LABEL_CLASS}>Book size</legend>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {BOOK_SIZES.map((size) => (
-                    <label
-                      key={size}
-                      className="group cursor-pointer rounded-full border border-bruma px-5 py-2.5 text-sm font-semibold text-marino/70 transition-colors hover:border-cielo/50 has-[:checked]:border-cielo has-[:checked]:bg-cielo/10 has-[:checked]:text-marino has-[:focus-visible]:border-cielo"
-                    >
-                      <input
-                        type="radio"
-                        name="bookSize"
-                        value={size}
-                        required
-                        className="sr-only"
-                      />
-                      {size}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
 
               <button
                 type="submit"

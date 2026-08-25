@@ -23,7 +23,7 @@ export default function PartnerSteps() {
 
         <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
           {STEPS.map((step, position) => (
-            <li key={step.title}>
+            <li key={step.title} className="text-center">
               <span className="font-heading text-sm font-semibold tracking-widest text-oro-oscuro">
                 {String(position + 1).padStart(2, "0")}
               </span>

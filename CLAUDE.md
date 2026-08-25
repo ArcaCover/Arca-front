@@ -759,10 +759,13 @@ sólido; medido con píxeles reales, `[27,43,91]` ≈ `#1C2C5B`. **Si alguna vez
 footer sobre fondo claro, hay que darle un fondo propio.**
 
 **El formulario no está conectado.** Al enviar hace `console.log` y muestra el éxito en
-línea. El `TODO: POST /api/v1/partners/request` está en el handler. Ojo con un detalle:
-HTML5 no sabe exigir "al menos uno de este grupo" en checkboxes, así que los estados
-llevan `required` **mientras no haya ninguno marcado**, y el requisito se levanta solo.
-Así el mensaje y el foco los pone el navegador, sin validación a mano.
+línea. El `TODO: POST /api/v1/partners/request` está en el handler.
+
+**Solo pide tres campos:** nombre, empresa y email de trabajo. El copy original del CCO
+traía además número de licencia, estados con licencia y tamaño de cartera; el fundador
+los retiró para bajar la fricción. Consecuencia a tener en cuenta: **el formulario ya no
+recoge nada con lo que filtrar brokers antes de la discovery call** — la licencia y la
+cartera hay que preguntarlas en esa llamada.
 
 **Anclas:** el navbar es `fixed` de 64px, así que las secciones destino llevan
 `scroll-mt-24`. Sin eso el CTA del hero deja el titular del formulario debajo de la barra.
