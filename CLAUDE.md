@@ -991,12 +991,24 @@ Define criterios de éxito y verifícalos **midiendo en el navegador**, no a ojo
 
 ### Rendimiento (vigilar)
 
-La página ya carga: el orbe del hero (rAF), la cinta de coberturas y **tres secciones
-con vídeo de océano** (Products, panel de tarjetas de la sección AI gap y pre-footer).
-El shader WebGL del pre-footer fue sustituido por el vídeo. Cada sección monta **dos
-`<video>`** del mismo archivo para el bucle sin corte (`lib/useVideoLoop`), o sea seis
-elementos en total, aunque el archivo se descarga una sola vez. Conviene medirlo en un
-móvil real antes de lanzar.
+Contado en el navegador, no estimado. Cada bloque de océano monta **dos `<video>`** del
+mismo archivo para el bucle sin corte (`lib/useVideoLoop`), y `ocean.mp4` se descarga una
+sola vez por página:
+
+| Ruta | `<video>` | De dónde salen |
+|---|---|---|
+| `/` | **6** | Products (`OceanPanel`), tarjetas de la sección AI gap y pre-footer |
+| `/partners`, `/platforms`, `/industries/legal` | **2** cada una | solo el `OceanPrefooter` del cierre |
+| `/quote`, `/quote/scanning`, `/score`, `/assessment`, `/assessment/results` | **0** | el flujo de cotización no usa vídeo |
+
+La landing es la pesada: además de esos seis elementos lleva el orbe del hero (rAF) y
+**dos cintas** en marquesina (`ToolsBelt` y `RisksBelt` — la vieja cinta de coberturas ya
+no se renderiza). El shader WebGL del pre-footer fue sustituido por el vídeo. Conviene
+medirlo en un móvil real antes de lanzar.
+
+**Ojo al añadir páginas institucionales:** cada una que cierre con `OceanPrefooter` suma
+dos `<video>` más de 4.4 MB. Hoy son tres páginas; si crecen mucho, conviene un póster
+estático para el cierre en vez del vídeo.
 
 A eso se suma la **seda de Testimonials**: cuatro capas desenfocadas girando. Es barata
 porque el desenfoque se rasteriza una vez y solo se anima el `transform`, que va al
