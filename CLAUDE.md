@@ -686,10 +686,10 @@ AI Work Product Errors · AI Regulatory Sanctions · AI Bias & Discrimination ·
 AI Privacy & Confidentiality Breach · Error Remediation · AI Forensic Investigation ·
 Crisis Management · Regulatory Compliance Costs.
 **Producto único:** AI Professional Malpractice (las 8 coberturas).
-**⚠ Hoy no aparecen en el sitio.** Salieron con la cinta vieja y las cintas nuevas hablan
-de herramientas y de riesgos, no de coberturas. El menú "Coverages" del navbar solo dice
-"AI Professional Malpractice". Queda **abierto** dónde vuelve a verse el detalle: la
-landing describe el problema pero ya no enumera qué cubre la póliza.
+**No aparecen en la landing** — salieron con la cinta vieja y las cintas nuevas hablan
+de herramientas y de riesgos, no de coberturas. El detalle vive ahora en **`/coverage`**
+(§9.6), a donde apunta el menú "Coverages" del navbar. La landing sigue describiendo el
+problema sin enumerar qué cubre la póliza; eso es deliberado.
 
 ### 9.1 Inventario completo del copy
 
@@ -859,10 +859,59 @@ hero" — esa cinta dejó de consumirlo hace tiempo.
 **⚠ `/industries` (sin `/legal`) da 404.** Nada enlaza ahí — en el navbar "Industries" es
 solo el disparador del desplegable — pero la URL escrita a mano no existe.
 
+### 9.6 Página Coverage
+
+`/coverage` es la primera página que muestra el detalle de las **8 coberturas** desde que
+salieron de la landing con la reestructura narrativa. Marketing puro, sin backend. Copy
+del CCO, literal.
+
+**Cuatro bloques:** hero limpio (headline + subtítulo, **sin CTA** — el copy del CCO no
+trae ninguno, a diferencia de las otras institucionales) → grupo Third-Party ("When AI
+errors reach your clients.") → grupo First-Party ("When the cost falls on your firm.") →
+cierre marino con CTA dorado a `/quote` y línea "Are you a broker? Partner with us" a
+`/partners`. Cierra igual que las demás: `OceanPrefooter showCta={false}` con el footer
+dentro.
+
+**Los dos grupos son el mismo componente.** `CoverageGroup` recibe un
+`CoverageGroupContent` (encabezado, bajada y cuatro coberturas) y lo renderiza; solo
+cambian los datos. Es la única abstracción de la página y tiene dos usos reales, así que
+no cae en la regla de "abstracción de un solo uso" de la §10.2.
+
+**Separación entre Third-Party y First-Party: solo aire y encabezado.** Sin línea
+divisoria y sin banda oscura — la banda marino en medio del cuerpo es exclusiva de
+`/platforms` (§9.4). El fondo de los dos grupos es transparente para que corra el lienzo.
+
+**Tarjeta de cobertura, tres niveles:** nombre (Space Grotesk 20px, marino) → descripción
+(15px, marino/70) → escenario, separado por un filete al 10% de marino, con la etiqueta
+`IMAGINE THIS:` en oro oscuro y el texto en **itálica**. Grid de 2 columnas en escritorio,
+1 en móvil.
+
+**⚠ La etiqueta `IMAGINE THIS:` no pasa AA.** Oro oscuro sobre blanco da **2.35:1**
+(aritmética sobre los tokens, no `getComputedStyle` — ver §5). Es el mismo tratamiento de
+eyebrow que ya usan Products y `WhatsHappening`, así que **el problema no es de esta
+página**: es de la convención. El resto de la tarjeta sí pasa: descripción y escenario en
+marino/70 sobre blanco dan 5.28:1. **Pendiente de decisión del fundador**: dejarlo por
+coherencia de marca o pasar la etiqueta a marino.
+
+**Los datos viven en `components/coverage/coverage-details.ts`**, no en `lib/coverages.ts`.
+Ese otro archivo solo tiene los nombres cortos que consumía la cinta vieja y **sigue sin
+consumir** (§9). Son dos cosas distintas a propósito: si algún día vuelve la cinta,
+tendrá que leer de una de las dos y habrá que unificarlas.
+
+**Conexiones actualizadas al construirla:** el menú "Coverages" del navbar pasó de
+`#products` (un ancla muerta fuera de la landing) a `/coverage`, y el CTA secundario de
+`/industries/legal` pasó de `href="#"` a `/coverage`.
+
+**⚠ Tres tramos oscuros seguidos al cierre**, el mismo caso que `/industries/legal`
+(§9.5): sección marino → vídeo de océano → footer de cristal. **Sin poder ver el vídeo en
+este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview. Si se lee
+como un solo ladrillo oscuro, la solución es separar el cierre marino del océano, no
+retocar el footer.
+
 ### Pendientes marcados en el código (TODO)
 
 Lista verificada contra los `TODO` que hay hoy en el código (última revisión: al
-construir `/platforms`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
+construir `/coverage`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
 lista vuelve a mentir sobre estar verificada.
 
 - **Conectar Supabase** — sigue sin conectar.
@@ -906,9 +955,6 @@ lista vuelve a mentir sobre estar verificada.
   (`app/quote/page.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
-- **Crear `/coverage`** — el CTA secundario del cierre de `/industries/legal` es un
-  `href="#"` esperando esa página. (`components/industries-legal/BuiltForPractice.tsx`)
-- **Decidir dónde vuelve a verse el detalle de coberturas** (ver §9).
 
 **Hechos (completados):**
 - ~~Recomprimir `ocean.mp4`~~ — 13.3 MB → 4.4 MB (1600×900, H.264 CRF 25 con
@@ -998,7 +1044,7 @@ sola vez por página:
 | Ruta | `<video>` | De dónde salen |
 |---|---|---|
 | `/` | **6** | Products (`OceanPanel`), tarjetas de la sección AI gap y pre-footer |
-| `/partners`, `/platforms`, `/industries/legal` | **2** cada una | solo el `OceanPrefooter` del cierre |
+| `/partners`, `/platforms`, `/industries/legal`, `/coverage` | **2** cada una | solo el `OceanPrefooter` del cierre |
 | `/quote`, `/quote/scanning`, `/score`, `/assessment`, `/assessment/results` | **0** | el flujo de cotización no usa vídeo |
 
 La landing es la pesada: además de esos seis elementos lleva el orbe del hero (rAF) y
@@ -1007,7 +1053,7 @@ no se renderiza). El shader WebGL del pre-footer fue sustituido por el vídeo. C
 medirlo en un móvil real antes de lanzar.
 
 **Ojo al añadir páginas institucionales:** cada una que cierre con `OceanPrefooter` suma
-dos `<video>` más de 4.4 MB. Hoy son tres páginas; si crecen mucho, conviene un póster
+dos `<video>` más de 4.4 MB. Hoy son cuatro páginas; si crecen mucho, conviene un póster
 estático para el cierre en vez del vídeo.
 
 A eso se suma la **seda de Testimonials**: cuatro capas desenfocadas girando. Es barata
@@ -1146,6 +1192,13 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - **Página Industries / Legal construida** (§9.5): primera página del menú Industries,
   tono editorial, cierre marino con CTA a `/quote`. Copy del CCO, literal.
 - **`lib/industries.ts` pasa a `{label, href}`** para que el menú pueda enlazar.
+- **Página Coverage construida** (§9.6): el detalle de las 8 coberturas vuelve al sitio
+  en `/coverage`, con escenario narrativo por cobertura. Copy del CCO, literal. Con ella
+  se cierra el pendiente de la §9 sobre dónde volvían a verse las coberturas.
+- **El menú "Coverages" del navbar deja de apuntar a `#products`** y lleva a `/coverage`;
+  el CTA secundario de `/industries/legal` también.
+- *(pendiente)* La etiqueta de eyebrow en oro oscuro sobre blanco no pasa AA (2.35:1).
+  Afecta a Products, `WhatsHappening` y `/coverage`. Decisión de marca, no de página.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).

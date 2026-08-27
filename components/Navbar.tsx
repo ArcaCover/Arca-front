@@ -6,7 +6,7 @@ import { INDUSTRIES } from "@/lib/industries";
 import { ArcaWordmark } from "./brand/ArcaWordmark";
 import NavDropdown from "./NavDropdown";
 
-const COVERAGES = [{ label: "AI Professional Malpractice", href: "#products" }];
+const COVERAGES = [{ label: "AI Professional Malpractice", href: "/coverage" }];
 
 const PARTNERS = [
   { label: "Producers", href: "/partners" },

@@ -1,20 +1,16 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-export default function BuiltForPractice() {
+export default function CoverageClosing() {
   return (
-    <section
-      id="built-for-your-practice"
-      className="scroll-mt-24 bg-marino px-6 py-24 sm:px-8"
-    >
+    <section className="bg-marino px-6 py-24 sm:px-8">
       <div className="mx-auto flex max-w-[760px] flex-col items-center text-center">
-        <h2 className="font-heading text-[clamp(28px,3.6vw,40px)] font-medium leading-tight tracking-[-0.03em] text-white">
-          Built for your practice
+        <h2 className="text-pretty font-heading text-[clamp(28px,3.6vw,40px)] font-medium leading-tight tracking-[-0.03em] text-white">
+          Your malpractice policy wasn&rsquo;t built for AI. This one is.
         </h2>
         <p className="mt-5 max-w-[600px] text-pretty text-[18px] leading-relaxed text-white/80">
-          ARCA is the only coverage designed specifically for AI-related professional
-          liability in legal practice. If you&rsquo;re using AI to serve your clients, we
-          should talk.
+          See how your firm scores on AI governance and what coverage looks like for your
+          practice.
         </p>
 
         <Link
@@ -27,12 +23,15 @@ export default function BuiltForPractice() {
           </span>
         </Link>
 
-        <Link
-          href="/coverage"
-          className="mt-6 text-[15px] text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline"
-        >
-          Or explore our coverage →
-        </Link>
+        <p className="mt-6 text-[15px] text-white/70">
+          Are you a broker?{" "}
+          <Link
+            href="/partners"
+            className="font-semibold underline-offset-4 transition-colors hover:text-white hover:underline"
+          >
+            Partner with us
+          </Link>
+        </p>
       </div>
     </section>
   );
