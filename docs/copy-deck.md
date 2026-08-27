@@ -3,7 +3,7 @@
 Transcripción literal de la landing tal como está hoy en el código. Nada reescrito, nada corregido.
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
-- **Última actualización:** 17 agosto 2026 (reestructura narrativa del CCO)
+- **Última actualización:** 27 agosto 2026 (el menú Coverages ya enlaza a `/coverage`)
 - **Secciones:** 10, en orden de lectura
 - **Estado:** pre-lanzamiento
 
@@ -35,7 +35,7 @@ Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas 
 *Barra fija arriba.*
 
 **Menú "Coverages"**
-- AI Professional Malpractice
+- AI Professional Malpractice → `/coverage`
 
 **Menú "Industries"**
 - Legal
@@ -418,9 +418,10 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 
 ### Abierto por la reestructura
 
-- **El sitio ya no dice qué cubre.** Las 8 coberturas salieron con la cinta vieja; las
-  sustituyen 8 escenarios de riesgo, que describen el problema, no la póliza. Falta decidir
-  dónde vuelve a aparecer el detalle de coberturas.
+- **La landing sigue sin decir qué cubre**, y es deliberado: las 8 coberturas salieron con
+  la cinta vieja y las sustituyen 8 escenarios de riesgo, que describen el problema, no la
+  póliza. El detalle vive ahora en `/coverage`, a donde lleva el menú "Coverages" del
+  navbar. Ese copy no está transcrito aquí: este documento es solo de la landing.
 - **La aclaración de Lloyd's salió de la landing** junto con "How we operate" (ver apéndice).
 
 ### Resuelto en revisiones anteriores
