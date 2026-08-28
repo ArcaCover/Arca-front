@@ -3,7 +3,7 @@
 Transcripción literal de la landing tal como está hoy en el código. Nada reescrito, nada corregido.
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
-- **Última actualización:** 27 agosto 2026 (el menú Coverages ya enlaza a `/coverage`)
+- **Última actualización:** 28 agosto 2026 ("Start a conversation" ya abre Calendly)
 - **Secciones:** 10, en orden de lectura
 - **Estado:** pre-lanzamiento
 
@@ -307,7 +307,7 @@ Feed en bucle 🔴 *(eventos inventados)*:
 > Whether you're exploring coverage or ready to get a quote, we're here.
 
 **Botón**
-- Start a conversation 🟡 *(sin acción)*
+- Start a conversation → Calendly `arcacover/discovery`, en pestaña nueva
 
 ### Footer
 
@@ -414,7 +414,7 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 | Panel · escenas 01 y 03 | Scores 72 y 86 | El Score Engine no existe todavía. |
 | Footer | hello@arca.com | Dirección de relleno y dominio equivocado. |
 | Cinta 1 | Harvey · CoCounsel · Lexis+ AI · Copilot · ChatGPT · Gemini | Marcas de terceros nombradas sin acuerdo. Revisar con abogado. |
-| Hero y pre-footer | "Get a quote" · "Start a conversation" | Botones visibles que no hacen nada. |
+| Hero | "Get a quote" | Botón visible que no hace nada. |
 
 ### Abierto por la reestructura
 

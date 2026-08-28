@@ -77,13 +77,14 @@ export default function OceanPrefooter({
             Whether you&rsquo;re exploring coverage or ready to get a quote,
             we&rsquo;re here.
           </p>
-          {/* TODO: open contact form modal (name, last name, email, phone, message) + connect to Supabase */}
-          <button
-            type="button"
+          <a
+            href="https://calendly.com/arcacover/discovery"
+            target="_blank"
+            rel="noopener noreferrer"
             className="ocean-cta mt-2 cursor-pointer rounded-full bg-oro px-6 py-3.5 font-heading text-base font-bold tracking-[-0.01em] text-marino transition-colors duration-300 hover:bg-oro-oscuro min-[721px]:px-8 min-[721px]:py-4 min-[721px]:text-[18px]"
           >
             Start a conversation
-          </button>
+          </a>
         </section>
       ) : null}
 

@@ -632,7 +632,7 @@ abiertos, y solo entonces qué vendemos.
    cuatro manchas difuminadas orbitando sobre un degradado de la paleta, con periodos
    19/27/23/15s. Antes era una foto de stock; se retiró (ver "Hechos").
 8. **Pre-footer océano** — **vídeo** (ya no shader WebGL), "Don't navigate AI risk
-   alone", CTA "Start a conversation" (sin acción todavía).
+   alone", CTA "Start a conversation" (abre el Calendly de discovery en pestaña nueva).
 9. **Footer** — Contact, Resources, Company (Partners, Blog, Careers), Follow us.
 
 **Retiradas de la landing, intactas en el código:** `ValuePillars.tsx` ("What we do"),
@@ -915,9 +915,6 @@ construir `/coverage`). **Al añadir un `TODO` nuevo, añadirlo también aquí**
 lista vuelve a mentir sobre estar verificada.
 
 - **Conectar Supabase** — sigue sin conectar.
-- **Conectar "Start a conversation"** del pre-footer — es el **único** CTA de la landing
-  que sigue sin acción. No es un CTA de cotización: pide un formulario de contacto
-  (nombre, email, teléfono, mensaje) contra Supabase. (`OceanPrefooter.tsx`)
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
   `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
   tiene su `TODO` en el código.
@@ -957,6 +954,11 @@ lista vuelve a mentir sobre estar verificada.
   páginas que no existen. (`app/quote/page.tsx`)
 
 **Hechos (completados):**
+- ~~Conectar "Start a conversation"~~ — el CTA del pre-footer abre
+  `https://calendly.com/arcacover/discovery` en pestaña nueva. **Resuelto distinto a lo
+  planeado:** el TODO pedía un modal de contacto (nombre, email, teléfono, mensaje)
+  contra Supabase, y en su lugar va directo a agendar. Si más adelante hace falta
+  capturar el lead aunque no agende, el formulario vuelve a hacer falta.
 - ~~Recomprimir `ocean.mp4`~~ — 13.3 MB → 4.4 MB (1600×900, H.264 CRF 25 con
   denoise, sin pista de audio). La versión de 13.3 MB sigue en el historial de
   git; el repo no adelgaza sin reescribir historia.
@@ -1145,6 +1147,9 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - **Decisión consciente** de mostrar precios ilustrativos sin etiqueta en el panel de
   océano — pendiente de resolver (disclaimer o retirar) antes de lanzar.
 - **Dominio confirmado: arcacover.com.**
+- **"Start a conversation" apunta a Calendly** (`/arcacover/discovery`) en vez del
+  formulario de contacto contra Supabase que preveía el TODO. Con eso la landing ya no
+  tiene ningún CTA sin acción.
 - **Fondo de la página unificado:** se descarta alternar blanco/bruma; hero y cuerpo
   comparten un único lienzo iluminado (`--color-canvas` + halos). Se probó antes un
   gris plano y se rechazó por no verse premium.
