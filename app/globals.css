@@ -551,6 +551,195 @@ body {
 
 /* Entrance, marquee and orb motion are decorative only:
    disable them when the user prefers reduced motion. */
+/* ---------------------------------------------------------------------------
+   Coverage page (/coverage)
+
+   The eight cards each carry a small illustration that abstracts its scenario.
+   They are drawn with plain elements and animated here, following the same
+   pattern as the `ag-` family above. Every colour is derived from the palette
+   tokens: the mockup wrote them as literal rgba, which §5 does not allow in a
+   component. Two of its values are not in the palette at all and were mapped
+   to the nearest token mix, noted where they are defined.
+
+   Each loop is 5-7s and all of them pause off screen: the group toggles
+   `data-still` on its wrapper, which is what the `[data-still]` rules below
+   act on. That keeps ~30 loops from running when nobody is looking at them.
+--------------------------------------------------------------------------- */
+
+/* Card 01 — the strike-through over the citation that does not exist. */
+@keyframes cv-strike {
+  0%, 26% { transform: scaleX(0); }
+  40%, 88% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
+}
+
+/* Card 01 — the "No such case" badge surfacing. Card 04 reuses it for the
+   gold bar that appears inside the model provider's reply. */
+@keyframes cv-badge {
+  0%, 46% { opacity: 0; transform: translateY(8px); }
+  58%, 86% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+
+/* Card 02 — the disciplinary notice landing like a stamp. */
+@keyframes cv-stamp {
+  0%, 20% { transform: scale(1.5) rotate(-10deg); opacity: 0; }
+  34%, 80% { transform: scale(1) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1.5) rotate(-10deg); opacity: 0; }
+}
+
+/* Card 03 — the low score flipping between a neutral and a flagged state. */
+@keyframes cv-flag {
+  0%, 42% { background: var(--color-cielo); }
+  52%, 88% { background: var(--color-oro); }
+  100% { background: var(--color-cielo); }
+}
+
+/* Card 03 — the two Region B rows dimming, which is the bias made visible. */
+@keyframes cv-biasdim {
+  0%, 22% { opacity: 1; }
+  44%, 100% { opacity: 0.45; }
+}
+
+/* Card 04 — the fragment of client data crossing to the model provider. */
+@keyframes cv-leak {
+  0% { transform: translateX(0); opacity: 0; }
+  14% { opacity: 1; }
+  62% { transform: translateX(12px); opacity: 1; }
+  80%, 100% { transform: translateX(16px); opacity: 0; }
+}
+
+/* Card 05 — each trust document turning from pending to re-issued. */
+@keyframes cv-fixed {
+  0%, 44% {
+    background: color-mix(in srgb, var(--color-cielo) 18%, transparent);
+    color: color-mix(in srgb, white 50%, transparent);
+  }
+  58%, 100% {
+    background: var(--color-oro);
+    color: var(--color-marino);
+  }
+}
+
+/* Cards 05 and 08 — the progress bar of a remediation that is under way. */
+@keyframes cv-fill {
+  0% { transform: scaleX(0); }
+  70%, 100% { transform: scaleX(1); }
+}
+
+/* Card 06 — the audit window travelling down the docket rows. */
+@keyframes cv-vscan {
+  0%, 10% { transform: translateY(0); }
+  40%, 56% { transform: translateY(25px); }
+  88%, 100% { transform: translateY(50px); }
+}
+
+/* Card 07 — the crisis counters arriving one after another. */
+@keyframes cv-rowin {
+  0%, 10% { opacity: 0; transform: translateY(6px); }
+  22%, 100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Card 08 — the audit checklist filling in. */
+@keyframes cv-check {
+  0%, 30% { opacity: 0.18; }
+  45%, 100% { opacity: 1; }
+}
+
+/* Hero mini-cards — the three little bars keeping time. */
+@keyframes cv-rise {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
+/* Hero and closing orbs. A slow drift, never a full stop. */
+@keyframes cv-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-26px, 18px) scale(1.08); }
+}
+
+.cv-strike { animation: cv-strike 6s ease-in-out infinite; }
+.cv-badge { animation: cv-badge 6s ease-in-out infinite; }
+.cv-leak-bar { animation: cv-badge 5s ease-in-out infinite; }
+.cv-stamp { animation: cv-stamp 5s ease-in-out infinite; }
+.cv-flag { animation: cv-flag 6s ease-in-out infinite; }
+.cv-biasdim { animation: cv-biasdim 6s ease-in-out infinite; }
+.cv-leak { animation: cv-leak 5s ease-in-out infinite; }
+.cv-fixed { animation: cv-fixed 6s ease-in-out infinite; }
+.cv-fill { animation: cv-fill 6s ease-out infinite; }
+.cv-vscan { animation: cv-vscan 7s ease-in-out infinite; }
+.cv-rowin { animation: cv-rowin 5s ease-out infinite; }
+.cv-check { animation: cv-check 6s ease-in-out infinite; }
+.cv-rise { animation: cv-rise 2.6s ease-in-out infinite; }
+.cv-rise-slow { animation: cv-rise 3.1s ease-in-out infinite; }
+.cv-float { animation: cv-float 18s ease-in-out infinite; }
+.cv-float-slow { animation: cv-float 22s ease-in-out infinite; }
+
+/* Backdrop of a light-card illustration. The mockup's #F5FBFC is bruma lifted
+   towards white; it is not a palette colour of its own. */
+.cv-stage-light {
+  background: linear-gradient(
+    160deg,
+    var(--color-bruma) 0%,
+    color-mix(in srgb, var(--color-bruma) 35%, white) 100%
+  );
+}
+
+/* Backdrop of a dark-card illustration. The mockup asked for rgba(11,20,44,.5),
+   a navy darker than any token; this is the closest mix of marino and black. */
+.cv-stage-dark {
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--color-marino) 45%, black) 50%,
+    transparent
+  );
+}
+
+/* The dashed channel between the two panels of card 04. */
+.cv-dash {
+  background: repeating-linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-marino) 28%, transparent) 0 4px,
+    transparent 4px 9px
+  );
+}
+
+/* Scenario reveal. The row track carries the transition; the child clips. */
+.cv-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.4s ease;
+}
+
+.cv-reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* Off screen, or when the visitor asked for less motion, everything holds
+   still on a frame that still reads as the finished illustration. */
+[data-still="true"] .cv-strike,
+[data-still="true"] .cv-badge,
+[data-still="true"] .cv-leak-bar,
+[data-still="true"] .cv-stamp,
+[data-still="true"] .cv-flag,
+[data-still="true"] .cv-biasdim,
+[data-still="true"] .cv-leak,
+[data-still="true"] .cv-fixed,
+[data-still="true"] .cv-fill,
+[data-still="true"] .cv-vscan,
+[data-still="true"] .cv-rowin,
+[data-still="true"] .cv-check,
+[data-still="true"] .cv-rise,
+[data-still="true"] .cv-rise-slow,
+[data-still="true"] .cv-float,
+[data-still="true"] .cv-float-slow {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-marquee {
@@ -604,6 +793,43 @@ body {
   }
 
   .testimonial-fade {
+    transition: none;
+  }
+
+  /* Coverage illustrations: hold the finished frame rather than the first
+     one, so a paused card still reads as the scene it is describing. */
+  .cv-strike,
+  .cv-badge,
+  .cv-leak-bar,
+  .cv-stamp,
+  .cv-flag,
+  .cv-biasdim,
+  .cv-leak,
+  .cv-fixed,
+  .cv-fill,
+  .cv-vscan,
+  .cv-rowin,
+  .cv-check,
+  .cv-rise,
+  .cv-rise-slow,
+  .cv-float,
+  .cv-float-slow {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .cv-flag,
+  .cv-fixed {
+    background: var(--color-oro);
+    color: var(--color-marino);
+  }
+
+  .cv-fill {
+    transform: scaleX(1);
+  }
+
+  .cv-reveal {
     transition: none;
   }
 }
