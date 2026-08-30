@@ -16,7 +16,6 @@ export type CoverageGroupContent = {
   /** Text of the pill above the header. */
   label: string;
   header: string;
-  description: string;
   coverages: CoverageDetail[];
 };
 
@@ -24,8 +23,6 @@ export const THIRD_PARTY_GROUP: CoverageGroupContent = {
   id: "third-party",
   label: "Third-party",
   header: "When AI errors reach your clients.",
-  description:
-    "Traditional malpractice policies were written before AI entered professional practice. These four coverages respond when AI-assisted work product causes harm to the people you serve.",
   coverages: [
     {
       number: "01",
@@ -66,8 +63,6 @@ export const FIRST_PARTY_GROUP: CoverageGroupContent = {
   id: "first-party",
   label: "First-party",
   header: "When the cost falls on your firm.",
-  description:
-    "An AI error doesn't end with the client claim. There's the work you need to redo, the investigation to scope the damage, the clients you need to notify, and the compliance requirements that follow. These four coverages address what it costs your firm to respond.",
   coverages: [
     {
       number: "05",

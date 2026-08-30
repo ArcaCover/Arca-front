@@ -9,12 +9,10 @@ const TONE = {
   light: {
     pill: "bg-bruma text-marino",
     header: "text-marino",
-    description: "text-marino/72",
   },
   dark: {
     pill: "bg-white/10 text-oro",
     header: "text-white",
-    description: "text-white/72",
   },
 } as const;
 
@@ -42,24 +40,17 @@ export default function CoverageGroup({
 
   const content = (
     <>
-      <div className="grid gap-8 lg:grid-cols-2 lg:gap-16">
-        <div>
-          <span
-            className={`inline-block rounded-full px-[14px] py-[7px] text-[11px] font-bold uppercase tracking-[0.16em] ${styles.pill}`}
-          >
-            {group.label}
-          </span>
-          <h2
-            className={`mt-[22px] text-pretty font-heading text-[clamp(31px,4vw,46px)] font-medium leading-[1.06] tracking-[-0.03em] ${styles.header}`}
-          >
-            {group.header}
-          </h2>
-        </div>
-        <p
-          className={`text-pretty text-[17.5px] leading-[1.68] lg:pt-2 ${styles.description}`}
+      <div className="flex flex-col items-center text-center">
+        <span
+          className={`inline-block rounded-full px-[14px] py-[7px] text-[11px] font-bold uppercase tracking-[0.16em] ${styles.pill}`}
         >
-          {group.description}
-        </p>
+          {group.label}
+        </span>
+        <h2
+          className={`mt-[22px] max-w-[760px] text-pretty font-heading text-[clamp(31px,4vw,46px)] font-medium leading-[1.06] tracking-[-0.03em] ${styles.header}`}
+        >
+          {group.header}
+        </h2>
       </div>
 
       <div className="mt-12 grid items-start gap-6 lg:grid-cols-2">
