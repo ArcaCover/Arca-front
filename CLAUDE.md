@@ -861,63 +861,86 @@ solo el disparador del desplegable — pero la URL escrita a mano no existe.
 
 ### 9.6 Página Coverage
 
-`/coverage` es la primera página que muestra el detalle de las **8 coberturas** desde que
-salieron de la landing con la reestructura narrativa. Marketing puro, sin backend. Copy
-del CCO, literal.
+`/coverage` muestra el detalle de las **8 coberturas**. Marketing puro, sin backend. Copy
+del CCO, literal. **Rediseñada en agosto 2026** a partir de un mockup de Design
+(`Coverage_Page_v2.dc.html`): la primera versión eran dos rejillas de tarjetas planas.
 
-**Cuatro bloques:** hero limpio (headline + subtítulo, **sin CTA** — el copy del CCO no
-trae ninguno, a diferencia de las otras institucionales) → grupo Third-Party ("When AI
-errors reach your clients.") → grupo First-Party ("When the cost falls on your firm.") →
-cierre marino con CTA dorado a `/quote` y línea "Are you a broker? Partner with us" a
-`/partners`. Cierra igual que las demás: `OceanPrefooter showCta={false}` con el footer
-dentro.
+**Cuatro bloques:** hero editorial asimétrico → grupo Third-Party sobre el lienzo → grupo
+First-Party dentro de un panel marino redondeado → cierre marino a todo el ancho. Cierra
+como las demás: `OceanPrefooter showCta={false}` con el footer dentro.
 
-**Los dos grupos son el mismo componente.** `CoverageGroup` recibe un
-`CoverageGroupContent` (encabezado, bajada y cuatro coberturas) y lo renderiza; solo
-cambian los datos. Es la única abstracción de la página y tiene dos usos reales, así que
-no cae en la regla de "abstracción de un solo uso" de la §10.2.
+**Hero editorial.** Dos columnas: a la izquierda eyebrow con filete dorado, titular de
+68px y bajada; a la derecha, alineadas abajo, dos mini-tarjetas ("04 Third-party" clara y
+"04 First-party" marino) con tres barritas animadas cada una. Orbe flotante de 420px
+arriba a la derecha, **oculto por debajo de `lg`**. Cierra con un filete en degradado.
 
-**Separación entre Third-Party y First-Party: solo aire y encabezado.** Sin línea
-divisoria y sin banda oscura — la banda marino en medio del cuerpo es exclusiva de
-`/platforms` (§9.4). El fondo de los dos grupos es transparente para que corra el lienzo.
+**Los dos grupos son el mismo componente**, con una prop `tone`. En `light` la sección va
+suelta sobre el lienzo; en `dark` se envuelve en el panel marino (`rounded-[44px]` en
+escritorio, **a sangre en móvil** — un radio de 44px se come el poco ancho que hay). La
+banda oscura en medio del cuerpo deja de ser exclusiva de `/platforms` (§9.4), pero aquí
+es un panel flotante, no una banda a todo el ancho.
 
-**Tarjeta de cobertura, tres niveles:** nombre (Space Grotesk 20px, marino) → descripción
-(15px, marino/70) → escenario, separado por un filete al 10% de marino, con la etiqueta
-`IMAGINE THIS:` en oro oscuro y el texto en **itálica**. Grid de 2 columnas en escritorio,
-1 en móvil.
+**`CoverageGroup` es cliente solo por el IntersectionObserver.** Las 8 ilustraciones
+suman ~46 elementos animados; la §11 obliga a parar todo bucle fuera de pantalla. El
+grupo escribe `data-still` en su sección y las reglas `[data-still="true"]` de
+`globals.css` ponen las animaciones en `paused`. **Medido:** arriba del todo, third-party
+corre y first-party está pausado; al fondo, los dos pausados.
 
-**⚠ La etiqueta `IMAGINE THIS:` no pasa AA.** Oro oscuro sobre blanco da **2.35:1**
-(aritmética sobre los tokens, no `getComputedStyle` — ver §5). Es el mismo tratamiento de
-eyebrow que ya usan Products y `WhatsHappening`, así que **el problema no es de esta
-página**: es de la convención. El resto de la tarjeta sí pasa: descripción y escenario en
-marino/70 sobre blanco dan 5.28:1. **Pendiente de decisión del fundador**: dejarlo por
-coherencia de marca o pasar la etiqueta a marino.
+**Las 8 mini-ilustraciones** viven en `components/coverage/illustrations/` y son
+abstracciones del escenario de cada cobertura (una tabla de autoridades con una citación
+tachada, una cola de intake con scoring sesgado, un escáner recorriendo un docket…). Son
+**CSS puro**, así que siguen siendo componentes de servidor: la página los pasa como
+`ReactNode` al card y no pesan en el bundle de cliente.
 
-**Los datos viven en `components/coverage/coverage-details.ts`**, no en `lib/coverages.ts`.
-Ese otro archivo solo tiene los nombres cortos que consumía la cinta vieja y **sigue sin
-consumir** (§9). Son dos cosas distintas a propósito: si algún día vuelve la cinta,
-tendrá que leer de una de las dos y habrá que unificarlas.
+**Reveal del escenario.** El texto "Imagine this" se abre con `grid-template-rows: 0fr →
+1fr`. En puntero fino sigue al cursor y un clic lo fija; donde no hay hover (`(hover:
+hover)` en `useCoverageReveal`) el único gesto es el toque, y el hint cambia solo
+("Hover to read" / "Tap to read" / "Close"). **El disparador es un `<button>` real con
+`aria-expanded`**: el escenario es copy del CCO, no decoración, así que no podía quedar
+detrás de un gesto que el teclado no alcanza.
 
-**Conexiones actualizadas al construirla:** el menú "Coverages" del navbar pasó de
-`#products` (un ancla muerta fuera de la landing) a `/coverage`, y el CTA secundario de
-`/industries/legal` pasó de `href="#"` a `/coverage`.
+**Keyframes en `globals.css` con prefijo `cv-`**, siguiendo la familia `ag-` que ya
+existía. Todos los colores salen de tokens: el mockup los traía como `rgba` literales,
+que la §5 no admite en componente.
+
+**Dos colores del mockup no estaban en la paleta** y se sustituyeron por la mezcla más
+cercana, como manda la §5:
+- `rgba(11,20,44,.5)` (fondo de las ilustraciones oscuras) → `.cv-stage-dark`, marino
+  mezclado al 45% con negro.
+- `#F5FBFC` (final del degradado de las claras) → `.cv-stage-light`, bruma al 35% sobre
+  blanco.
+
+**⚠ Dos etiquetas no pasan AA** (aritmética sobre los tokens, no `getComputedStyle` —
+ver §5):
+- El eyebrow en oro oscuro sobre claro da **2.35:1**. Ya estaba: es la convención de
+  Products y `WhatsHappening`, no un problema de esta página.
+- El hint "Hover to read" de las tarjetas claras, en marino al 55%, da **3.40:1**. Viene
+  del mockup. Pasarlo a marino/70 lo dejaría en 5.28:1. **Pendiente de decisión.**
+El resto pasa: descripción clara 4.65:1, descripción oscura 6.72:1, hint oscuro 5.16:1.
+
+**Los datos viven en `components/coverage/coverage-details.ts`** (con `number` y `label`
+añadidos en el rediseño), no en `lib/coverages.ts`. Ese otro archivo solo tiene los
+nombres cortos de la cinta vieja y **sigue sin consumir** (§9).
+
+**Conexiones (hechas al construirla, no se tocaron en el rediseño):** el menú "Coverages"
+del navbar apunta a `/coverage`, y el CTA secundario de `/industries/legal` también.
 
 **⚠ Tres tramos oscuros seguidos al cierre**, el mismo caso que `/industries/legal`
-(§9.5): sección marino → vídeo de océano → footer de cristal. **Sin poder ver el vídeo en
-este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview. Si se lee
-como un solo ladrillo oscuro, la solución es separar el cierre marino del océano, no
-retocar el footer.
+(§9.5): cierre marino → vídeo de océano → footer de cristal. **Sin poder ver el vídeo en
+este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview.
 
 ### Pendientes marcados en el código (TODO)
 
 Lista verificada contra los `TODO` que hay hoy en el código (última revisión: al
-construir `/coverage`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
+rediseñar `/coverage`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
 lista vuelve a mentir sobre estar verificada.
 
 - **Conectar Supabase** — sigue sin conectar.
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
   `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
   tiene su `TODO` en el código.
+- **Decidir el contraste del hint de `/coverage`** — "Hover to read" en marino/55 sobre
+  blanco da 3.40:1 y no pasa AA. Viene del mockup. (`components/coverage/CoverageCard.tsx`)
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
   (ver §7). (`OceanPanel.tsx`)
 - **Scores ilustrativos** 72 y 86 del panel — el Score Engine no existe todavía.
@@ -1057,6 +1080,11 @@ medirlo en un móvil real antes de lanzar.
 **Ojo al añadir páginas institucionales:** cada una que cierre con `OceanPrefooter` suma
 dos `<video>` más de 4.4 MB. Hoy son cuatro páginas; si crecen mucho, conviene un póster
 estático para el cierre en vez del vídeo.
+
+**`/coverage` es ahora la segunda página más pesada en animación:** las 8 ilustraciones
+suman ~46 elementos animados, más los dos orbes. Todos se pausan fuera de pantalla
+(§9.6), así que en cualquier momento solo corre lo que se está mirando — pero conviene
+medirla en un móvil real junto con la landing.
 
 A eso se suma la **seda de Testimonials**: cuatro capas desenfocadas girando. Es barata
 porque el desenfoque se rasteriza una vez y solo se anima el `transform`, que va al
@@ -1202,6 +1230,11 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   se cierra el pendiente de la §9 sobre dónde volvían a verse las coberturas.
 - **El menú "Coverages" del navbar deja de apuntar a `#products`** y lleva a `/coverage`;
   el CTA secundario de `/industries/legal` también.
+- **`/coverage` rediseñada desde mockup de Design** (§9.6): hero editorial, panel marino
+  para First-Party, y **8 mini-ilustraciones animadas** que abstraen el escenario de cada
+  cobertura. El escenario pasa a abrirse con hover/tap sobre un `<button>` accesible.
+- **Las animaciones de `/coverage` se pausan fuera de pantalla** con `data-still`, por la
+  regla de la §11: son ~46 elementos animados en una sola página.
 - *(pendiente)* La etiqueta de eyebrow en oro oscuro sobre blanco no pasa AA (2.35:1).
   Afecta a Products, `WhatsHappening` y `/coverage`. Decisión de marca, no de página.
 - *(pendiente)* Modelo de datos detallado (schema).
