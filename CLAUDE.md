@@ -874,12 +874,13 @@ del CCO, literal. **Rediseñada en agosto 2026** a partir de un mockup de Design
 First-Party dentro de un panel marino redondeado → cierre marino a todo el ancho. Cierra
 como las demás: `OceanPrefooter showCta={false}` con el footer dentro.
 
-**⚠ Las dos bajadas de sección se retiraron por decisión del fundador** (agosto 2026).
-Eran copy del CCO: "Traditional malpractice policies were written before AI entered
-professional practice…" y "An AI error doesn't end with the client claim…". Con ellas se
-fue la estructura de dos columnas del encabezado: ahora **pill y titular van centrados**
-en los dos grupos. El texto sigue en el historial de git si hace falta recuperarlo.
-Consecuencia: la página ya no explica **por qué** existe cada grupo, solo lo nombra.
+**Encabezado de grupo: pill → titular → bajada, todo centrado.** El mockup ponía la
+bajada en una segunda columna a la derecha. Se probó retirarla del todo (agosto 2026) y
+se recuperó enseguida: sin ella la página nombraba cada grupo pero no decía por qué
+existe, y la de Third-Party es el único sitio donde se afirma que las pólizas
+tradicionales se escribieron antes de que la IA entrara en la práctica profesional. Ahora
+va **debajo del titular**, centrada y a 680px, que es como el resto del sitio trata
+titular + bajada (§9).
 
 **Hero editorial.** Dos columnas: a la izquierda eyebrow con filete dorado, titular de
 68px y bajada; a la derecha dos mini-tarjetas ("04 Third-party" clara y "04 First-party"
@@ -1277,8 +1278,9 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   se cierra el pendiente de la §9 sobre dónde volvían a verse las coberturas.
 - **El menú "Coverages" del navbar deja de apuntar a `#products`** y lleva a `/coverage`;
   el CTA secundario de `/industries/legal` también.
-- **Las bajadas de las dos secciones de `/coverage` se retiran** por decisión del
-  fundador: los encabezados quedan centrados, solo pill y titular (§9.6).
+- **Los encabezados de `/coverage` pasan a una sola columna centrada:** pill, titular y
+  bajada, en ese orden. La bajada salía en columna derecha en el mockup; se retiró y se
+  volvió a poner debajo del titular (§9.6).
 - **`/coverage` rediseñada desde mockup de Design** (§9.6): hero editorial, panel marino
   para First-Party, y **8 mini-ilustraciones animadas** que abstraen el escenario de cada
   cobertura. El escenario pasa a abrirse con hover/tap sobre un `<button>` accesible.

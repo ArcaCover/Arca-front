@@ -9,10 +9,12 @@ const TONE = {
   light: {
     pill: "bg-bruma text-marino",
     header: "text-marino",
+    description: "text-marino/72",
   },
   dark: {
     pill: "bg-white/10 text-oro",
     header: "text-white",
+    description: "text-white/72",
   },
 } as const;
 
@@ -51,6 +53,14 @@ export default function CoverageGroup({
         >
           {group.header}
         </h2>
+        {/* Under the heading rather than in a second column: the header reads
+            as one centred block, the way the rest of the site sets a heading
+            and its lead-in. */}
+        <p
+          className={`mt-5 max-w-[680px] text-pretty text-[17.5px] leading-[1.68] ${styles.description}`}
+        >
+          {group.description}
+        </p>
       </div>
 
       <div className="mt-12 grid items-start gap-6 lg:grid-cols-2">
