@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { INDUSTRIES } from "@/lib/industries";
 import { ArcaWordmark } from "./brand/ArcaWordmark";
 import NavDropdown from "./NavDropdown";
@@ -16,6 +17,7 @@ const PARTNERS = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     function onScroll() {
@@ -104,9 +106,22 @@ export default function Navbar() {
           </svg>
         </button>
 
-        {/* Center zone: logo — large and floating over the hero, shrinks up on scroll */}
-        <a
-          href="#top"
+        {/* Center zone: logo — large and floating over the hero, shrinks up on
+            scroll. It is the way back to the landing from every other page,
+            which is why it is a route and not the #top anchor it used to be:
+            that only did anything on the landing itself. */}
+        <Link
+          href="/"
+          aria-label="Arca — home"
+          onClick={() => {
+            setMobileOpen(false);
+            // Routing to the page you are already on does not move the
+            // viewport, so on the landing the mark has to do what the old
+            // #top anchor did and take you back up itself.
+            if (pathname === "/") {
+              window.scrollTo({ top: 0 });
+            }
+          }}
           className={`justify-self-center transition-transform duration-300 ${
             scrolled ? "translate-y-0" : "translate-y-5 md:translate-y-7"
           }`}
@@ -118,7 +133,7 @@ export default function Navbar() {
               scrolled ? "h-5 md:h-6" : "h-7 md:h-9"
             }`}
           />
-        </a>
+        </Link>
 
         {/* Right zone: [My account] [Get a quote (appears on scroll)] */}
         <div className="flex items-center justify-self-end">

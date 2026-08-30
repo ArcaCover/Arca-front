@@ -588,7 +588,12 @@ abiertos, y solo entonces qué vendemos.
 **Secciones actuales, en orden:**
 
 1. **Navbar** — transformable con scroll: arriba transparente con el **wordmark SVG**
-   grande y centrado flotando sobre el hero y solo "My account" a la derecha; al bajar
+   grande y centrado flotando sobre el hero y solo "My account" a la derecha. **El
+   wordmark es el enlace al home** (`/`) desde cualquier página; era un ancla `#top`, que
+   solo hacía algo en la landing y dejaba el resto del sitio sin salida. En la landing
+   sigue subiendo al inicio, pero por `onClick`: navegar a la ruta en la que ya estás no
+   mueve el viewport.
+   Al bajar: al bajar
    se fija con fondo blanco, el wordmark se reduce y aparece el botón dorado "Get a
    quote" empujando "My account" a su izquierda. Enlaces pegados a los **bordes reales**
    de la ventana (no al ancho del hero). Menús: "Coverages" (una sola opción: AI
@@ -998,6 +1003,11 @@ lista vuelve a mentir sobre estar verificada.
   (`app/quote/page.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
+- **Decidir si el flujo de cotización lleva salida al home** — las cinco pantallas
+  (`/quote`, `/quote/scanning`, `/score`, `/assessment`, `/assessment/results`) **no
+  montan el navbar**, así que no tienen wordmark ni ninguna forma de volver. Puede ser
+  deliberado (un embudo sin fugas), pero hoy no está decidido: quien entra a cotizar
+  solo sale con el botón atrás del navegador.
 
 **Hechos (completados):**
 - ~~Conectar "Start a conversation"~~ — el CTA del pre-footer abre
