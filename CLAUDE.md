@@ -910,13 +910,27 @@ cercana, como manda la §5:
 - `#F5FBFC` (final del degradado de las claras) → `.cv-stage-light`, bruma al 35% sobre
   blanco.
 
-**⚠ Dos etiquetas no pasan AA** (aritmética sobre los tokens, no `getComputedStyle` —
-ver §5):
-- El eyebrow en oro oscuro sobre claro da **2.35:1**. Ya estaba: es la convención de
-  Products y `WhatsHappening`, no un problema de esta página.
-- El hint "Hover to read" de las tarjetas claras, en marino al 55%, da **3.40:1**. Viene
-  del mockup. Pasarlo a marino/70 lo dejaría en 5.28:1. **Pendiente de decisión.**
-El resto pasa: descripción clara 4.65:1, descripción oscura 6.72:1, hint oscuro 5.16:1.
+**Contraste, medido muestreando píxeles de una captura** (no `getComputedStyle`, que
+devuelve los colores con alfa en oklab — §5):
+
+| Texto | Sobre | Ratio |
+|---|---|---|
+| Hint claro, marino/70 | blanco | **5.28:1** |
+| Descripción clara, marino/66 | blanco | **4.65:1** |
+| Hint oscuro, blanco/55 | tarjeta oscura | **4.64:1** |
+| Descripción oscura, blanco/66 | tarjeta oscura | **5.94:1** |
+
+Los cuatro pasan AA. **Ojo con el fondo de las tarjetas oscuras:** no es marino puro sino
+`white/6%` sobre marino, o sea `rgb(41,56,100)`. Medir contra marino da cifras infladas
+(6.72 y 5.16 en vez de 5.94 y 4.64); el hint oscuro pasa por poco, así que si alguna vez
+se aclara ese fondo hay que volver a medir.
+
+**El hint claro se subió a marino/70.** El mockup lo traía en marino/55, que da 3.40:1 y
+no pasa. Es la **única desviación deliberada** del diseño aprobado.
+
+Lo único que sigue sin pasar es el eyebrow en oro oscuro sobre claro, **2.35:1** — ya
+venía de antes, es la convención de Products y `WhatsHappening`, no un problema de esta
+página.
 
 **Los datos viven en `components/coverage/coverage-details.ts`** (con `number` y `label`
 añadidos en el rediseño), no en `lib/coverages.ts`. Ese otro archivo solo tiene los
@@ -939,8 +953,6 @@ lista vuelve a mentir sobre estar verificada.
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
   `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
   tiene su `TODO` en el código.
-- **Decidir el contraste del hint de `/coverage`** — "Hover to read" en marino/55 sobre
-  blanco da 3.40:1 y no pasa AA. Viene del mockup. (`components/coverage/CoverageCard.tsx`)
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
   (ver §7). (`OceanPanel.tsx`)
 - **Scores ilustrativos** 72 y 86 del panel — el Score Engine no existe todavía.
@@ -1235,6 +1247,8 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   cobertura. El escenario pasa a abrirse con hover/tap sobre un `<button>` accesible.
 - **Las animaciones de `/coverage` se pausan fuera de pantalla** con `data-still`, por la
   regla de la §11: son ~46 elementos animados en una sola página.
+- **El hint de `/coverage` sube a marino/70** para pasar AA (5.28:1). Única desviación
+  deliberada del mockup, que lo traía en marino/55 (3.40:1).
 - *(pendiente)* La etiqueta de eyebrow en oro oscuro sobre blanco no pasa AA (2.35:1).
   Afecta a Products, `WhatsHappening` y `/coverage`. Decisión de marca, no de página.
 - *(pendiente)* Modelo de datos detallado (schema).

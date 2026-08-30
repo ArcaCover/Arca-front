@@ -13,7 +13,8 @@ const TONE = {
     name: "text-marino",
     description: "text-marino/66",
     rule: "border-marino/10",
-    hint: "text-marino/55",
+    // marino/55 came from the mockup but lands at 3.40:1 on white, under AA.
+    hint: "text-marino/70",
     scenario: "text-marino/[0.82]",
   },
   dark: {
