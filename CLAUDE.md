@@ -870,9 +870,20 @@ First-Party dentro de un panel marino redondeado → cierre marino a todo el anc
 como las demás: `OceanPrefooter showCta={false}` con el footer dentro.
 
 **Hero editorial.** Dos columnas: a la izquierda eyebrow con filete dorado, titular de
-68px y bajada; a la derecha, alineadas abajo, dos mini-tarjetas ("04 Third-party" clara y
-"04 First-party" marino) con tres barritas animadas cada una. Orbe flotante de 420px
-arriba a la derecha, **oculto por debajo de `lg`**. Cierra con un filete en degradado.
+68px y bajada; a la derecha dos mini-tarjetas ("04 Third-party" clara y "04 First-party"
+marino) con tres barritas animadas cada una. Orbe flotante de 420px arriba a la derecha,
+**oculto por debajo de `lg`**. Cierra con un filete en degradado.
+
+**Las mini-tarjetas van alineadas arriba (`items-start`), a la misma línea que el
+eyebrow.** El mockup las traía abajo (`items-end`); así el alto de la columna derecha
+quedaba vacío y el par se leía como puesto ahí sin relación con nada.
+
+**⚠ El `pt` del hero se mide contra el wordmark, no contra la barra.** Arriba del todo el
+navbar es transparente y el wordmark flota grande y centrado sobre el hero. El mockup
+traía una barra de relleno **sin wordmark**, así que sus 100px dejaban solo 22px de aire
+entre el logo y el eyebrow. Corregido a `pt-32 sm:pt-40`, el mismo valor que los otros
+heroes institucionales: 82px de aire. **Si se toca este padding, medir contra el
+wordmark.**
 
 **Los dos grupos son el mismo componente**, con una prop `tone`. En `light` la sección va
 suelta sobre el lienzo; en `dark` se envuelve en el panel marino (`rounded-[44px]` en
