@@ -30,15 +30,21 @@ function Bars({ tone }: { tone: keyof typeof BARS }) {
 
 export default function CoverageHero() {
   return (
-    // The navbar is fixed at 64px and transparent over the top of the page, so
-    // the padding here is what keeps the headline clear of it.
-    <section className="relative mx-auto max-w-[1440px] px-6 pt-28 sm:px-[60px] sm:pt-[100px]">
+    // At the top of the page the navbar is transparent and the wordmark floats
+    // large and centred over the hero, so this padding has to clear the
+    // wordmark, not the 64px bar. The mockup had a placeholder bar with no
+    // wordmark in it, which is why its 100px left the eyebrow crowding the
+    // logo. Matches the other institutional heroes instead.
+    <section className="relative mx-auto max-w-[1440px] px-6 pt-32 sm:px-[60px] sm:pt-40">
       <div
         aria-hidden
         className="cv-float pointer-events-none absolute right-20 top-5 hidden h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-cielo)_30%,transparent)_0%,color-mix(in_srgb,var(--color-bruma)_35%,transparent)_45%,transparent_70%)] blur-[18px] lg:block"
       />
 
-      <div className="relative grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-14">
+      {/* Top-aligned, so the mini-cards start on the same line as the eyebrow
+          and read as part of the composition. Bottom-aligning them left the
+          top of the right column empty and the pair looked dropped in. */}
+      <div className="relative grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-14">
         <div>
           <div className="mb-[26px] flex items-center gap-3">
             <span aria-hidden className="block h-[2px] w-[34px] bg-oro-oscuro" />
@@ -55,7 +61,7 @@ export default function CoverageHero() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-[14px] pb-[6px]">
+        <div className="flex flex-col gap-[14px]">
           <div className="card-on-canvas flex items-center gap-4 rounded-[22px] bg-white/[0.78] px-[22px] py-[18px]">
             <span className="font-heading text-[32px] font-medium leading-none text-marino">04</span>
             <span className="text-[13px] leading-[1.45] text-marino/70">

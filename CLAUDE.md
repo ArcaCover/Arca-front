@@ -588,7 +588,12 @@ abiertos, y solo entonces qué vendemos.
 **Secciones actuales, en orden:**
 
 1. **Navbar** — transformable con scroll: arriba transparente con el **wordmark SVG**
-   grande y centrado flotando sobre el hero y solo "My account" a la derecha; al bajar
+   grande y centrado flotando sobre el hero y solo "My account" a la derecha. **El
+   wordmark es el enlace al home** (`/`) desde cualquier página; era un ancla `#top`, que
+   solo hacía algo en la landing y dejaba el resto del sitio sin salida. En la landing
+   sigue subiendo al inicio, pero por `onClick`: navegar a la ruta en la que ya estás no
+   mueve el viewport.
+   Al bajar: al bajar
    se fija con fondo blanco, el wordmark se reduce y aparece el botón dorado "Get a
    quote" empujando "My account" a su izquierda. Enlaces pegados a los **bordes reales**
    de la ventana (no al ancho del hero). Menús: "Coverages" (una sola opción: AI
@@ -870,9 +875,20 @@ First-Party dentro de un panel marino redondeado → cierre marino a todo el anc
 como las demás: `OceanPrefooter showCta={false}` con el footer dentro.
 
 **Hero editorial.** Dos columnas: a la izquierda eyebrow con filete dorado, titular de
-68px y bajada; a la derecha, alineadas abajo, dos mini-tarjetas ("04 Third-party" clara y
-"04 First-party" marino) con tres barritas animadas cada una. Orbe flotante de 420px
-arriba a la derecha, **oculto por debajo de `lg`**. Cierra con un filete en degradado.
+68px y bajada; a la derecha dos mini-tarjetas ("04 Third-party" clara y "04 First-party"
+marino) con tres barritas animadas cada una. Orbe flotante de 420px arriba a la derecha,
+**oculto por debajo de `lg`**. Cierra con un filete en degradado.
+
+**Las mini-tarjetas van alineadas arriba (`items-start`), a la misma línea que el
+eyebrow.** El mockup las traía abajo (`items-end`); así el alto de la columna derecha
+quedaba vacío y el par se leía como puesto ahí sin relación con nada.
+
+**⚠ El `pt` del hero se mide contra el wordmark, no contra la barra.** Arriba del todo el
+navbar es transparente y el wordmark flota grande y centrado sobre el hero. El mockup
+traía una barra de relleno **sin wordmark**, así que sus 100px dejaban solo 22px de aire
+entre el logo y el eyebrow. Corregido a `pt-32 sm:pt-40`, el mismo valor que los otros
+heroes institucionales: 82px de aire. **Si se toca este padding, medir contra el
+wordmark.**
 
 **Los dos grupos son el mismo componente**, con una prop `tone`. En `light` la sección va
 suelta sobre el lienzo; en `dark` se envuelve en el panel marino (`rounded-[44px]` en
@@ -910,13 +926,27 @@ cercana, como manda la §5:
 - `#F5FBFC` (final del degradado de las claras) → `.cv-stage-light`, bruma al 35% sobre
   blanco.
 
-**⚠ Dos etiquetas no pasan AA** (aritmética sobre los tokens, no `getComputedStyle` —
-ver §5):
-- El eyebrow en oro oscuro sobre claro da **2.35:1**. Ya estaba: es la convención de
-  Products y `WhatsHappening`, no un problema de esta página.
-- El hint "Hover to read" de las tarjetas claras, en marino al 55%, da **3.40:1**. Viene
-  del mockup. Pasarlo a marino/70 lo dejaría en 5.28:1. **Pendiente de decisión.**
-El resto pasa: descripción clara 4.65:1, descripción oscura 6.72:1, hint oscuro 5.16:1.
+**Contraste, medido muestreando píxeles de una captura** (no `getComputedStyle`, que
+devuelve los colores con alfa en oklab — §5):
+
+| Texto | Sobre | Ratio |
+|---|---|---|
+| Hint claro, marino/70 | blanco | **5.28:1** |
+| Descripción clara, marino/66 | blanco | **4.65:1** |
+| Hint oscuro, blanco/55 | tarjeta oscura | **4.64:1** |
+| Descripción oscura, blanco/66 | tarjeta oscura | **5.94:1** |
+
+Los cuatro pasan AA. **Ojo con el fondo de las tarjetas oscuras:** no es marino puro sino
+`white/6%` sobre marino, o sea `rgb(41,56,100)`. Medir contra marino da cifras infladas
+(6.72 y 5.16 en vez de 5.94 y 4.64); el hint oscuro pasa por poco, así que si alguna vez
+se aclara ese fondo hay que volver a medir.
+
+**El hint claro se subió a marino/70.** El mockup lo traía en marino/55, que da 3.40:1 y
+no pasa. Es la **única desviación deliberada** del diseño aprobado.
+
+Lo único que sigue sin pasar es el eyebrow en oro oscuro sobre claro, **2.35:1** — ya
+venía de antes, es la convención de Products y `WhatsHappening`, no un problema de esta
+página.
 
 **Los datos viven en `components/coverage/coverage-details.ts`** (con `number` y `label`
 añadidos en el rediseño), no en `lib/coverages.ts`. Ese otro archivo solo tiene los
@@ -939,8 +969,6 @@ lista vuelve a mentir sobre estar verificada.
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
   `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
   tiene su `TODO` en el código.
-- **Decidir el contraste del hint de `/coverage`** — "Hover to read" en marino/55 sobre
-  blanco da 3.40:1 y no pasa AA. Viene del mockup. (`components/coverage/CoverageCard.tsx`)
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
   (ver §7). (`OceanPanel.tsx`)
 - **Scores ilustrativos** 72 y 86 del panel — el Score Engine no existe todavía.
@@ -975,6 +1003,11 @@ lista vuelve a mentir sobre estar verificada.
   (`app/quote/page.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
+- **Decidir si el flujo de cotización lleva salida al home** — las cinco pantallas
+  (`/quote`, `/quote/scanning`, `/score`, `/assessment`, `/assessment/results`) **no
+  montan el navbar**, así que no tienen wordmark ni ninguna forma de volver. Puede ser
+  deliberado (un embudo sin fugas), pero hoy no está decidido: quien entra a cotizar
+  solo sale con el botón atrás del navegador.
 
 **Hechos (completados):**
 - ~~Conectar "Start a conversation"~~ — el CTA del pre-footer abre
@@ -1235,6 +1268,8 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   cobertura. El escenario pasa a abrirse con hover/tap sobre un `<button>` accesible.
 - **Las animaciones de `/coverage` se pausan fuera de pantalla** con `data-still`, por la
   regla de la §11: son ~46 elementos animados en una sola página.
+- **El hint de `/coverage` sube a marino/70** para pasar AA (5.28:1). Única desviación
+  deliberada del mockup, que lo traía en marino/55 (3.40:1).
 - *(pendiente)* La etiqueta de eyebrow en oro oscuro sobre blanco no pasa AA (2.35:1).
   Afecta a Products, `WhatsHappening` y `/coverage`. Decisión de marca, no de página.
 - *(pendiente)* Modelo de datos detallado (schema).
