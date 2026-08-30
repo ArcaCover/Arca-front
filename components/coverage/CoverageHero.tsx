@@ -41,10 +41,11 @@ export default function CoverageHero() {
         className="cv-float pointer-events-none absolute right-20 top-5 hidden h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-cielo)_30%,transparent)_0%,color-mix(in_srgb,var(--color-bruma)_35%,transparent)_45%,transparent_70%)] blur-[18px] lg:block"
       />
 
-      {/* Top-aligned, so the mini-cards start on the same line as the eyebrow
-          and read as part of the composition. Bottom-aligning them left the
-          top of the right column empty and the pair looked dropped in. */}
-      <div className="relative grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-14">
+      {/* Centred against the left column so the pair sits with the headline
+          rather than hanging off the top or the bottom of it. The right track
+          is wider than the cards and the wrapper pads it back: that insets
+          them from the page margin without narrowing them. */}
+      <div className="relative grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_392px] lg:gap-14">
         <div>
           <div className="mb-[26px] flex items-center gap-3">
             <span aria-hidden className="block h-[2px] w-[34px] bg-oro-oscuro" />
@@ -61,7 +62,7 @@ export default function CoverageHero() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-[14px]">
+        <div className="flex flex-col gap-[14px] lg:pr-[72px]">
           <div className="card-on-canvas flex items-center gap-4 rounded-[22px] bg-white/[0.78] px-[22px] py-[18px]">
             <span className="font-heading text-[32px] font-medium leading-none text-marino">04</span>
             <span className="text-[13px] leading-[1.45] text-marino/70">

@@ -874,14 +874,28 @@ del CCO, literal. **Rediseñada en agosto 2026** a partir de un mockup de Design
 First-Party dentro de un panel marino redondeado → cierre marino a todo el ancho. Cierra
 como las demás: `OceanPrefooter showCta={false}` con el footer dentro.
 
+**⚠ Las dos bajadas de sección se retiraron por decisión del fundador** (agosto 2026).
+Eran copy del CCO: "Traditional malpractice policies were written before AI entered
+professional practice…" y "An AI error doesn't end with the client claim…". Con ellas se
+fue la estructura de dos columnas del encabezado: ahora **pill y titular van centrados**
+en los dos grupos. El texto sigue en el historial de git si hace falta recuperarlo.
+Consecuencia: la página ya no explica **por qué** existe cada grupo, solo lo nombra.
+
 **Hero editorial.** Dos columnas: a la izquierda eyebrow con filete dorado, titular de
 68px y bajada; a la derecha dos mini-tarjetas ("04 Third-party" clara y "04 First-party"
 marino) con tres barritas animadas cada una. Orbe flotante de 420px arriba a la derecha,
 **oculto por debajo de `lg`**. Cierra con un filete en degradado.
 
-**Las mini-tarjetas van alineadas arriba (`items-start`), a la misma línea que el
-eyebrow.** El mockup las traía abajo (`items-end`); así el alto de la columna derecha
-quedaba vacío y el par se leía como puesto ahí sin relación con nada.
+**Las mini-tarjetas van centradas contra la columna de texto (`items-center`)**, no
+arriba ni abajo. El mockup las traía abajo (`items-end`) y quedaban descolgadas; alineadas
+arriba quedaban a la altura del eyebrow. Centradas se leen junto al titular. **Ojo:** el
+centro del par cae ~41px por debajo del centro exacto del `h1`, porque se centra contra
+todo el bloque de texto (eyebrow + titular + bajada), no contra el titular solo. Clavarlo
+al `h1` exigiría un desplazamiento fijo que se rompe cuando la bajada cambia de líneas.
+
+**El par se separa del margen con la pista, no con margen.** La columna derecha mide
+392px y el contenedor lleva `lg:pr-[72px]`: así las tarjetas conservan sus 320px y quedan
+132px del borde en vez de 60px. Poner margen a secas las habría estrechado.
 
 **⚠ El `pt` del hero se mide contra el wordmark, no contra la barra.** Arriba del todo el
 navbar es transparente y el wordmark flota grande y centrado sobre el hero. El mockup
@@ -1263,6 +1277,8 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   se cierra el pendiente de la §9 sobre dónde volvían a verse las coberturas.
 - **El menú "Coverages" del navbar deja de apuntar a `#products`** y lleva a `/coverage`;
   el CTA secundario de `/industries/legal` también.
+- **Las bajadas de las dos secciones de `/coverage` se retiran** por decisión del
+  fundador: los encabezados quedan centrados, solo pill y titular (§9.6).
 - **`/coverage` rediseñada desde mockup de Design** (§9.6): hero editorial, panel marino
   para First-Party, y **8 mini-ilustraciones animadas** que abstraen el escenario de cada
   cobertura. El escenario pasa a abrirse con hover/tap sobre un `<button>` accesible.
