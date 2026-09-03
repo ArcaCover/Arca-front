@@ -874,14 +874,6 @@ del CCO, literal. **Rediseñada en agosto 2026** a partir de un mockup de Design
 First-Party dentro de un panel marino redondeado → cierre marino a todo el ancho. Cierra
 como las demás: `OceanPrefooter showCta={false}` con el footer dentro.
 
-**Encabezado de grupo: pill → titular → bajada, todo centrado.** El mockup ponía la
-bajada en una segunda columna a la derecha. Se probó retirarla del todo (agosto 2026) y
-se recuperó enseguida: sin ella la página nombraba cada grupo pero no decía por qué
-existe, y la de Third-Party es el único sitio donde se afirma que las pólizas
-tradicionales se escribieron antes de que la IA entrara en la práctica profesional. Ahora
-va **debajo del titular**, centrada y a 680px, que es como el resto del sitio trata
-titular + bajada (§9).
-
 **Hero editorial.** Dos columnas: a la izquierda eyebrow con filete dorado, titular de
 68px y bajada; a la derecha dos mini-tarjetas ("04 Third-party" clara y "04 First-party"
 marino) con tres barritas animadas cada una. Orbe flotante de 420px arriba a la derecha,
@@ -904,6 +896,14 @@ traía una barra de relleno **sin wordmark**, así que sus 100px dejaban solo 22
 entre el logo y el eyebrow. Corregido a `pt-32 sm:pt-40`, el mismo valor que los otros
 heroes institucionales: 82px de aire. **Si se toca este padding, medir contra el
 wordmark.**
+
+**Encabezado de grupo: pill → titular → bajada, todo centrado.** El mockup ponía la
+bajada en una segunda columna a la derecha. Se probó retirarla del todo (agosto 2026) y
+se recuperó enseguida: sin ella la página nombraba cada grupo pero no decía por qué
+existe, y la de Third-Party es el único sitio donde se afirma que las pólizas
+tradicionales se escribieron antes de que la IA entrara en la práctica profesional. Ahora
+va **debajo del titular**, centrada y a 680px, que es como el resto del sitio trata
+titular + bajada (§9).
 
 **Los dos grupos son el mismo componente**, con una prop `tone`. En `light` la sección va
 suelta sobre el lienzo; en `dark` se envuelve en el panel marino (`rounded-[44px]` en
@@ -976,9 +976,11 @@ este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview.
 
 ### Pendientes marcados en el código (TODO)
 
-Lista verificada contra los `TODO` que hay hoy en el código (última revisión: al
-rediseñar `/coverage`). **Al añadir un `TODO` nuevo, añadirlo también aquí**, o la
-lista vuelve a mentir sobre estar verificada.
+Lista verificada contra los **25 `TODO`** que hay hoy en el código (última revisión:
+tras los ajustes de `/coverage` y el enlace al home). **Al añadir un `TODO` nuevo,
+añadirlo también aquí**, o la lista vuelve a mentir sobre estar verificada. En la
+revisión de esta vez faltaban cuatro entradas: las dos descargas de PDF, el checkout de
+Stripe, la derivación a broker y la reconciliación del banco de preguntas.
 
 - **Conectar Supabase** — sigue sin conectar.
 - **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
@@ -1018,6 +1020,18 @@ lista vuelve a mentir sobre estar verificada.
   (`app/quote/page.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
+- **Generar los dos PDF** — el Quick Scan Report de `/score` y el Full Assessment
+  Report de `/assessment/results`. Los dos botones existen y no descargan nada; falta el
+  endpoint de reportes. (`app/score/page.tsx`, `app/assessment/results/page.tsx`)
+- **Arrancar el checkout de Stripe** desde "Get coverage" en los resultados. Hoy el botón
+  no hace nada. (`app/assessment/results/page.tsx`)
+- **Enrutar la derivación a broker** desde "Connect with a broker" en los resultados —
+  es la rama REFERRAL del Flujo B de la §6.4 y todavía no existe.
+  (`app/assessment/results/page.tsx`)
+- **Reconciliar el texto de las 10 preguntas** con el banco de preguntas del
+  ARCA_DEVELOPER_HANDOFF antes de ponerlo delante de una firma real. La lógica de
+  selección ya sigue el handoff; la redacción se escribió aquí y puede no coincidir.
+  (`lib/mock/assessment-questions.ts`)
 - **Decidir si el flujo de cotización lleva salida al home** — las cinco pantallas
   (`/quote`, `/quote/scanning`, `/score`, `/assessment`, `/assessment/results`) **no
   montan el navbar**, así que no tienen wordmark ni ninguna forma de volver. Puede ser
@@ -1288,6 +1302,15 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   regla de la §11: son ~46 elementos animados en una sola página.
 - **El hint de `/coverage` sube a marino/70** para pasar AA (5.28:1). Única desviación
   deliberada del mockup, que lo traía en marino/55 (3.40:1).
+- **El wordmark del navbar es el enlace al home** en todo el sitio. Era el ancla `#top`,
+  que solo hacía algo en la landing: el resto de las páginas se quedaban sin salida. En
+  la landing sigue subiendo al inicio, ahora por `onClick` (§9).
+- **El `pt` de los heroes se mide contra el wordmark, no contra la barra de 64px.** El
+  hero de `/coverage` venía del mockup con 100px y dejaba 22px de aire bajo el logo;
+  ahora usa el `pt-32 sm:pt-40` de las demás institucionales (§9.6).
+- **Las mini-tarjetas del hero de `/coverage` se centran contra la columna de texto** y
+  se separan del margen ensanchando la pista del grid, no con margen, para que no se
+  estrechen (§9.6).
 - *(pendiente)* La etiqueta de eyebrow en oro oscuro sobre blanco no pasa AA (2.35:1).
   Afecta a Products, `WhatsHappening` y `/coverage`. Decisión de marca, no de página.
 - *(pendiente)* Modelo de datos detallado (schema).
