@@ -17,10 +17,7 @@ const SUBMIT_MS = 1500;
 
 function AssessmentScreen() {
   const router = useRouter();
-  const params = useSearchParams();
-  const email = params.get("email");
-  const domain = params.get("domain");
-  const query = params.toString();
+  const scanId = useSearchParams().get("scan");
 
   // TODO: replace with API call to GET /assessment/{scan_id}/questions
   const { questions } = MOCK_ASSESSMENT_QUESTIONS;
@@ -37,12 +34,11 @@ function AssessmentScreen() {
 
   const isLast = index === questions.length - 1;
 
-  // Landing here without the form's answers means there is no firm to assess.
-  // Replace rather than push, so Back does not bounce into a dead URL.
-  const incomplete = !email || !domain;
+  // Landing here without a scan means there is no firm to assess. Replace rather than
+  // push, so Back does not bounce into a dead URL.
   useEffect(() => {
-    if (incomplete) router.replace("/quote");
-  }, [incomplete, router]);
+    if (!scanId) router.replace("/quote");
+  }, [scanId, router]);
 
   function handleAnswer(questionId: string, value: Answer) {
     setAnswers((previous) => ({ ...previous, [questionId]: value }));
@@ -55,10 +51,10 @@ function AssessmentScreen() {
     }
 
     setSubmitting(true);
-    setTimeout(() => router.push(`/assessment/results?${query}`), SUBMIT_MS);
+    setTimeout(() => router.push(`/assessment/results?scan=${encodeURIComponent(scanId!)}`), SUBMIT_MS);
   }
 
-  if (incomplete) return null;
+  if (!scanId) return null;
 
   if (submitting) {
     return (

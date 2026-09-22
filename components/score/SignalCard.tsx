@@ -1,8 +1,8 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 
-import type { Signal } from "@/lib/mock/score-data";
+import type { SignalView } from "@/lib/signals-view";
 
-export default function SignalCard({ signal }: { signal: Signal }) {
+export default function SignalCard({ signal }: { signal: SignalView }) {
   const Icon = signal.positive ? CheckCircle2 : XCircle;
   const accent = signal.positive ? "text-cielo" : "text-rojo";
 

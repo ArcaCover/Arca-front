@@ -1,23 +1,25 @@
 import {
   AlertOctagon,
   AlertTriangle,
+  HelpCircle,
   Shield,
   ShieldCheck,
   XOctagon,
   type LucideIcon,
 } from "lucide-react";
 
-import { tierStyle, type Tier } from "@/lib/score-tiers";
+import { tierStyle, type TierName } from "@/lib/score-tiers";
 
-const TIER_ICONS: Record<Tier, LucideIcon> = {
-  1: ShieldCheck,
-  2: Shield,
-  3: AlertTriangle,
-  4: AlertOctagon,
-  5: XOctagon,
+const TIER_ICONS: Record<TierName, LucideIcon> = {
+  FORTRESS: ShieldCheck,
+  FORTIFIED: Shield,
+  GUARDED: AlertTriangle,
+  EXPOSED: AlertOctagon,
+  CRITICAL: XOctagon,
+  UNKNOWN: HelpCircle,
 };
 
-export default function TierBadge({ tier }: { tier: Tier }) {
+export default function TierBadge({ tier }: { tier: TierName }) {
   const { name, icon, background } = tierStyle(tier);
   const Icon = TIER_ICONS[tier];
 

@@ -25,9 +25,7 @@ const STATUS = {
 
 function ResultsScreen() {
   const router = useRouter();
-  const params = useSearchParams();
-  const email = params.get("email");
-  const domain = params.get("domain");
+  const scanId = useSearchParams().get("scan");
 
   // TODO: replace with API call to GET /assessment/{assessment_id}/results
   const {
@@ -40,12 +38,11 @@ function ResultsScreen() {
     pricing,
   } = MOCK_ASSESSMENT_RESULTS;
 
-  const incomplete = !email || !domain;
   useEffect(() => {
-    if (incomplete) router.replace("/quote");
-  }, [incomplete, router]);
+    if (!scanId) router.replace("/quote");
+  }, [scanId, router]);
 
-  if (incomplete) return null;
+  if (!scanId) return null;
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -77,10 +74,11 @@ function ResultsScreen() {
           </div>
 
           <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center">
-            <ScoreGauge score={composite_score} />
+            <ScoreGauge score={composite_score} tier={tierForScore(composite_score)} />
             <div className="mt-5">
-              {/* Derived from the score rather than read from the payload, so
-                  the badge can never disagree with the gauge beside it. */}
+              {/* Layer 2 has no API behind it yet, so the tier is derived here from the mock
+                  score. The gauge takes the same value as a prop, so the two cannot disagree.
+                  On a Layer 1 result the tier arrives in the payload instead. */}
               <TierBadge tier={tierForScore(composite_score)} />
             </div>
           </div>
@@ -102,7 +100,7 @@ function ResultsScreen() {
                     <DomainBar
                       name={result.label}
                       score={result.score}
-                      weight={result.weight}
+                      caption={result.weight}
                     />
                   </div>
                 </div>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Globe, Loader2, Mail } from "lucide-react";
 
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
+import { ApiError, startScan } from "@/lib/api/client";
+import { rememberSession } from "@/lib/api/session";
 
 // Enough to catch a typo, not enough to argue with RFC 5322.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,6 +26,14 @@ const FREE_EMAIL_DOMAINS = [
 const INPUT_CLASS =
   "w-full rounded-xl border border-bruma bg-white py-3.5 pl-12 pr-4 text-marino transition-colors placeholder:text-marino/40 focus:border-cielo focus:outline-none";
 
+function waitMessage(seconds: number | undefined) {
+  if (!seconds) return "You have run several scans recently. Please try again a little later.";
+  const minutes = Math.ceil(seconds / 60);
+  return `You have run several scans recently. Please try again in about ${
+    minutes <= 1 ? "a minute" : `${minutes} minutes`
+  }.`;
+}
+
 export default function QuotePage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -31,6 +41,9 @@ export default function QuotePage() {
   const [emailTouched, setEmailTouched] = useState(false);
   const [domainTouched, setDomainTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Errors the API returned, kept apart from the local validation above.
+  const [domainRejected, setDomainRejected] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const emailError =
     emailTouched && email.trim() && !EMAIL_PATTERN.test(email.trim())
@@ -43,24 +56,46 @@ export default function QuotePage() {
     FREE_EMAIL_DOMAINS.includes(email.trim().toLowerCase().split("@")[1]);
 
   const domainError =
-    domainTouched && !domain.trim() ? "Please enter your firm's website." : null;
+    domainRejected ?? (domainTouched && !domain.trim() ? "Please enter your firm's website." : null);
 
   const canSubmit = Boolean(email.trim()) && Boolean(domain.trim()) && !submitting;
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setEmailTouched(true);
     setDomainTouched(true);
+    setDomainRejected(null);
+    setFormError(null);
 
     if (!EMAIL_PATTERN.test(email.trim()) || !domain.trim()) return;
 
-    // TODO: save lead to Supabase
     setSubmitting(true);
+    try {
+      // The API records the lead as part of starting the scan: email and canonical domain
+      // both land on the `scans` row. The front does not write to the database itself
+      // (CLAUDE.md §3: business logic lives behind the API).
+      const started = await startScan({ email: email.trim(), domain: domain.trim() });
+      rememberSession(started.scanId, started.sessionToken);
 
-    // The two values ride in the query string rather than storage or global
-    // state, so the scan is reproducible from the URL alone.
-    const params = new URLSearchParams({ email: email.trim(), domain: domain.trim() });
-    router.push(`/quote/scanning?${params}`);
+      // Only the scanId travels in the URL from here. The email and the domain are insured
+      // data and do not belong in a link, a referrer or browser history (CLAUDE.md §8).
+      const next = started.status === "COMPLETED"
+        // Cached domain: the result already exists, so there is nothing to wait for.
+        ? `/score?scan=${encodeURIComponent(started.scanId)}`
+        : `/quote/scanning?scan=${encodeURIComponent(started.scanId)}`;
+      router.push(next);
+    } catch (error) {
+      setSubmitting(false);
+      if (!(error instanceof ApiError)) {
+        setFormError("Something went wrong starting your scan. Please try again.");
+        return;
+      }
+      if (error.code === "invalid_domain" || error.code === "invalid_request") {
+        setDomainRejected("We could not reach that website. Check the address and try again.");
+        return;
+      }
+      setFormError(error.code === "rate_limited" ? waitMessage(error.retryAfter) : error.message);
+    }
   }
 
   return (
@@ -120,7 +155,10 @@ export default function QuotePage() {
               <input
                 type="text"
                 value={domain}
-                onChange={(e) => setDomain(e.target.value)}
+                onChange={(e) => {
+                  setDomain(e.target.value);
+                  setDomainRejected(null);
+                }}
                 onBlur={() => setDomainTouched(true)}
                 placeholder="Firm website (e.g. smithlaw.com)"
                 aria-label="Firm website"
@@ -130,6 +168,12 @@ export default function QuotePage() {
             </div>
             {domainError && <p className="mt-2 text-sm text-rojo">{domainError}</p>}
           </div>
+
+          {formError && (
+            <p role="alert" className="mt-5 rounded-xl bg-rojo/10 px-4 py-3 text-sm text-marino">
+              {formError}
+            </p>
+          )}
 
           <button
             type="submit"
