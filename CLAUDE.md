@@ -139,9 +139,11 @@ distintos hacia la misma lógica.
 - **Hosting frontend:** **Vercel**.
 - **Repositorio:** organización `ArcaCover` en GitHub. Frontend: `Arca-front`
   (`https://github.com/ArcaCover/Arca-front`). Backend: `Arca-back`, en la misma
-  organización. **Para desarrollar en local hacen falta los dos clonados lado a lado**:
-  el frontend consume `@arca/contracts` por `file:../Arca-back/packages/contracts`
-  mientras el paquete no esté publicado.
+  organización. El frontend instala `@arca/contracts` como tarball desde un GitHub
+  Release de `Arca-back` (tag `contracts-v<versión>`), así que basta con clonar este
+  repo y Vercel no necesita token. Para una versión nueva del contrato: subir `version`
+  en `packages/contracts/package.json` del back, crear el tag (el workflow
+  `contracts-release.yml` publica el `.tgz`) y apuntar aquí la dependencia a la URL nueva.
 - **Dominio:** **arcacover.com** (confirmado). Vive como valor por defecto en
   `app/layout.tsx` para que producción no dependa de configurar nada;
   `NEXT_PUBLIC_SITE_URL` existe solo para apuntar previews o staging a sí mismos.
@@ -1057,11 +1059,6 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   (`components/platforms/PlatformsHero.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
-- **Publicar `@arcacover/contracts`** en GitHub Packages. Hoy el paquete se consume por
-  `file:../Arca-back/packages/contracts`, que solo funciona con los dos repos clonados
-  lado a lado. Por eso `next.config.ts` lleva `transpilePackages` y sube la raíz de
-  Turbopack: **las dos cosas se borran** cuando el paquete se instale de verdad. Hace
-  falta un `NPM_TOKEN` en Vercel.
 - **Cuatro avisos de `react-hooks/set-state-in-effect`** en `AiGapSection`, `OceanPanel`,
   `useInView` y `ScoreGauge`. Es una regla nueva de react-hooks v7 sobre código que ya
   estaba y funciona; se dejó en `warn` para no reescribirlo de refilón al añadir el
