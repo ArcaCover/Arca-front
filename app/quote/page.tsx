@@ -7,21 +7,17 @@ import { ArrowRight, Globe, Loader2, Mail } from "lucide-react";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { ApiError, startScan } from "@/lib/api/client";
 import { rememberSession } from "@/lib/api/session";
+import { isEmailProviderAddress, isEmailProviderDomain } from "@/lib/email-providers";
 
 // Enough to catch a typo, not enough to argue with RFC 5322.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// A consumer mailbox is a hint that we are talking to a solo practitioner, not
-// a reason to turn them away: the scan runs on the firm's domain, which we ask
-// for separately.
-const FREE_EMAIL_DOMAINS = [
-  "gmail.com",
-  "yahoo.com",
-  "hotmail.com",
-  "outlook.com",
-  "aol.com",
-  "icloud.com",
-];
+// The API accepts any email and never scores it: the scan reads the firm's website and
+// the public registries, nothing else. A consumer mailbox is therefore fine, and saying
+// otherwise would promise a better result the API does not deliver. The one thing it
+// refuses is a mail provider typed in as the firm's website.
+const PROVIDER_AS_WEBSITE =
+  "That's an email provider, not your firm's website. Enter your firm's own site.";
 
 const INPUT_CLASS =
   "w-full rounded-xl border border-bruma bg-white py-3.5 pl-12 pr-4 text-marino transition-colors placeholder:text-marino/40 focus:border-cielo focus:outline-none";
@@ -51,12 +47,15 @@ export default function QuotePage() {
       : null;
 
   const usesFreeMailbox =
-    !emailError &&
-    EMAIL_PATTERN.test(email.trim()) &&
-    FREE_EMAIL_DOMAINS.includes(email.trim().toLowerCase().split("@")[1]);
+    !emailError && EMAIL_PATTERN.test(email.trim()) && isEmailProviderAddress(email.trim());
 
   const domainError =
-    domainRejected ?? (domainTouched && !domain.trim() ? "Please enter your firm's website." : null);
+    domainRejected ??
+    (domainTouched && !domain.trim()
+      ? "Please enter your firm's website."
+      : domainTouched && isEmailProviderDomain(domain)
+        ? PROVIDER_AS_WEBSITE
+        : null);
 
   const canSubmit = Boolean(email.trim()) && Boolean(domain.trim()) && !submitting;
 
@@ -67,7 +66,7 @@ export default function QuotePage() {
     setDomainRejected(null);
     setFormError(null);
 
-    if (!EMAIL_PATTERN.test(email.trim()) || !domain.trim()) return;
+    if (!EMAIL_PATTERN.test(email.trim()) || !domain.trim() || isEmailProviderDomain(domain)) return;
 
     setSubmitting(true);
     try {
@@ -88,6 +87,10 @@ export default function QuotePage() {
       setSubmitting(false);
       if (!(error instanceof ApiError)) {
         setFormError("Something went wrong starting your scan. Please try again.");
+        return;
+      }
+      if (error.code === "personal_email_domain") {
+        setDomainRejected(PROVIDER_AS_WEBSITE);
         return;
       }
       if (error.code === "invalid_domain" || error.code === "invalid_request") {
@@ -141,7 +144,7 @@ export default function QuotePage() {
                     "color-mix(in srgb, var(--color-oro-oscuro) 55%, var(--color-marino))",
                 }}
               >
-                We&apos;ll get better results with your firm&apos;s email.
+                A personal email works fine. The scan only reads your firm&apos;s website.
               </p>
             )}
           </div>

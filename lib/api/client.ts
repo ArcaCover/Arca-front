@@ -19,6 +19,7 @@ function baseUrl(): string {
 export type ApiErrorCode =
   | "invalid_request"
   | "invalid_domain"
+  | "personal_email_domain"
   | "rate_limited"
   | "unauthorized"
   | "not_found"
@@ -42,6 +43,7 @@ export class ApiError extends Error {
 const ERROR_CODES = new Set<string>([
   "invalid_request",
   "invalid_domain",
+  "personal_email_domain",
   "rate_limited",
   "unauthorized",
   "not_found",
