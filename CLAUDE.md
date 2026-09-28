@@ -1098,6 +1098,13 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   por §7.
 - ~~Bandas de tier desincronizadas~~ — el frontend usaba 85/70/50/30 y el backend
   80/65/45/25. Manda el backend (§6.3).
+- ~~Alinear el aviso de email de `/quote` con el backend~~ — decía "We'll get better
+  results with your firm's email", pero la API **no puntúa el email** (solo identifica el
+  lead), así que prometía algo que no pasa (§7). Ahora dice que un email personal sirve.
+  Lo que sí se rechaza es un proveedor de correo escrito como web de la firma
+  (`gmail.com`): la API responde `personal_email_domain` y `/quote` lo avisa antes de
+  enviar. La lista de proveedores vive en `lib/email-providers.ts` y **tiene que coincidir
+  con `PERSONAL_EMAIL_DOMAINS` del backend**.
 - ~~Conectar "Start a conversation"~~ — el CTA del pre-footer abre
   `https://calendly.com/arcacover/discovery` en pestaña nueva. **Resuelto distinto a lo
   planeado:** el TODO pedía un modal de contacto (nombre, email, teléfono, mensaje)

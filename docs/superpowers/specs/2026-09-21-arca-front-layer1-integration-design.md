@@ -141,6 +141,13 @@ implementa ahora.
 expansión nacional automática no presupuestada") estaba redactada apoyándose en que
 había presupuesto. Hay que verificar que se sostiene sola.
 
+**Verificado (2026-09-27): no se sostenía.** Las búsquedas nominales sí quedaban acotadas
+(10 resultados por nombre en Avvo, 25 en Bar, y Bar es un registro estatal). Pero la
+búsqueda por firma en Avvo, que se usa cuando no hay nombres de abogados, salía sin
+`cities` si no había ciudad: todo el país, con `maxLawyers` de 100.000 y nada más que la
+acotara. Ahora no se lanza. La fuente queda `skipped` con motivo explícito
+(`Arca-back`, `buildDirectoryInputs` en `pipeline/directories.ts`).
+
 ### 0.4 El cache-hit siempre es COMPLETED
 
 Un PARTIAL en caché **no** se devuelve tal cual: el scan se re-ejecuta reutilizando las
@@ -176,6 +183,10 @@ PARTIAL desde `cached()`, y eso es correcto: son las que alimentan la reparació
 junto a `Layer1Result`. `apps/api` los importa desde ahí. Sin cambio funcional.
 
 ### 0.6 Publicar `@arcacover/contracts`
+
+> **Superado.** El paquete se llama `@arca/contracts` y se instala como tarball desde un
+> GitHub Release público de `Arca-back` (tag `contracts-v<versión>`). La descarga es
+> anónima, así que Vercel no necesita `NPM_TOKEN`. Ver R4.
 
 El paquete se publica en GitHub Packages bajo la organización `ArcaCover`. Requiere un
 `NPM_TOKEN` en Vercel para que los builds del front resuelvan la dependencia.
@@ -362,6 +373,15 @@ los 25 s. Este es el grueso del trabajo nuevo de UI.
 pasar; el back puede rechazar con `PERSONAL_EMAIL`. El texto tiene que decir lo que el
 back hace de verdad.
 
+**Resuelto (2026-09-27), y la premisa era falsa.** `ScanRequest` exige `domain`, así que
+el rechazo `PERSONAL_EMAIL`, que solo miraba el dominio sacado del email, no se
+disparaba nunca: el back acepta cualquier email y no lo puntúa (DN-01 excluyó W10). El
+aviso "We'll get better results with your firm's email" prometía algo que no ocurre y
+ahora dice que un email personal sirve. El hueco real estaba en el otro campo: `gmail.com`
+escrito como web de la firma se rastreaba y se buscaba en los directorios como si fuera
+una firma. El back lo rechaza ahora con `personal_email_domain`, y `/quote` lo avisa
+antes de enviar con la misma lista de 19 proveedores (`lib/email-providers.ts`).
+
 ## 7. Verificación
 
 El front no tiene hoy `lint`, ni `typecheck`, ni tests.
@@ -411,10 +431,10 @@ El front no tiene hoy `lint`, ni `typecheck`, ni tests.
 | # | Riesgo | Estado |
 |---|---|---|
 | R1 | Sin tope en Apify, nada acota el gasto diario; el ledger informa a posteriori | Asumido (D8). Mitigación documentada, no implementada |
-| R2 | Un dominio con una fuente caída de forma permanente re-ejecuta el pipeline en cada petición durante 7 días | Vigilar. Con los TTL acoplados no cuesta dinero, sí latencia |
-| R3 | `multipliers.jurisdiction.state` está hardcodeado a `'FL'` cuando hay abogados | El front lo pinta como dato de la firma. Revisar antes de salir de Florida |
-| R4 | El `NPM_TOKEN` de GitHub Packages en Vercel puede bloquear los builds | Plan B en la sección 4 |
-| R5 | La guarda de expansión nacional de DN-06 se apoyaba en el presupuesto | Verificar en fase 0 |
+| R2 | Un dominio con una fuente caída de forma permanente re-ejecuta el pipeline en cada petición durante 7 días | **Resuelto.** Un PARTIAL se repara como mucho una vez por `SCAN_PARTIAL_REPAIR_COOLDOWN_MS` (1 h); dentro de esa ventana se sirve la última reparación, por polling y como PARTIAL con `cached: true`. El front no cambia |
+| R3 | `multipliers.jurisdiction.state` está hardcodeado a `'FL'` cuando hay abogados | **Resuelto.** La fuente de Bar declara el registro que lee (hoy la Florida Bar), el pipeline lo lleva como evidencia y el factor sale de una tabla por estado. Un estado sin factor se reporta neutro y `known: false`. Salir de Florida exige añadir su registro, no tocar el scoring |
+| R4 | El `NPM_TOKEN` de GitHub Packages en Vercel puede bloquear los builds | **Obsoleto.** Los contratos se instalan como tarball de un Release público; la descarga es anónima |
+| R5 | La guarda de expansión nacional de DN-06 se apoyaba en el presupuesto | **Verificado: no se sostenía.** Corregido en `Arca-back` (ver 0.3) |
 
 ---
 
