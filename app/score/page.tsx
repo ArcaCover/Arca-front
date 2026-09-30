@@ -7,7 +7,7 @@ import { AlertTriangle, ArrowRight, Info, Loader2 } from "lucide-react";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score";
 import { adaptScore, type ScoreView } from "@/lib/api/adapt";
-import { ApiError, pollScan } from "@/lib/api/client";
+import { ApiError, downloadReport, pollScan } from "@/lib/api/client";
 import { forgetSession, recallSession } from "@/lib/api/session";
 
 type State =
@@ -19,6 +19,40 @@ function ScoreScreen() {
   const router = useRouter();
   const scanId = useSearchParams().get("scan");
   const [state, setState] = useState<State>({ kind: "loading" });
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // The API renders the report from the stored result, so the PDF says exactly what this
+  // screen says. The file is handed to the browser through a temporary object URL.
+  async function saveReport(id: string) {
+    const token = recallSession(id);
+    if (!token) {
+      router.replace("/quote");
+      return;
+    }
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const { blob, filename } = await downloadReport(id, token);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "unauthorized") {
+        forgetSession(id);
+        router.replace("/quote");
+        return;
+      }
+      setDownloadError("We could not prepare your report. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     if (!scanId) {
@@ -197,13 +231,18 @@ function ScoreScreen() {
 
           <button
             type="button"
-            onClick={() => {
-              // TODO: generate PDF
-            }}
-            className="mt-5 cursor-pointer text-sm text-marino/60 underline-offset-4 transition-colors hover:text-marino hover:underline"
+            onClick={() => void saveReport(scanId)}
+            disabled={downloading}
+            className="mt-5 inline-flex cursor-pointer items-center gap-2 text-sm text-marino/60 underline-offset-4 transition-colors hover:text-marino hover:underline disabled:cursor-wait disabled:no-underline"
           >
-            Download Quick Scan Report
+            {downloading && <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />}
+            {downloading ? "Preparing your report…" : "Download Quick Scan Report"}
           </button>
+          {downloadError && (
+            <p role="alert" className="mt-2 text-sm text-rojo">
+              {downloadError}
+            </p>
+          )}
         </section>
 
         <footer className="mt-20 text-center text-xs text-marino/45">© 2026 Arca</footer>
