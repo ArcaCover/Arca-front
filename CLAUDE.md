@@ -118,9 +118,10 @@ distintos hacia la misma lógica.
 
 ### Stack tecnológico confirmado
 
-- **Lenguaje único:** **TypeScript** (web, backend y móvil), modo estricto. Si el
-  backend de Jesús usa otro lenguaje, eso se decide explícitamente porque rompe la
-  premisa de código compartido. **Pendiente de confirmar con Jesús.**
+- **Lenguaje único:** **TypeScript** (web, backend y móvil), modo estricto.
+  **Confirmado:** el backend es TypeScript, así que contratos y validaciones se comparten
+  de verdad — el frontend importa `@arca/contracts` del repo del backend en vez de
+  reescribir los tipos.
 - **Web:** **Next.js** (App Router). Renderizado en servidor para buen **SEO**.
 - **Estilos:** **Tailwind CSS** (v4; tokens declarados en `globals.css`).
 - **Tipografías (gratuitas, vía `next/font`):** **Space Grotesk** (títulos) y **Mulish**
@@ -137,8 +138,12 @@ distintos hacia la misma lógica.
   validaciones en TypeScript.
 - **Hosting frontend:** **Vercel**.
 - **Repositorio:** organización `ArcaCover` en GitHub. Frontend: `Arca-front`
-  (`https://github.com/ArcaCover/Arca-front`). Backend: repo de Jesús (pendiente).
-  Claude Code corre en la nube, ya no en local.
+  (`https://github.com/ArcaCover/Arca-front`). Backend: `Arca-back`, en la misma
+  organización. El frontend instala `@arca/contracts` como tarball desde un GitHub
+  Release de `Arca-back` (tag `contracts-v<versión>`), así que basta con clonar este
+  repo y Vercel no necesita token. Para una versión nueva del contrato: subir `version`
+  en `packages/contracts/package.json` del back, crear el tag (el workflow
+  `contracts-release.yml` publica el `.tgz`) y apuntar aquí la dependencia a la URL nueva.
 - **Dominio:** **arcacover.com** (confirmado). Vive como valor por defecto en
   `app/layout.tsx` para que producción no dependa de configurar nada;
   `NEXT_PUBLIC_SITE_URL` existe solo para apuntar previews o staging a sí mismos.
@@ -204,16 +209,19 @@ distintos hacia la misma lógica.
 
 Hasta que el fundador las confirme explícitamente, **no asumas**:
 
-- Lenguaje del backend de Jesús (TypeScript vs Python). Recomendación del CTO:
-  TypeScript para mantener lenguaje único.
 - Modelo de datos detallado (entidades, tablas, relaciones). El modelo de
   organizaciones (§6.4) está diseñado a nivel de negocio, no de schema.
 - Proveedores externos adicionales (email transaccional, firma electrónica).
 - Librerías concretas de formularios, validación, charts o generación de PDF para la
   plataforma.
-- Implementación técnica del Score Engine (las 3 capas están diseñadas a nivel de
-  negocio, no de código).
-- Diseño visual del flujo de cotización y de los dashboards.
+- Implementación técnica de las **Capas 2 y 3** del Score Engine. La Capa 1 ya está
+  construida y conectada; las otras dos siguen diseñadas solo a nivel de negocio.
+- Diseño visual de los dashboards. El flujo de cotización sí está construido (§9.2).
+
+**Resueltas desde que se escribió esta lista:**
+- ~~Lenguaje del backend~~ — **TypeScript**, como recomendaba el CTO. El repo es
+  `ArcaCover/Arca-back`, monorepo npm con `apps/api` (Hono) y `packages/`
+  (`contracts`, `scoring`). La premisa de lenguaje único se mantiene.
 
 ---
 
@@ -407,13 +415,25 @@ Size Factor: 0.90 (solo practitioner) a 1.30 (31-50 abogados).
 
 #### Tiers
 
-| Score | Tier | Nombre | Decisión |
-|---|---|---|---|
-| 85-100 | 1 | **FORTRESS** | AUTO_BIND — mejores tarifas, quote instantáneo |
-| 70-84 | 2 | **FORTIFIED** | AUTO_BIND — tarifas estándar, quote instantáneo |
-| 50-69 | 3 | **GUARDED** | REFERRAL — tarifas cargadas, quote en 48h |
-| 30-49 | 4 | **EXPOSED** | REFERRAL_SENIOR — tarifas altas + condiciones, quote en 5 días |
-| 0-29 | 5 | **CRITICAL** | DECLINE — plan de mejora + re-assessment en 90 días |
+| Score | Nombre | Decisión |
+|---|---|---|
+| 80-100 | **FORTRESS** | AUTO_BIND — mejores tarifas, quote instantáneo |
+| 65-79 | **FORTIFIED** | AUTO_BIND_CONDITIONAL — tarifas estándar, quote instantáneo |
+| 45-64 | **GUARDED** | REFERRAL — tarifas cargadas, quote en 48h |
+| 25-44 | **EXPOSED** | REFERRAL_SENIOR — tarifas altas + condiciones, quote en 5 días |
+| 0-24 | **CRITICAL** | DECLINE — plan de mejora + re-assessment en 90 días |
+| sin score | **UNKNOWN** | UNKNOWN — evidencia insuficiente, sin decisión comercial |
+
+**Estas bandas las fija el backend** (`packages/scoring/src/math.ts`), y son la verdad.
+Esta tabla decía antes 85/70/50/30 y el frontend la replicaba en `lib/score-tiers.ts`;
+las dos versiones convivieron hasta septiembre de 2026, así que una firma con 82 puntos
+salía FORTRESS en el backend y FORTIFIED en la pantalla. Se resolvió a favor del backend
+(§3, API-first) y **el frontend ya no calcula el tier para Capa 1**: lo lee de
+`preScore.tier`. `tierForScore()` sobrevive solo para el mock de Capa 2.
+
+El tier dejó de numerarse del 1 al 5: el contrato usa el nombre, y `UNKNOWN` no tiene
+número. Es un estado real, no un error: la Capa 1 lo devuelve cuando no pudo reunir
+evidencia suficiente para puntuar.
 
 #### Benchmark
 
@@ -710,29 +730,48 @@ Además de la landing existe ya un **recorrido de cotización completo**, todo c
 mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 `bg-canvas`:
 
-| Ruta | Qué hace |
-|---|---|
-| `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. Entra desde los CTA "Get a quote" del hero y del navbar. |
-| `/quote/scanning` | Espera del scan de Capa 1: 25s de trabajo simulado, mensajes rotando y orbe latiendo. |
-| `/score` | Pre-Score: gauge, tier, 6 dominios y las señales detectadas. |
-| `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. |
-| `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. |
+| Ruta | Qué hace | Backend |
+|---|---|---|
+| `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. Entra desde los CTA "Get a quote" del hero y del navbar. | **real** (`POST /scan`) |
+| `/quote/scanning` | Espera del scan de Capa 1 con polling real, mensajes rotando y orbe latiendo. | **real** (`GET /scan/:id`) |
+| `/score` | Pre-Score: gauge, tier, las **4 categorías** de Capa 1 y las señales detectadas. | **real** |
+| `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. | mock |
+| `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. | mock |
 
 Fuera de ese flujo están `/partners` (§9.3), `/platforms` (§9.4) y
 `/industries/legal` (§9.5), que no dependen del backend.
 
-**El email y el dominio viajan por query params** por toda la cadena, de pantalla en
-pantalla. Es lo único que identifica a la firma mientras no haya backend, así que si
-una pantalla se los come, las siguientes se quedan sin contexto y rebotan a `/quote`.
-Ya pasó una vez: `scanning` navegaba a `/score` sin params y la cadena se cortaba ahí.
-**Al añadir una pantalla nueva al flujo, arrastrar los params.**
+**El embudo viaja por `scanId`, no por email y dominio.** Hasta septiembre de 2026 el
+email y el dominio iban en query params de pantalla en pantalla; eso contradecía la §8
+(nunca exponer datos de asegurados en URLs) y desapareció al conectar la API. Ahora
+`POST /scan` devuelve `scanId` y `sessionToken`, el token se guarda en `sessionStorage`
+y **solo el `scanId` viaja en la URL**. Una pantalla sin `scan` rebota a `/quote`, igual
+que antes. **Al añadir una pantalla nueva al flujo, arrastrar el `scan`.**
 
 Toda pantalla que lea `useSearchParams` necesita un `<Suspense>` por encima o la ruta
-no se puede prerenderizar. El patrón está en las cuatro.
+no se puede prerenderizar. El patrón está en las cinco.
 
-**Datos mock:** `lib/mock/score-data.ts` (Pre-Score), `lib/mock/assessment-questions.ts`
-(las 10 preguntas) y `lib/mock/assessment-results.ts` (score completo + pricing). Los
-tipos que devolverá la API de Jesús viven aparte, en `lib/types/`.
+**Capa 1 (real):** `lib/api/client.ts` (cliente y errores tipados), `lib/api/session.ts`
+(token), `lib/api/adapt.ts` (payload → pantalla) y `lib/signals-view.ts` (señales →
+tarjetas). Los tipos y la validación en runtime vienen de **`@arca/contracts`**, el
+paquete del backend: no se reescriben aquí (§3).
+
+**Capa 2 (mock):** `lib/mock/assessment-questions.ts` (las 10 preguntas) y
+`lib/mock/assessment-results.ts` (score completo + pricing), con sus tipos en
+`lib/types/`. `lib/mock/score-data.ts` **se borró**: el Pre-Score ya viene de la API.
+Ojo: `lib/types/assessment-results.ts` es el contrato del **mock**, no el del backend —
+su `UnderwritingDecision` tiene 4 valores y el backend tiene 6. No reutilizarlo para
+Capa 1.
+
+**`/score` muestra 4 categorías, no 6 dominios.** La Capa 1 mide AI Governance (35),
+Professional Standing (30), Reputation (20) y Firm Maturity (15). Los 6 dominios D1-D6
+son de Capa 2 y siguen en `/assessment/results`. La pantalla los pintaba antes de
+conectar la API, sobre datos que la Capa 1 nunca produjo: no observa oversight, training
+ni incident preparedness, así que derivarlos habría sido inventar tres de seis (§7).
+
+**`ScoreGauge` y `TierBadge` los comparten `/score` y `/assessment/results`.** Los dos
+reciben el tier como prop, por nombre. `/score` pasa el que manda la API;
+`/assessment/results` pasa el que deriva del mock. Ninguno lo calcula por dentro.
 
 **Componentes:** `components/score/` (gauge, tier, barras, señales) y
 `components/assessment/` (tarjeta de pregunta, progreso, dominio, navegación). Las
@@ -982,10 +1021,14 @@ añadirlo también aquí**, o la lista vuelve a mentir sobre estar verificada. E
 revisión de esta vez faltaban cuatro entradas: las dos descargas de PDF, el checkout de
 Stripe, la derivación a broker y la reconciliación del banco de preguntas.
 
-- **Conectar Supabase** — sigue sin conectar.
-- **Conectar el flujo con la API real** — hoy las cinco pantallas corren con mock. Falta
-  `POST /scan`, las preguntas, el submit del cuestionario y los resultados. Cada punto
-  tiene su `TODO` en el código.
+- **Conectar Supabase** — sigue sin conectar **y probablemente ya no hace falta desde el
+  frontend**: el lead lo persiste la API al arrancar el scan, y §3 dice que el frontend
+  no escribe en la base de datos. `lib/supabase.ts` sigue sin consumir; decidir si se
+  borra.
+- **Conectar Capa 2 con la API real** — `/assessment` y `/assessment/results` siguen con
+  mock. La Capa 1 ya está conectada. Los tres endpoints que faltan
+  (`/assessment/{scan_id}/questions`, `/submit`, `/{assessment_id}/results`) **no existen
+  todavía en el backend**: `packages/questions/` está vacío.
 - **Etiquetar o retirar precios placeholder** del panel de océano antes de lanzar
   (ver §7). (`OceanPanel.tsx`)
 - **Scores ilustrativos** 72 y 86 del panel — el Score Engine no existe todavía.
@@ -1014,12 +1057,15 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   (`components/platforms/PlatformForm.tsx`).
 - **Sustituir el `mailto` del hero de Platforms** por formulario de contacto o Calendly.
   (`components/platforms/PlatformsHero.tsx`)
-- **Guardar el lead de `/quote` en Supabase** — hoy el email y el dominio solo viajan por
-  query params y no se persisten en ningún sitio, así que un visitante que abandona a
-  mitad del flujo se pierde. Es la premisa del registro estilo Lemonade de la §6.4.
-  (`app/quote/page.tsx`)
 - **Enlazar las páginas legales** desde `/quote` — el texto de consentimiento apunta a
   páginas que no existen. (`app/quote/page.tsx`)
+- **Cuatro avisos de `react-hooks/set-state-in-effect`** en `AiGapSection`, `OceanPanel`,
+  `useInView` y `ScoreGauge`. Es una regla nueva de react-hooks v7 sobre código que ya
+  estaba y funciona; se dejó en `warn` para no reescribirlo de refilón al añadir el
+  linter. Al resolverlos, subir la regla a `error` en `eslint.config.mjs`.
+- **`SignalCard` pinta las señales negativas en rojo**, y la §5 reserva el rojo para
+  errores y alertas. `/assessment/results` usa oro oscuro para lo mismo citando esa
+  regla. Es incoherencia previa a esta sesión; decidir cuál de las dos manda.
 - **Generar los dos PDF** — el Quick Scan Report de `/score` y el Full Assessment
   Report de `/assessment/results`. Los dos botones existen y no descargan nada; falta el
   endpoint de reportes. (`app/score/page.tsx`, `app/assessment/results/page.tsx`)
@@ -1039,6 +1085,26 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   solo sale con el botón atrás del navegador.
 
 **Hechos (completados):**
+- ~~Conectar el flujo con la API real (Capa 1)~~ — `/quote`, `/quote/scanning` y `/score`
+  consumen `POST /scan` y `GET /scan/:id`. Se fue el temporizador de 25s, entró polling
+  con el `elapsed` que reporta la API, y el embudo ganó las ramas de error que no tenía:
+  dominio rechazado, límite de peticiones, scan fallido, sesión caducada y scan que se
+  pasa de los 60 segundos prometidos.
+- ~~Guardar el lead de `/quote`~~ — **resuelto distinto a lo planeado**: lo persiste la
+  API en la fila de `scans` al arrancar el scan, no el frontend contra Supabase. Es lo
+  que manda la §3.
+- ~~Mensajes del scan que prometían fuentes inexistentes~~ — `/quote/scanning` decía
+  "tech stack" y "job postings"; la Capa 1 lee website, Florida Bar y Avvo. Corregido
+  por §7.
+- ~~Bandas de tier desincronizadas~~ — el frontend usaba 85/70/50/30 y el backend
+  80/65/45/25. Manda el backend (§6.3).
+- ~~Alinear el aviso de email de `/quote` con el backend~~ — decía "We'll get better
+  results with your firm's email", pero la API **no puntúa el email** (solo identifica el
+  lead), así que prometía algo que no pasa (§7). Ahora dice que un email personal sirve.
+  Lo que sí se rechaza es un proveedor de correo escrito como web de la firma
+  (`gmail.com`): la API responde `personal_email_domain` y `/quote` lo avisa antes de
+  enviar. La lista de proveedores vive en `lib/email-providers.ts` y **tiene que coincidir
+  con `PERSONAL_EMAIL_DOMAINS` del backend**.
 - ~~Conectar "Start a conversation"~~ — el CTA del pre-footer abre
   `https://calendly.com/arcacover/discovery` en pestaña nueva. **Resuelto distinto a lo
   planeado:** el TODO pedía un modal de contacto (nombre, email, teléfono, mensaje)
@@ -1313,7 +1379,21 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   estrechen (§9.6).
 - *(pendiente)* La etiqueta de eyebrow en oro oscuro sobre blanco no pasa AA (2.35:1).
   Afecta a Products, `WhatsHappening` y `/coverage`. Decisión de marca, no de página.
+- **Capa 1 conectada de punta a punta** (septiembre 2026). Diseño en
+  `docs/superpowers/specs/2026-09-21-arca-front-layer1-integration-design.md`. Ocho
+  decisiones registradas ahí; las de más peso, abajo.
+- **El backend de Jesús es TypeScript**, así que la premisa de lenguaje único se sostiene
+  y el contrato se comparte de verdad: el frontend importa `@arca/contracts` y **valida
+  en runtime** con sus esquemas zod. Con eso desaparecen los tipos de Capa 1 escritos a
+  mano, que ya se habían desincronizado en tres sitios.
+- **Las llamadas van directas del navegador a la API**, sin BFF en Next. Un proxy habría
+  dado cookie `httpOnly`, pero todas las peticiones saldrían con las IP de Vercel y el
+  límite de 10 por IP/hora se agotaría para todos los usuarios juntos. El `sessionToken`
+  no es una sesión de usuario: es una capability de 24h atada a un `scanId`.
+- **El tier lo dicta la API.** El frontend dejó de calcularlo para Capa 1 (§6.3).
+- **`/score` se rediseñó sobre las 4 categorías de Capa 1**, no sobre los 6 dominios de
+  Capa 2 (§9.2).
+- **Verificación:** el frontend ya tiene `typecheck`, `lint` y `test`. No tenía ninguno.
 - *(pendiente)* Modelo de datos detallado (schema).
-- *(pendiente)* Lenguaje del backend de Jesús (TypeScript vs Python).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
 - *(pendiente)* Librerías de charts, PDF, formularios para la plataforma.
