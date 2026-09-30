@@ -788,7 +788,7 @@ ni tarifas presentadas. Las dos pantallas llevan disclaimer visible, que es lo q
 cumple la §7. Antes de lanzar hay que decidir si se retiran las cifras.
 
 **Aún no conectado:** el botón "Get coverage" (falta Stripe), "Connect with a broker",
-la descarga de los dos PDF y todos los `TODO` de llamada a API. Las respuestas del
+la descarga del Full Assessment Report y todos los `TODO` de llamada a API. Las respuestas del
 cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
 
 ### 9.3 Página Partners
@@ -1015,8 +1015,8 @@ este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview.
 
 ### Pendientes marcados en el código (TODO)
 
-Lista verificada contra los **25 `TODO`** que hay hoy en el código (última revisión:
-tras los ajustes de `/coverage` y el enlace al home). **Al añadir un `TODO` nuevo,
+Lista verificada contra los **21 `TODO`** que hay hoy en el código (última revisión:
+tras conectar la descarga del Quick Scan Report). **Al añadir un `TODO` nuevo,
 añadirlo también aquí**, o la lista vuelve a mentir sobre estar verificada. En la
 revisión de esta vez faltaban cuatro entradas: las dos descargas de PDF, el checkout de
 Stripe, la derivación a broker y la reconciliación del banco de preguntas.
@@ -1066,9 +1066,14 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
 - **`SignalCard` pinta las señales negativas en rojo**, y la §5 reserva el rojo para
   errores y alertas. `/assessment/results` usa oro oscuro para lo mismo citando esa
   regla. Es incoherencia previa a esta sesión; decidir cuál de las dos manda.
-- **Generar los dos PDF** — el Quick Scan Report de `/score` y el Full Assessment
-  Report de `/assessment/results`. Los dos botones existen y no descargan nada; falta el
-  endpoint de reportes. (`app/score/page.tsx`, `app/assessment/results/page.tsx`)
+- **Generar el Full Assessment Report** de `/assessment/results`. El botón existe y no
+  descarga nada; depende de la Capa 2, que no existe en el backend.
+  (`app/assessment/results/page.tsx`)
+- **Pasar `/score` a las vistas de `@arca/contracts`** cuando se publique la versión de
+  los contratos que las trae. `adaptScore` y `signalsToCards` se copiaron tal cual al
+  backend para el PDF del Quick Scan; hasta entonces hay dos copias
+  (`lib/api/adapt.ts`, `lib/signals-view.ts`) y **cualquier cambio de texto se hace en las
+  dos** o el PDF y la pantalla dirán cosas distintas.
 - **Arrancar el checkout de Stripe** desde "Get coverage" en los resultados. Hoy el botón
   no hace nada. (`app/assessment/results/page.tsx`)
 - **Enrutar la derivación a broker** desde "Connect with a broker" en los resultados —
@@ -1098,6 +1103,11 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   por §7.
 - ~~Bandas de tier desincronizadas~~ — el frontend usaba 85/70/50/30 y el backend
   80/65/45/25. Manda el backend (§6.3).
+- ~~Descargar el Quick Scan Report desde `/score`~~ — lo genera la API
+  (`GET /scan/:scanId/report.pdf`, con el mismo token del scan) con el Chromium que ya
+  usa para rastrear webs; decidido así por el fundador (septiembre 2026) frente a imprimir
+  desde el navegador o una librería de PDF en el front. Una página A4 con score, tier, las
+  4 categorías, las señales y las fuentes. El texto sale del mismo código que `/score`.
 - ~~Alinear el aviso de email de `/quote` con el backend~~ — decía "We'll get better
   results with your firm's email", pero la API **no puntúa el email** (solo identifica el
   lead), así que prometía algo que no pasa (§7). Ahora dice que un email personal sirve.
@@ -1396,4 +1406,7 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - **Verificación:** el frontend ya tiene `typecheck`, `lint` y `test`. No tenía ninguno.
 - *(pendiente)* Modelo de datos detallado (schema).
 - *(pendiente)* Proveedores externos (email transaccional, firma electrónica).
-- *(pendiente)* Librerías de charts, PDF, formularios para la plataforma.
+- **El Quick Scan Report en PDF lo genera la API**, con el Chromium que ya usa para
+  rastrear, no una librería en el frontend (septiembre 2026). Los PDF futuros (Full
+  Assessment, informe con marca del broker) deberían seguir el mismo camino.
+- *(pendiente)* Librerías de charts y formularios para la plataforma.

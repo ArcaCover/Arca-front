@@ -20,6 +20,7 @@ export type ApiErrorCode =
   | "invalid_request"
   | "invalid_domain"
   | "personal_email_domain"
+  | "report_unavailable"
   | "rate_limited"
   | "unauthorized"
   | "not_found"
@@ -44,6 +45,7 @@ const ERROR_CODES = new Set<string>([
   "invalid_request",
   "invalid_domain",
   "personal_email_domain",
+  "report_unavailable",
   "rate_limited",
   "unauthorized",
   "not_found",
@@ -96,4 +98,16 @@ export async function pollScan(scanId: string, sessionToken: string): Promise<Po
   });
   if (!response.ok) throw await failure(response);
   return parse(PollResponse, await response.json().catch(() => null));
+}
+
+/** The Quick Scan Report, rendered by the API from the stored result. The filename is the
+    API's too: it names the file after the domain and the scan date. */
+export async function downloadReport(scanId: string, sessionToken: string): Promise<{ blob: Blob; filename: string }> {
+  const response = await send(`/scan/${encodeURIComponent(scanId)}/report.pdf`, {
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  });
+  if (!response.ok) throw await failure(response);
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `arca-quick-scan-${scanId}.pdf`;
+  return { blob: await response.blob(), filename };
 }
