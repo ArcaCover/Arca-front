@@ -3,8 +3,13 @@ import { PollResponse, ScanResponse, type PollResponse as Poll, type ScanRespons
 // The browser talks to the API directly. There is no proxy on purpose: the scan rate limit
 // counts real client IPs, and routing every visitor through one server would spend a single
 // allowance on all of them. See the design note for the full reasoning.
+// Production falls back to the real API, the same way app/layout.tsx defaults the site URL, so
+// arcacover.com never depends on a Vercel variable being set. Development still has to set it.
+const PRODUCTION_API_URL = "https://api.arcacover.com";
+
 function baseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL;
+  const url = process.env.NEXT_PUBLIC_API_URL
+    || (process.env.NODE_ENV === "production" ? PRODUCTION_API_URL : undefined);
   if (!url) {
     throw new ApiError(
       "misconfigured",
