@@ -2,6 +2,29 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, downloadReport } from "@/lib/api/client";
 
+describe("API base URL", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+  it("defaults to the production API in a production build without the variable", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([37]), { headers: { "Content-Type": "application/pdf" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await downloadReport("sc_1", "token-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.arcacover.com/scan/sc_1/report.pdf", expect.anything());
+  });
+
+  it("still refuses to guess outside production", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    vi.stubEnv("NODE_ENV", "development");
+
+    const error = await downloadReport("sc_1", "token-1").catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ code: "misconfigured" });
+  });
+});
+
 describe("downloadReport", () => {
   afterEach(() => vi.unstubAllGlobals());
 

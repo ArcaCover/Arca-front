@@ -147,7 +147,10 @@ distintos hacia la misma lógica.
 - **Dominio:** **arcacover.com** (confirmado). Vive como valor por defecto en
   `app/layout.tsx` para que producción no dependa de configurar nada;
   `NEXT_PUBLIC_SITE_URL` existe solo para apuntar previews o staging a sí mismos.
-- **Hosting backend:** Railway o Render (decisión de Jesús, pendiente).
+- **Hosting backend:** **AWS** (decidido septiembre 2026): un EC2 en `https://api.arcacover.com`,
+  desplegado desde `main` de `Arca-back` por GitHub Actions. El DNS de `api` vive en Vercel.
+  `lib/api/client.ts` usa esa URL por defecto en producción, igual que `app/layout.tsx` con
+  el dominio, así que producción no depende de configurar `NEXT_PUBLIC_API_URL`.
 - **Costo de infra MVP:** ~$0-55/mes.
 - **Convención:** validaciones y tipos se escriben **una sola vez** y se comparten; no
   reescribir la misma regla en dos lugares. Las listas de contenido compartido
