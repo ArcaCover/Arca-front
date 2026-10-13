@@ -9,10 +9,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test:browser:assessment": "node scripts/assessment-browser-smoke.mjs"
   },
   "dependencies": {
-    "@arca/contracts": "https://github.com/ArcaCover/Arca-back/releases/download/contracts-v0.1.0/arca-contracts-0.1.0.tgz",
+    "@arca/contracts": "file:../Arca-back/packages/contracts",
     "@supabase/supabase-js": "^2.110.0",
     "lucide-react": "^1.23.0",
     "next": "^16.2.10",
@@ -22,12 +23,15 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.3.2",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
+    "jsdom": "^30.1.2",
     "tailwindcss": "^4.3.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.70.1",

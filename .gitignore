@@ -20,3 +20,6 @@
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local browser QA screenshots
+/artifacts/

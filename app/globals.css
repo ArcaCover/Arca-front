@@ -833,3 +833,25 @@ body {
     transition: none;
   }
 }
+
+/* Layer 2 uses the existing illuminated canvas and the Arca eye, without video. */
+.assessment-canvas {
+  background:
+    radial-gradient(ellipse at 9% 31%, color-mix(in srgb, var(--color-cielo) 14%, transparent), transparent 42%),
+    radial-gradient(ellipse at 88% 7%, color-mix(in srgb, var(--color-bruma) 80%, transparent), transparent 47%),
+    var(--color-canvas);
+}
+.assessment-orb { position: relative; width: 104px; height: 104px; }
+.assessment-orb-core {
+  position: absolute; inset: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 30% 24%, white, var(--color-bruma) 18%, var(--color-cielo) 48%, var(--color-marino) 100%);
+  box-shadow: inset -5px -5px 13px color-mix(in srgb, var(--color-marino) 30%, transparent), 0 12px 30px color-mix(in srgb, var(--color-cielo) 22%, transparent);
+}
+.assessment-orb-ring { position: absolute; inset: 4px; border: 1px solid color-mix(in srgb, var(--color-cielo) 30%, transparent); border-radius: 50%; transform: rotate(-32deg) scaleY(.4); }
+.assessment-orb-ring-outer { inset: 0; transform: rotate(37deg) scaleY(.68); border-color: color-mix(in srgb, var(--color-marino) 14%, transparent); }
+.assessment-orb-glint { position: absolute; top: 12px; right: 15px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-oro); box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-oro) 15%, transparent); }
+.assessment-orb-loading .assessment-orb-core { animation: assessment-breathe 2.5s ease-in-out infinite; }
+@keyframes assessment-breathe { 50% { transform: scale(.91); opacity: .8; } }
+@media (prefers-reduced-motion: reduce) {
+  .assessment-orb-loading .assessment-orb-core { animation: none; }
+}

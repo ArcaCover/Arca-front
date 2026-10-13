@@ -1,15 +1,24 @@
-import { PollResponse, ScanResponse, type PollResponse as Poll, type ScanResponse as Scan } from "@arca/contracts";
+import {
+  PollResponse,
+  ScanResponse,
+  AssessmentView,
+  AssessmentResult,
+  StartedAssessmentResponse,
+  type PollResponse as Poll,
+  type ScanResponse as Scan,
+  type AnswerValue,
+  type AssessmentView as Assessment,
+  type AssessmentResult as Result,
+} from "@arca/contracts";
 
 // The browser talks to the API directly. There is no proxy on purpose: the scan rate limit
 // counts real client IPs, and routing every visitor through one server would spend a single
 // allowance on all of them. See the design note for the full reasoning.
-// Production falls back to the real API, the same way app/layout.tsx defaults the site URL, so
-// arcacover.com never depends on a Vercel variable being set. Development still has to set it.
-const PRODUCTION_API_URL = "https://api.arcacover.com";
+// The isolated checkout requires an explicit origin in every environment. Never fall back
+// to a live service when a local demo is misconfigured.
 
 function baseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL
-    || (process.env.NODE_ENV === "production" ? PRODUCTION_API_URL : undefined);
+  const url = process.env.NEXT_PUBLIC_API_URL;
   if (!url) {
     throw new ApiError(
       "misconfigured",
@@ -22,6 +31,16 @@ function baseUrl(): string {
 /** Everything the UI has to tell apart. `contract` means the API answered with a shape we
     do not recognise, which is a deployment mismatch rather than a user-facing failure. */
 export type ApiErrorCode =
+  | "scan_not_ready"
+  | "assessment_exists"
+  | "invalid_answer"
+  | "not_visible"
+  | "incomplete"
+  | "already_completed"
+  | "expired"
+  | "planning_failed"
+  | "not_ready"
+  | "conflict"
   | "invalid_request"
   | "invalid_domain"
   | "personal_email_domain"
@@ -47,6 +66,16 @@ export class ApiError extends Error {
 }
 
 const ERROR_CODES = new Set<string>([
+  "scan_not_ready",
+  "assessment_exists",
+  "invalid_answer",
+  "not_visible",
+  "incomplete",
+  "already_completed",
+  "expired",
+  "planning_failed",
+  "not_ready",
+  "conflict",
   "invalid_request",
   "invalid_domain",
   "personal_email_domain",
@@ -61,19 +90,33 @@ async function failure(response: Response): Promise<ApiError> {
   const retryAfter = Number(response.headers.get("Retry-After")) || undefined;
   const body: unknown = await response.json().catch(() => null);
   const payload = body as { error?: unknown; message?: unknown } | null;
-  const code = typeof payload?.error === "string" && ERROR_CODES.has(payload.error)
-    ? (payload.error as ApiErrorCode)
-    : "internal_error";
-  const message = typeof payload?.message === "string" ? payload.message : "The scan service failed.";
-  return new ApiError(code, message, code === "rate_limited" ? retryAfter : undefined);
+  const code =
+    typeof payload?.error === "string" && ERROR_CODES.has(payload.error)
+      ? (payload.error as ApiErrorCode)
+      : "internal_error";
+  const message =
+    typeof payload?.message === "string"
+      ? payload.message
+      : "The scan service failed.";
+  return new ApiError(
+    code,
+    message,
+    code === "rate_limited" ? retryAfter : undefined,
+  );
 }
 
 async function send(path: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(`${baseUrl()}${path}`, init);
+    return await fetch(`${baseUrl()}${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(15000),
+    });
   } catch (cause) {
     if (cause instanceof ApiError) throw cause;
-    throw new ApiError("network", "We could not reach the scan service. Check your connection and try again.");
+    throw new ApiError(
+      "network",
+      "We could not reach the scan service. Check your connection and try again.",
+    );
   }
 }
 
@@ -83,11 +126,17 @@ function parse<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
   try {
     return schema.parse(body);
   } catch {
-    throw new ApiError("contract", "The scan service answered in a shape this app does not understand.");
+    throw new ApiError(
+      "contract",
+      "The scan service answered in a shape this app does not understand.",
+    );
   }
 }
 
-export async function startScan(input: { email: string; domain: string }): Promise<Scan> {
+export async function startScan(input: {
+  email: string;
+  domain: string;
+}): Promise<Scan> {
   const response = await send("/scan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -97,7 +146,10 @@ export async function startScan(input: { email: string; domain: string }): Promi
   return parse(ScanResponse, await response.json().catch(() => null));
 }
 
-export async function pollScan(scanId: string, sessionToken: string): Promise<Poll> {
+export async function pollScan(
+  scanId: string,
+  sessionToken: string,
+): Promise<Poll> {
   const response = await send(`/scan/${encodeURIComponent(scanId)}`, {
     headers: { Authorization: `Bearer ${sessionToken}` },
   });
@@ -107,12 +159,104 @@ export async function pollScan(scanId: string, sessionToken: string): Promise<Po
 
 /** The Quick Scan Report, rendered by the API from the stored result. The filename is the
     API's too: it names the file after the domain and the scan date. */
-export async function downloadReport(scanId: string, sessionToken: string): Promise<{ blob: Blob; filename: string }> {
-  const response = await send(`/scan/${encodeURIComponent(scanId)}/report.pdf`, {
-    headers: { Authorization: `Bearer ${sessionToken}` },
-  });
+export async function downloadReport(
+  scanId: string,
+  sessionToken: string,
+): Promise<{ blob: Blob; filename: string }> {
+  const response = await send(
+    `/scan/${encodeURIComponent(scanId)}/report.pdf`,
+    {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    },
+  );
   if (!response.ok) throw await failure(response);
   const disposition = response.headers.get("Content-Disposition") ?? "";
-  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `arca-quick-scan-${scanId}.pdf`;
+  const filename =
+    /filename="([^"]+)"/.exec(disposition)?.[1] ??
+    `arca-quick-scan-${scanId}.pdf`;
   return { blob: await response.blob(), filename };
+}
+
+/** The server owns the question list, branch rules, answer validation and scoring. */
+export async function startAssessment(scanId: string, token: string) {
+  const response = await send(
+    `/scan/${encodeURIComponent(scanId)}/assessment`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  if (!response.ok) throw await failure(response);
+  return parse(
+    StartedAssessmentResponse,
+    await response.json().catch(() => null),
+  );
+}
+
+export async function getAssessment(
+  assessmentId: string,
+  token: string,
+): Promise<Assessment> {
+  const response = await send(
+    `/assessment/${encodeURIComponent(assessmentId)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  if (!response.ok) throw await failure(response);
+  return parse(AssessmentView, await response.json().catch(() => null));
+}
+
+export async function saveAnswer(
+  assessmentId: string,
+  questionId: string,
+  answer: AnswerValue,
+  token: string,
+): Promise<Assessment> {
+  const response = await send(
+    `/assessment/${encodeURIComponent(assessmentId)}/answers/${encodeURIComponent(questionId)}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ answer }),
+    },
+  );
+  if (!response.ok) throw await failure(response);
+  return parse(AssessmentView, await response.json().catch(() => null));
+}
+
+export async function completeAssessment(
+  assessmentId: string,
+  token: string,
+): Promise<Result> {
+  const response = await send(
+    `/assessment/${encodeURIComponent(assessmentId)}/complete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ attestation: true }),
+    },
+  );
+  if (!response.ok) throw await failure(response);
+  return parse(AssessmentResult, await response.json().catch(() => null));
+}
+
+export async function getAssessmentResult(
+  assessmentId: string,
+  token: string,
+): Promise<Result> {
+  const response = await send(
+    `/assessment/${encodeURIComponent(assessmentId)}/result`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  if (!response.ok) throw await failure(response);
+  return parse(AssessmentResult, await response.json().catch(() => null));
 }

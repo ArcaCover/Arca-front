@@ -18,7 +18,7 @@ export default function DomainBar({
     <div>
       <div className="flex items-baseline justify-between gap-4">
         <p className="text-sm text-marino">
-          {name} {caption && <span className="text-xs text-marino/45">{caption}</span>}
+          {name} {caption && <span className="text-xs text-marino/70">{caption}</span>}
         </p>
         <span className="text-sm font-semibold tabular-nums text-marino">
           {value === null ? "—" : max === 100 ? value : `${value} / ${max}`}

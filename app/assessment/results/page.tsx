@@ -1,256 +1,308 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, CheckCircle2, FileText, Info, Star } from "lucide-react";
-
-import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileCheck2,
+  Info,
+  Loader2,
+  RotateCcw,
+} from "lucide-react";
+import type { AssessmentResult } from "@arca/contracts";
+import AssessmentShell from "@/components/assessment/AssessmentShell";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
-import { MOCK_ASSESSMENT_RESULTS } from "@/lib/mock/assessment-results";
-import { tierForScore } from "@/lib/score-tiers";
-import type { DomainStatus } from "@/lib/types/assessment-results";
-
-const USD = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-// Warning wears oro-oscuro, not rojo: rojo is reserved for errors and alerts
-// (CLAUDE.md §5), and a domain that could be stronger is neither.
-const STATUS = {
-  good: { Icon: CheckCircle2, color: "text-cielo", label: "On track" },
-  warning: { Icon: AlertTriangle, color: "text-oro-oscuro", label: "Needs attention" },
-} satisfies Record<DomainStatus, { Icon: typeof CheckCircle2; color: string; label: string }>;
+import { ApiError, getAssessmentResult } from "@/lib/api/client";
+import { recallSession } from "@/lib/api/session";
+import { recallAssessment } from "@/lib/api/assessment-session";
+import { assessmentHref } from "@/lib/assessment";
 
 function ResultsScreen() {
-  const router = useRouter();
-  const scanId = useSearchParams().get("scan");
-
-  // TODO: replace with API call to GET /assessment/{assessment_id}/results
-  const {
-    firm,
-    composite_score,
-    benchmark_percentile,
-    benchmark_segment,
-    domain_scores,
-    action_plan,
-    pricing,
-  } = MOCK_ASSESSMENT_RESULTS;
+  const params = useSearchParams();
+  const scanId = params.get("scan");
+  const requestedId = params.get("a");
+  const [result, setResult] = useState<AssessmentResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [assessmentId, setAssessmentId] = useState<string | null>(requestedId);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!scanId) router.replace("/quote");
-  }, [scanId, router]);
-
-  if (!scanId) return null;
+    let cancelled = false;
+    const id = requestedId ?? (scanId ? recallAssessment(scanId) : null);
+    const token = scanId ? recallSession(scanId) : null;
+    setAssessmentId(id);
+    setLoading(true);
+    setError(null);
+    setErrorCode(null);
+    if (!scanId || !id || !token) {
+      setError(
+        "This tab no longer has access to the result. Sessions last up to 24 hours; a new scan starts a new assessment.",
+      );
+      setErrorCode("expired");
+      setLoading(false);
+      return;
+    }
+    void getAssessmentResult(id, token)
+      .then((value) => {
+        if (cancelled) return;
+        if (value.scanId !== scanId)
+          throw new ApiError(
+            "unauthorized",
+            "This result does not belong to this scan.",
+          );
+        setResult(value);
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) return;
+        setError(
+          cause instanceof ApiError
+            ? cause.message
+            : "We couldn’t load your result. Please try again.",
+        );
+        setErrorCode(cause instanceof ApiError ? cause.code : "network");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [scanId, requestedId, attempt]);
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <div className="mx-auto max-w-[960px] px-6 py-10 sm:px-8 lg:py-14">
-        <header>
-          <ArcaWordmark className="h-7 w-auto text-marino" />
-        </header>
-
-        <p className="mt-8 flex items-start justify-center gap-2 text-sm text-marino/50 md:justify-start">
-          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          This is an illustrative assessment. Actual scores and pricing require a real scan
-          and verified data.
-        </p>
-
-        {/* 1 — Score overview */}
-        <section className="mt-8 flex flex-col items-center gap-10 md:flex-row md:items-center md:justify-between md:gap-16">
-          <div className="text-center md:text-left">
-            <h1 className="font-heading text-3xl font-semibold tracking-tight text-marino sm:text-4xl">
-              {firm.name}
-            </h1>
-            <p className="mt-3 text-[15px] text-marino/55">
-              {firm.city}, {firm.state} · {firm.attorneys_count} attorneys
-            </p>
-            <p className="mt-5 max-w-[340px] text-[15px] leading-relaxed text-marino">
-              Better than{" "}
-              <span className="font-semibold">{benchmark_percentile}%</span> of{" "}
-              {benchmark_segment}.
-            </p>
-          </div>
-
-          <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center">
-            <ScoreGauge score={composite_score} tier={tierForScore(composite_score)} />
-            <div className="mt-5">
-              {/* Layer 2 has no API behind it yet, so the tier is derived here from the mock
-                  score. The gauge takes the same value as a prop, so the two cannot disagree.
-                  On a Layer 1 result the tier arrives in the payload instead. */}
-              <TierBadge tier={tierForScore(composite_score)} />
-            </div>
+    <AssessmentShell
+      scanId={scanId}
+      results
+      title="Small steps. Stronger foundations."
+      description="A clearer view of your AI practices, and practical places to focus next. This is the beginning of better governance."
+    >
+      {loading ? (
+        <section className="flex min-h-[350px] flex-col items-center justify-center rounded-[28px] bg-white p-8 text-center">
+          <Loader2
+            aria-hidden
+            className="h-7 w-7 animate-spin text-cielo motion-reduce:animate-none"
+          />
+          <h2 role="status" className="mt-5 font-heading text-xl text-marino">
+            Bringing your outlook together…
+          </h2>
+        </section>
+      ) : error ? (
+        <section className="rounded-[28px] border border-marino/10 bg-white p-7 sm:p-9">
+          <h2 className="font-heading text-2xl font-medium tracking-tight">
+            Your result needs a moment.
+          </h2>
+          <p role="alert" className="mt-4 text-sm leading-7 text-marino/75">
+            {error}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {!["expired", "unauthorized", "not_found"].includes(
+              errorCode ?? "",
+            ) && (
+              <button
+                type="button"
+                onClick={() => setAttempt((value) => value + 1)}
+                className="inline-flex items-center gap-2 rounded-full bg-oro px-5 py-3 text-sm font-semibold"
+              >
+                <RotateCcw aria-hidden className="h-4 w-4" />
+                Try again
+              </button>
+            )}
+            {["not_ready", "incomplete"].includes(errorCode ?? "") &&
+            assessmentId &&
+            scanId ? (
+              <Link
+                href={assessmentHref(scanId, assessmentId)}
+                className="rounded-full border border-marino/15 px-5 py-3 text-sm"
+              >
+                Return to assessment
+              </Link>
+            ) : (
+              <Link
+                href="/quote"
+                className="rounded-full border border-marino/15 px-5 py-3 text-sm"
+              >
+                Start a new scan
+              </Link>
+            )}
           </div>
         </section>
-
-        {/* 2 — Score by domain */}
-        <section className="mt-16">
-          <h2 className="font-heading text-xl font-semibold tracking-tight text-marino">
-            Score by domain
-          </h2>
-          <div className="mt-6 space-y-5">
-            {Object.entries(domain_scores).map(([key, result]) => {
-              const { Icon, color, label } = STATUS[result.status];
-
-              return (
-                <div key={key} className="flex items-center gap-3">
-                  <Icon aria-label={label} className={`h-5 w-5 shrink-0 ${color}`} />
-                  <div className="flex-1">
-                    <DomainBar
-                      name={result.label}
-                      score={result.score}
-                      caption={result.weight}
-                    />
+      ) : (
+        result && (
+          <>
+            <section className="overflow-hidden rounded-[28px] border border-marino/8 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-marino/70">
+                <FileCheck2 aria-hidden className="h-4 w-4" />
+                Your demo outlook
+              </div>
+              <div className="mt-7 flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
+                <div className="w-full max-w-[230px] shrink-0">
+                  <ScoreGauge
+                    score={result.compositeScore}
+                    tier={result.tier}
+                  />
+                  <div className="mt-4 text-center">
+                    <TierBadge tier={result.tier} />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* 3 — Action plan */}
-        <section className="mt-16">
-          <h2 className="font-heading text-xl font-semibold tracking-tight text-marino">
-            Your action plan
-          </h2>
-          <p className="mt-2 text-[15px] text-marino/55">
-            Each step assumes the ones above it are done first.
-          </p>
-          <div className="mt-6 space-y-4">
-            {action_plan.map((item) => (
-              <div
-                key={item.priority}
-                className={`rounded-xl border-l-4 bg-white p-5 shadow-sm ${
-                  item.priority === 1 ? "border-oro" : "border-cielo"
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bruma font-heading text-sm font-semibold text-marino">
-                    {item.priority}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-marino">{item.action}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                      <span className="font-semibold text-marino">
-                        +{item.score_impact} pts
-                        <span className="ml-1.5 font-normal text-marino/55">
-                          → score {item.projected_score}
+                <div className="text-center sm:text-left">
+                  <h2 className="font-heading text-xl font-medium tracking-tight text-marino">
+                    {result.compositeScore === null
+                      ? "More evidence is needed."
+                      : "Your practices, in perspective."}
+                  </h2>
+                  <p className="mt-3 text-xs leading-6 text-marino/70">
+                    {result.compositeScore === null
+                      ? "The quick scan did not support a combined score. Your questionnaire score is still available below."
+                      : "This combined score uses the demo scoring model. It is a starting point for reviewing your AI practices."}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-7 grid grid-cols-2 gap-3 border-t border-marino/10 pt-6">
+                <div className="rounded-2xl bg-bruma/35 p-4">
+                  <p className="text-[11px] text-marino/70">
+                    Public evidence · Layer 1
+                  </p>
+                  <p className="mt-2 font-heading text-2xl font-medium tabular-nums">
+                    {result.layer1Score === null
+                      ? "Not scored"
+                      : result.layer1Score}
+                    <span className="ml-1 text-xs font-normal text-marino/70">
+                      {result.layer1Score !== null && "/ 100"}
+                    </span>
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-bruma/35 p-4">
+                  <p className="text-[11px] text-marino/70">
+                    Your answers · Layer 2
+                  </p>
+                  <p className="mt-2 font-heading text-2xl font-medium tabular-nums">
+                    {result.layer2Score}
+                    <span className="ml-1 text-xs font-normal text-marino/70">
+                      / 100
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <p className="mt-5 flex items-start gap-2 text-xs leading-6 text-marino/75">
+                <Info aria-hidden className="mt-1 h-3.5 w-3.5 shrink-0" />
+                Commercial decisions are blocked for this demo. This score does
+                not establish eligibility for insurance.
+              </p>
+            </section>
+            <section className="mt-7 rounded-[28px] border border-marino/8 bg-white p-6 sm:p-8">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-marino/70">
+                Six areas. One picture.
+              </p>
+              <h2 className="mt-2 font-heading text-2xl font-medium tracking-tight">
+                Your governance profile
+              </h2>
+              <div className="mt-7 space-y-6">
+                {result.domains.map((domain) => (
+                  <DomainBar
+                    key={domain.key}
+                    name={domain.label}
+                    score={domain.score}
+                    caption={`${domain.weight}% weight${domain.status === "PARTIAL" ? " · partial evidence" : ""}`}
+                  />
+                ))}
+              </div>
+            </section>
+            <section className="mt-7">
+              <h2 className="font-heading text-2xl font-medium tracking-tight">
+                A path forward.
+              </h2>
+              <p className="mt-2 text-sm leading-7 text-marino/70">
+                Suggested improvements based on your answers. Point gains
+                reflect the provisional demo model, not a promised outcome.
+              </p>
+              {result.actionPlan.length ? (
+                <ol className="mt-5 space-y-3">
+                  {result.actionPlan.map((item, index) => (
+                    <li
+                      key={item.id}
+                      className="flex items-start gap-4 rounded-2xl border border-marino/8 bg-white p-5"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marino font-heading text-xs text-white">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <h3 className="font-heading text-[16px] font-medium leading-6 tracking-tight">
+                          {item.title}
+                        </h3>
+                        <p className="mt-2 text-xs leading-6 text-marino/70">
+                          {item.detail}
+                        </p>
+                        <span className="mt-3 inline-flex rounded-full bg-oro/20 px-2.5 py-1 text-[10px] font-semibold text-marino">
+                          Up to +{item.pointsGain} demo points
                         </span>
-                      </span>
-                      <span className="font-semibold text-oro-oscuro">
-                        Premium {item.premium_impact_percent}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 4 — Pricing */}
-        <section className="mt-16">
-          <h2 className="font-heading text-xl font-semibold tracking-tight text-marino">
-            Your coverage options
-          </h2>
-          <div className="mt-6 grid gap-5 md:grid-cols-3">
-            {pricing.options.map((option) => (
-              <div
-                key={option.name}
-                className={`relative flex flex-col rounded-2xl bg-white p-6 shadow-sm ${
-                  option.recommended ? "border-2 border-oro" : "border border-bruma"
-                }`}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="mt-5 flex items-start gap-3 rounded-2xl bg-bruma/70 p-5 text-sm leading-7">
+                  <CheckCircle2 aria-hidden className="mt-1 h-4 w-4 shrink-0" />
+                  No additional improvements were identified by this demo model.
+                  This is not an assurance that all risks are addressed.
+                </p>
+              )}
+            </section>
+            {result.flags.length > 0 && (
+              <details className="mt-7 rounded-2xl border border-marino/10 bg-white/60 p-5 text-xs text-marino/75">
+                <summary className="cursor-pointer font-semibold">
+                  Notes for review ({result.flags.length})
+                </summary>
+                <ul className="mt-3 space-y-2">
+                  {result.flags.map((flag) => (
+                    <li key={flag} className="leading-5">
+                      {flag.replaceAll("_", " ").toLowerCase()}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <div className="mt-8 flex items-center justify-between gap-3 border-t border-marino/10 pt-5">
+              <span className="text-[10px] leading-5 text-marino/70">
+                Completed{" "}
+                {new Date(result.completedAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  timeZone: "UTC",
+                })}
+                <br />
+                Bank {result.bankVersion} · Model {result.scoringVersion}
+              </span>
+              <Link
+                href="/quote"
+                className="inline-flex items-center gap-2 rounded-full border border-marino/20 px-4 py-2.5 text-xs font-semibold text-marino hover:bg-white"
               >
-                {option.recommended ? (
-                  <span className="absolute -top-3 left-6 inline-flex items-center gap-1.5 rounded-full bg-oro px-3 py-1 font-heading text-xs font-semibold text-marino">
-                    <Star aria-hidden className="h-3 w-3" strokeWidth={2.5} />
-                    Recommended
-                  </span>
-                ) : null}
-
-                <h3 className="font-heading text-lg font-semibold tracking-tight text-marino">
-                  {option.name}
-                </h3>
-
-                <p className="mt-4 font-heading text-3xl font-semibold text-marino">
-                  {USD.format(option.monthly_premium)}
-                  <span className="ml-1 text-sm font-normal text-marino/55">/mo</span>
-                </p>
-                <p className="mt-1 text-sm text-marino/55">
-                  {USD.format(option.annual_premium)} billed annually
-                </p>
-
-                <dl className="mt-5 space-y-2 border-t border-bruma pt-5 text-sm">
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-marino/55">Per claim</dt>
-                    <dd className="font-semibold text-marino">
-                      {USD.format(option.limit_per_claim)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-marino/55">Aggregate</dt>
-                    <dd className="font-semibold text-marino">
-                      {USD.format(option.limit_aggregate)}
-                    </dd>
-                  </div>
-                </dl>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    // TODO: start Stripe checkout once payments are connected
-                  }}
-                  className={`mt-6 w-full cursor-pointer rounded-full py-3 font-heading text-[15px] font-medium tracking-tight transition-transform duration-200 hover:-translate-y-px ${
-                    option.recommended
-                      ? "cta-glow bg-oro text-marino"
-                      : "border border-marino/15 text-marino hover:border-cielo"
-                  }`}
-                >
-                  Get coverage
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-8 text-center text-[15px] text-marino/60">
-            Prefer to talk to someone?{" "}
-            <button
-              type="button"
-              onClick={() => {
-                // TODO: route to the broker referral flow
-              }}
-              className="cursor-pointer font-semibold text-oro-oscuro underline-offset-4 hover:underline"
-            >
-              Connect with a broker →
-            </button>
-          </p>
-        </section>
-
-        <section className="mt-16 flex flex-col items-center">
-          <button
-            type="button"
-            onClick={() => {
-              // TODO: generate PDF once the report endpoint exists
-            }}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-bruma bg-white px-6 py-3 font-heading text-[15px] font-medium tracking-tight text-marino transition-colors hover:border-cielo"
-          >
-            <FileText aria-hidden className="h-4 w-4" />
-            Download Full Assessment Report
-          </button>
-        </section>
-
-        <footer className="mt-20 text-center text-xs text-marino/45">© 2026 Arca</footer>
-      </div>
-    </div>
+                New scan
+                <ArrowRight aria-hidden className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </>
+        )
+      )}
+    </AssessmentShell>
   );
 }
 
 export default function AssessmentResultsPage() {
-  // useSearchParams needs a boundary above it or the route cannot be
-  // prerendered.
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div
+          className="min-h-screen bg-canvas"
+          role="status"
+          aria-label="Loading assessment result"
+        />
+      }
+    >
       <ResultsScreen />
     </Suspense>
   );
