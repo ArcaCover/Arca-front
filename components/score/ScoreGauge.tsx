@@ -60,7 +60,7 @@ export default function ScoreGauge({ score, tier }: { score: number | null; tier
         >
           {value ?? "—"}
         </span>
-        <span className="mt-1.5 text-xs text-marino/60">AI Governance Score</span>
+        <span className="mt-1.5 text-xs text-marino/70">AI Governance Score</span>
       </div>
     </div>
   );

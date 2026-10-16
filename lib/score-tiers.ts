@@ -62,18 +62,3 @@ const TIER_STYLES: Record<TierName, TierStyle> = {
 export function tierStyle(tier: TierName): TierStyle {
   return TIER_STYLES[tier];
 }
-
-/**
- * Bands owned by the Score Engine (`packages/scoring/src/math.ts`): 80/65/45/25.
- *
- * Only for the Layer 2 mock on /assessment/results, which has no API behind it yet. Never
- * use this for a Layer 1 result — there the tier arrives in the payload, and recomputing it
- * here is exactly how the badge and the gauge drift apart.
- */
-export function tierForScore(score: number): TierName {
-  if (score >= 80) return "FORTRESS";
-  if (score >= 65) return "FORTIFIED";
-  if (score >= 45) return "GUARDED";
-  if (score >= 25) return "EXPOSED";
-  return "CRITICAL";
-}

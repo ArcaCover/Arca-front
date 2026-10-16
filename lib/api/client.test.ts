@@ -5,15 +5,14 @@ import { ApiError, downloadReport } from "@/lib/api/client";
 describe("API base URL", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-  it("defaults to the production API in a production build without the variable", async () => {
+  it("requires an explicit API URL even in a production build", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
     vi.stubEnv("NODE_ENV", "production");
     const fetchMock = vi.fn(async () => new Response(new Uint8Array([37]), { headers: { "Content-Type": "application/pdf" } }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await downloadReport("sc_1", "token-1");
-
-    expect(fetchMock).toHaveBeenCalledWith("https://api.arcacover.com/scan/sc_1/report.pdf", expect.anything());
+    await expect(downloadReport("sc_1", "token-1")).rejects.toMatchObject({ code: "misconfigured" });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("still refuses to guess outside production", async () => {
@@ -26,7 +25,7 @@ describe("API base URL", () => {
 });
 
 describe("downloadReport", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
   it("asks with the scan token and keeps the API's filename", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test/");
@@ -41,7 +40,7 @@ describe("downloadReport", () => {
     const { blob, filename } = await downloadReport("sc_1", "token-1");
 
     expect(fetchMock).toHaveBeenCalledWith("http://api.test/scan/sc_1/report.pdf",
-      { headers: { Authorization: "Bearer token-1" } });
+      { headers: { Authorization: "Bearer token-1" }, signal: expect.any(AbortSignal) });
     expect(filename).toBe("arca-quick-scan-smithlaw.com-2026-09-11.pdf");
     expect(blob.size).toBe(4);
   });

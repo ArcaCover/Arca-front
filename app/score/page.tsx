@@ -2,8 +2,9 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowRight, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, Info, Loader2 } from "lucide-react";
 
+import RefineCta from "@/components/assessment/RefineCta";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score";
 import { adaptScore, type ScoreView } from "@/lib/api/adapt";
@@ -15,9 +16,8 @@ type State =
   | { kind: "ready"; view: ScoreView }
   | { kind: "failed"; message: string };
 
-function ScoreScreen() {
+function ScoreScreen({ scanId }: { scanId: string | null }) {
   const router = useRouter();
-  const scanId = useSearchParams().get("scan");
   const [state, setState] = useState<State>({ kind: "loading" });
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -218,16 +218,7 @@ function ScoreScreen() {
         </section>
 
         <section className="mt-16 flex flex-col items-center">
-          <button
-            type="button"
-            onClick={() => router.push(`/assessment?scan=${encodeURIComponent(scanId)}`)}
-            className="cta-glow group inline-flex cursor-pointer items-center gap-3.5 rounded-full bg-oro py-2.5 pl-7 pr-2.5 font-heading text-[17px] font-medium tracking-tight text-marino transition-transform duration-200 hover:-translate-y-px"
-          >
-            Complete full assessment
-            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-white transition-transform duration-300 group-hover:translate-x-0.5">
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
-            </span>
-          </button>
+          <RefineCta key={scanId} scanId={scanId} />
 
           <button
             type="button"
@@ -251,12 +242,17 @@ function ScoreScreen() {
   );
 }
 
+function ScoreRoute() {
+  const scanId = useSearchParams().get("scan");
+  return <ScoreScreen key={scanId} scanId={scanId} />;
+}
+
 export default function ScorePage() {
   // useSearchParams needs a boundary above it or the route cannot be
   // prerendered.
   return (
     <Suspense fallback={null}>
-      <ScoreScreen />
+      <ScoreRoute />
     </Suspense>
   );
 }

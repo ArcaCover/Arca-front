@@ -1413,3 +1413,15 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   rastrear, no una librería en el frontend (septiembre 2026). Los PDF futuros (Full
   Assessment, informe con marca del broker) deberían seguir el mismo camino.
 - *(pendiente)* Librerías de charts y formularios para la plataforma.
+
+## Isolated Layer 2 prototype — October 13, 2026
+
+This section applies only to this isolated implementation checkout and supersedes the historical Layer 2 mock status above. The original repositories, remote branches and deployments are unchanged.
+
+- Layer 2 now uses the sibling isolated backend's shared `@arca/contracts` package through `file:../Arca-back/packages/contracts`. Keep both checkouts together and build the backend packages first.
+- `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
+- `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
+- Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial/PDF controls were removed.
+- Answers save on Continue or Save change. Resume is limited to the current tab and the 24-hour scan session. No tab-close, magic-link or cross-tab recovery is implemented or promised.
+- The frontend keeps only UI state; eligibility, hidden-answer invalidation, answer validation, scoring and audit behavior belong to the API.
+- Full local setup, scope and verification commands: `docs/implementation/layer2-isolated-demo.md`.
