@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Mulish, Space_Grotesk } from "next/font/google";
+import DebugMount from "@/components/debug/DebugMount";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -65,7 +66,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${mulish.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <DebugMount />
+      </body>
     </html>
   );
 }

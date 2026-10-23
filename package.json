@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "node scripts/with-mode.mjs mock next dev --webpack",
+    "dev:live-debug": "node scripts/with-mode.mjs live-debug next dev --webpack",
     "build": "next build",
+    "postbuild": "node scripts/check-no-debug.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
