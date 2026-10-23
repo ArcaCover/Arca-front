@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "test:browser:assessment": "node scripts/assessment-browser-smoke.mjs"
+    "test:browser:assessment": "node scripts/assessment-browser-smoke.mjs",
+    "test:browser:modes": "node scripts/debug-modes-smoke.mjs"
   },
   "dependencies": {
     "@arca/contracts": "file:../Arca-back/packages/contracts",
