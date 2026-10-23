@@ -27,6 +27,15 @@ const debugBoundary = (...relative) => [
     ],
   },
 ];
+// no-restricted-imports does not see import(). esquery regexes cannot hold a "/", hence \x2F.
+const DEBUG_DYNAMIC_IMPORT = [
+  "error",
+  {
+    selector:
+      "ImportExpression[source.value=/^@arca\\x2Fcontracts\\x2Fdebug$|(^|\\x2F)(components|lib)\\x2Fdebug\\x2F(?!(DebugMount|bridge)$)/]",
+    message: DEBUG_ONLY,
+  },
+];
 
 // Next 16 dropped `next lint`, so ESLint is wired up directly. Deliberately narrow: the
 // recommended sets plus the rules of hooks, which is the one class of mistake in this
@@ -58,7 +67,7 @@ export default tseslint.config(
   },
   {
     ignores: ["components/debug/**", "lib/debug/**"],
-    rules: { "no-restricted-imports": debugBoundary() },
+    rules: { "no-restricted-imports": debugBoundary(), "no-restricted-syntax": DEBUG_DYNAMIC_IMPORT },
   },
   // Files directly in components/ or lib/ can reach the debug folders as `./debug/...`.
   {
