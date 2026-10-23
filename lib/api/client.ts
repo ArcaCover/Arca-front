@@ -11,7 +11,7 @@ import {
   type AssessmentResult as Result,
 } from "@arca/contracts";
 
-import { debugScenarioHeaders } from "@/lib/debug/bridge";
+import { takeDebugScenarioHeaders } from "@/lib/debug/bridge";
 
 // The browser talks to the API directly. There is no proxy on purpose: the scan rate limit
 // counts real client IPs, and routing every visitor through one server would spend a single
@@ -141,7 +141,7 @@ export async function startScan(input: {
 }): Promise<Scan> {
   const response = await send("/scan", {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...debugScenarioHeaders() },
+    headers: { "Content-Type": "application/json", ...takeDebugScenarioHeaders() },
     body: JSON.stringify({ email: input.email, domain: input.domain }),
   });
   if (!response.ok) throw await failure(response);

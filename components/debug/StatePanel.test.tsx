@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
 import type { DebugModeResponse, DebugScanState } from "@arca/contracts/debug";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createDebugStore } from "@/lib/debug/store";
 import StatePanel from "./StatePanel";
 
-const navigation = vi.hoisted(() => ({ pathname: "/score", router: { push: () => undefined } }));
+const navigation = vi.hoisted(() => ({ pathname: "/score", search: "scan=scan-1", router: { push: () => undefined } }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
-  useSearchParams: () => new URLSearchParams("scan=scan-1"),
+  useSearchParams: () => new URLSearchParams(navigation.search),
   useRouter: () => navigation.router,
 }));
 
@@ -29,8 +29,8 @@ const BACK: DebugModeResponse = {
   storageBackend: "memory",
   websiteEvidenceProvider: "mock",
   assessmentPlanner: "rules",
-  signalLlmModel: "mock",
-  configured: { openai: false, apify: false, supabase: false },
+  signalLlmModel: null,
+  inUse: { openai: false, apify: false, supabase: false },
 };
 
 // A reason scraped from a third-party site, written to look like markup.
@@ -61,12 +61,13 @@ afterEach(() => {
   sessionStorage.clear();
   vi.unstubAllGlobals();
   navigation.pathname = "/score";
+  navigation.search = "scan=scan-1";
 });
 
 describe("StatePanel", () => {
   it("shows the page's state, the back's mode, the scan and the token's times, never the email or token", async () => {
     const store = createDebugStore();
-    store.publish("score", { tier: "GUARDED", cached: false });
+    store.publish("score", { scanId: "scan-1", tier: "GUARDED", cached: false });
     sessionStorage.setItem("arca.scan.scan-1", TOKEN);
 
     render(<StatePanel store={store} probe={{ kind: "ok", body: BACK }} apiUrl="http://api" />);
@@ -75,6 +76,9 @@ describe("StatePanel", () => {
     expect(page()).toContain("2026-10-25T00:00:00.000Z");
     expect(page()).toContain('"tier": "GUARDED"');
     expect(page()).toContain('"storageBackend": "memory"');
+    expect(page()).toContain('"websiteEvidenceProvider": "mock"');
+    expect(page()).toContain('"signalLlmModel": null');
+    expect(page()).toContain('"inUse": {');
     expect(page()).toContain("scan-1");
     expect(page()).not.toContain("@");
     expect(page()).not.toContain(TOKEN.split(".")[1]);
@@ -110,6 +114,7 @@ describe("StatePanel", () => {
   it("never prints an email or a session token that a page published, and keeps the rest", () => {
     const store = createDebugStore();
     store.publish("score", {
+      scanId: "scan-1",
       email: "partner@firm.example",
       lead: { Email: "office@firm.example", contact: "write to partner@firm.example" },
       sessionToken: TOKEN,
@@ -125,6 +130,35 @@ describe("StatePanel", () => {
     expect(page()).toContain('"domain": "robust.arca.example"');
     expect(page()).toContain('"tier": "GUARDED"');
     expect(page()).toContain('"header": "Bearer [token hidden]"');
+  });
+
+  // A page's state belongs to the scan it was published for. A failure path that publishes nothing must not leave the
+  // previous scan's outcome on show under the new scan's id.
+  it("shows nothing for a scan that has not published yet, rather than another scan's state", () => {
+    const store = createDebugStore();
+    store.publish("score", { scanId: "scan-0", status: "COMPLETED", cached: false });
+
+    const { rerender } = render(<StatePanel store={store} probe={null} apiUrl="http://api" />);
+    expect(page()).toContain("Nothing published for this scan yet");
+    expect(page()).not.toContain("COMPLETED");
+
+    act(() => store.publish("score", { scanId: "scan-1", status: "FAILED", cached: false }));
+    rerender(<StatePanel store={store} probe={null} apiUrl="http://api" />);
+    expect(page()).toContain('"status": "FAILED"');
+    expect(page()).not.toContain("Nothing published for this scan yet");
+  });
+
+  // /quote has no scan in its URL: what it shows is the start it made, whichever scan that started.
+  it("on a page without a scan in the URL, shows what the page last published", () => {
+    navigation.pathname = "/quote";
+    navigation.search = "";
+    const store = createDebugStore();
+    store.publish("quote", { scanId: "sc_9", lastError: null, response: { status: "RUNNING", cached: false }, sentScenario: null });
+
+    render(<StatePanel store={store} probe={null} apiUrl="http://api" />);
+
+    expect(page()).toContain('"scanId": "sc_9"');
+    expect(page()).toContain("No scan in the URL");
   });
 
   it("mounts the scenario controls on /quote and the assessment controls on /assessment, and neither elsewhere", () => {

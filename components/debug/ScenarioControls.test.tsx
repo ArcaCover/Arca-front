@@ -126,9 +126,66 @@ describe("ScenarioControls", () => {
 
     await userEvent.click(button("Reset limits"));
     expect(await screen.findByText("Rate limits and in-memory data cleared")).toBeTruthy();
-    expect(fetcher).toHaveBeenCalledWith("http://api/__debug/reset", expect.objectContaining({ method: "POST" }));
+    // The custom header makes the browser preflight the reset, so only an allowed origin can send it.
+    expect(fetcher).toHaveBeenCalledWith(
+      "http://api/__debug/reset",
+      expect.objectContaining({ method: "POST", headers: { "X-Arca-Debug": "1" } }),
+    );
 
     await userEvent.click(button("Reset limits"));
     expect(await screen.findByText("The API answered 404")).toBeTruthy();
+  });
+
+  // DN-09 §5.2: only mock wipes the back's memory, so live-debug does not say it did.
+  it("in live-debug, says the reset cleared the rate limits only", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 })));
+    render(<ScenarioControls apiUrl="http://api" />);
+
+    await userEvent.click(button("Reset limits"));
+
+    expect(await screen.findByText("Rate limits cleared")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("in-memory");
+  });
+
+  // DN-09 §5.3: latency exists only in mock. A value left over from a mock session in this tab is dropped, not kept
+  // behind a control live-debug does not show.
+  it("in live-debug, drops a stored latency from the scenario, what it stores and what it lists", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    sessionStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify({ latency: "slow" }));
+    const { unmount } = render(<ScenarioControls apiUrl="http://api" />);
+    expect(stored()).toBeNull();
+    expect(document.body.textContent).toContain("Next scan: no scenario injected");
+    unmount();
+
+    sessionStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify({ latency: "slow", avvo: "error" }));
+    render(<ScenarioControls apiUrl="http://api" />);
+    expect(stored()).toEqual(DebugScenario.parse({ avvo: "error" }));
+    expect(document.body.textContent).toContain("Next scan injects: Avvo error");
+
+    await userEvent.selectOptions(select("Bar"), "error");
+    expect(stored()).toEqual(DebugScenario.parse({ avvo: "error", bar: "error" }));
+    expect(document.body.textContent).not.toContain("Latency");
+  });
+
+  it("in mock, keeps a stored latency", () => {
+    sessionStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify({ latency: "slow" }));
+    render(<ScenarioControls apiUrl="http://api" />);
+
+    expect(select("Latency").value).toBe("slow");
+    expect(stored()).toEqual({ latency: "slow" });
+    expect(document.body.textContent).toContain("Next scan injects: Latency slow");
+  });
+
+  it("tells the strip whenever the armed scenario changes", async () => {
+    const onScenarioChange = vi.fn();
+    render(<ScenarioControls apiUrl="http://api" onScenarioChange={onScenarioChange} />);
+
+    await userEvent.click(button("Apify out of credit"));
+    expect(onScenarioChange).toHaveBeenCalledTimes(1);
+    await userEvent.selectOptions(select("Website"), "error");
+    expect(onScenarioChange).toHaveBeenCalledTimes(2);
+    await userEvent.click(button("Clear"));
+    expect(onScenarioChange).toHaveBeenCalledTimes(3);
   });
 });

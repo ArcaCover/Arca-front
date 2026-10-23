@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { debugScenarioHeaders, publishDebugState, SCENARIO_STORAGE_KEY } from "./bridge";
+import { publishDebugState, SCENARIO_STORAGE_KEY, sentDebugScenario, takeDebugScenarioHeaders } from "./bridge";
 import { installDebugStore } from "./store";
 
 const SCENARIO = JSON.stringify({ bar: "apify_quota", avvo: "apify_quota" });
@@ -24,32 +24,49 @@ describe("debug bridge", () => {
   it("does nothing in production, even with a scenario stored and a store installed", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "production");
 
-    expect(debugScenarioHeaders()).toEqual({});
+    expect(takeDebugScenarioHeaders()).toEqual({});
     publishDebugState("quote", { status: "RUNNING" });
     expect(publish).not.toHaveBeenCalled();
+    // Production never reads, removes or reports the stored scenario.
+    expect(sessionStorage.getItem(SCENARIO_STORAGE_KEY)).toBe(SCENARIO);
+    expect(sentDebugScenario()).toBeNull();
   });
 
   it("treats a missing mode as production", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", undefined);
 
-    expect(debugScenarioHeaders()).toEqual({});
+    expect(takeDebugScenarioHeaders()).toEqual({});
     publishDebugState("quote", { status: "RUNNING" });
     expect(publish).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(SCENARIO_STORAGE_KEY)).toBe(SCENARIO);
   });
 
   it("sends the stored scenario and publishes the page state in mock", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
 
-    expect(debugScenarioHeaders()).toEqual({ "X-Arca-Debug-Scenario": SCENARIO });
+    expect(takeDebugScenarioHeaders()).toEqual({ "X-Arca-Debug-Scenario": SCENARIO });
     publishDebugState("score", { cached: false });
     expect(publish).toHaveBeenCalledWith("score", { cached: false });
+  });
+
+  // DN-09 §5.3, §6.4: the scenario rides on the next POST /scan only. Taking it removes it, so a leftover cannot keep
+  // changing later scans without anyone seeing it.
+  it("is one-shot: the scenario travels with the next scan only, and the bridge says what it sent", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+
+    expect(takeDebugScenarioHeaders()).toEqual({ "X-Arca-Debug-Scenario": SCENARIO });
+    expect(sessionStorage.getItem(SCENARIO_STORAGE_KEY)).toBeNull();
+    expect(sentDebugScenario()).toEqual(JSON.parse(SCENARIO));
+
+    expect(takeDebugScenarioHeaders()).toEqual({});
+    expect(sentDebugScenario()).toBeNull();
   });
 
   it("sends no header in mock when no scenario was chosen", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     sessionStorage.clear();
 
-    expect(debugScenarioHeaders()).toEqual({});
+    expect(takeDebugScenarioHeaders()).toEqual({});
   });
 
   it("sends no header, and does not throw, when storage is blocked or missing (server render)", () => {
@@ -58,11 +75,19 @@ describe("debug bridge", () => {
       throw new DOMException("The operation is insecure.", "SecurityError");
     });
 
-    expect(debugScenarioHeaders()).toEqual({});
+    expect(takeDebugScenarioHeaders()).toEqual({});
+    expect(sentDebugScenario()).toBeNull();
     blocked.mockRestore();
 
+    // A scenario that cannot be removed is not sent either: it would otherwise ride on every scan.
+    const stuck = vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+    expect(takeDebugScenarioHeaders()).toEqual({});
+    stuck.mockRestore();
+
     vi.stubGlobal("sessionStorage", undefined);
-    expect(debugScenarioHeaders()).toEqual({});
+    expect(takeDebugScenarioHeaders()).toEqual({});
     vi.unstubAllGlobals();
   });
 

@@ -1,62 +1,48 @@
 "use client";
 
-import { DEBUG_PRESETS, DebugScenario, isInjected } from "@arca/contracts/debug";
+import { DEBUG_PRESETS, DEBUG_REQUEST_HEADER, DebugScenario, isInjected } from "@arca/contracts/debug";
 import { useId, useState } from "react";
 
 import { SCENARIO_STORAGE_KEY } from "@/lib/debug/bridge";
+import { AXES, DEFAULT_SCENARIO as DEFAULTS, forMode, injectedAxes, valueOf, type AxisKey } from "@/lib/debug/scenario";
 
-// The faults for the next POST /scan (DN-09 §5.3, §6.4). The scenario lives in this tab's sessionStorage and the
-// bridge sends it with the scan. Presets only fill the axes: the scan's outcome still comes out of the real pipeline.
-const SHAPE = DebugScenario.shape;
-const HTTP = SHAPE.http.removeDefault().shape;
-const DEFAULTS = DebugScenario.parse({});
+// The faults for the next POST /scan (DN-09 §5.3, §6.4). The scenario lives in this tab's sessionStorage until the
+// bridge takes it for that one scan. Presets only fill the axes: the scan's outcome still comes out of the real pipeline.
+// In live-debug latency does not exist: it is dropped on read, on every change and before it is stored.
 
-type AxisKey = "website" | "bar" | "avvo" | "latency" | "http.start" | "http.poll" | "http.report" | "planner";
-
-const AXES: { key: AxisKey; label: string; options: readonly string[] }[] = [
-  { key: "website", label: "Website", options: SHAPE.website.removeDefault().options },
-  { key: "bar", label: "Bar", options: SHAPE.bar.removeDefault().options },
-  { key: "avvo", label: "Avvo", options: SHAPE.avvo.removeDefault().options },
-  { key: "latency", label: "Latency", options: SHAPE.latency.removeDefault().options },
-  { key: "http.start", label: "Scan start", options: HTTP.start.removeDefault().options },
-  { key: "http.poll", label: "Polls", options: HTTP.poll.removeDefault().options },
-  { key: "http.report", label: "Report PDF", options: HTTP.report.removeDefault().options },
-  { key: "planner", label: "Planner", options: SHAPE.planner.removeDefault().options },
-];
-
-function valueOf(scenario: DebugScenario, key: AxisKey): string {
-  const [group, field] = key.split(".");
-  const values: Record<string, unknown> = field ? scenario.http : scenario;
-  return String(values[field ?? group]);
-}
-
-function withValue(scenario: DebugScenario, key: AxisKey, value: string): DebugScenario {
+function withValue(scenario: DebugScenario, key: AxisKey, value: string, live: boolean): DebugScenario {
   const [group, field] = key.split(".");
   const next = field ? { ...scenario, http: { ...scenario.http, [field]: value } } : { ...scenario, [group]: value };
-  return DebugScenario.parse(next);
+  return forMode(DebugScenario.parse(next), live);
 }
 
 // Only a scenario that injects something is kept, so the real behaviour sends no header at all.
-function save(scenario: DebugScenario): void {
+function save(scenario: DebugScenario, live: boolean): void {
+  const applied = forMode(scenario, live);
   try {
-    if (isInjected(scenario)) sessionStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify(scenario));
+    if (isInjected(applied)) sessionStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify(applied));
     else sessionStorage.removeItem(SCENARIO_STORAGE_KEY);
   } catch {
     // Blocked storage: the bridge cannot read it either, so no scenario travels.
   }
 }
 
-function readStored(): DebugScenario {
+function readStored(live: boolean): DebugScenario {
   try {
     const raw = sessionStorage.getItem(SCENARIO_STORAGE_KEY);
     if (raw === null) return DEFAULTS;
     const parsed = DebugScenario.safeParse(JSON.parse(raw));
-    if (parsed.success) return parsed.data;
+    if (parsed.success) {
+      const applied = forMode(parsed.data, live);
+      // A latency left over from mock is dropped from the tab too, so the header and this panel agree.
+      if (applied !== parsed.data) save(applied, live);
+      return applied;
+    }
   } catch {
     // Blocked storage or a value that is not JSON: treated as unreadable, below.
   }
   // The back answers 400 to a scenario it cannot read, so one this build cannot read is dropped rather than sent.
-  save(DEFAULTS);
+  save(DEFAULTS, live);
   return DEFAULTS;
 }
 
@@ -70,17 +56,25 @@ function typeInto(input: HTMLInputElement, value: string): void {
 const PRIMARY = "rounded-full bg-marino px-3 py-1 font-semibold text-white";
 const SECONDARY = "rounded-full border border-marino px-3 py-1 font-semibold";
 
-export default function ScenarioControls({ apiUrl }: { apiUrl: string }) {
+type Props = {
+  apiUrl: string;
+  /** Called after every change to the stored scenario, so the strip can show what the next scan injects. */
+  onScenarioChange?: () => void;
+};
+
+export default function ScenarioControls({ apiUrl, onScenarioChange }: Props) {
   // In live-debug the default branch of each axis is the real source, and latency does not apply.
   const live = process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
   const id = useId();
   // Read once, on mount: the panel only ever renders in the browser (DebugMount loads it with ssr: false).
-  const [scenario, setScenario] = useState(readStored);
+  const [scenario, setScenario] = useState(() => readStored(live));
   const [notice, setNotice] = useState<string | null>(null);
 
   function apply(next: DebugScenario) {
-    save(next);
-    setScenario(next);
+    const applied = forMode(next, live);
+    save(applied, live);
+    setScenario(applied);
+    onScenarioChange?.();
   }
 
   function fillMockFirm() {
@@ -98,7 +92,12 @@ export default function ScenarioControls({ apiUrl }: { apiUrl: string }) {
   async function resetLimits() {
     setNotice("Resetting…");
     try {
-      const response = await fetch(`${apiUrl}/__debug/reset`, { method: "POST", signal: AbortSignal.timeout(5000) });
+      // The custom header makes the browser preflight the reset, which only the back's allowed origins pass.
+      const response = await fetch(`${apiUrl}/__debug/reset`, {
+        method: "POST",
+        headers: { [DEBUG_REQUEST_HEADER]: "1" },
+        signal: AbortSignal.timeout(5000),
+      });
       if (!response.ok) setNotice(`The API answered ${response.status}`);
       else setNotice(live ? "Rate limits cleared" : "Rate limits and in-memory data cleared");
     } catch {
@@ -106,7 +105,7 @@ export default function ScenarioControls({ apiUrl }: { apiUrl: string }) {
     }
   }
 
-  const injected = AXES.filter(axis => valueOf(scenario, axis.key) !== valueOf(DEFAULTS, axis.key));
+  const injected = injectedAxes(scenario, live);
 
   return (
     <div className="mt-3 border-t border-bruma pt-3">
@@ -133,7 +132,7 @@ export default function ScenarioControls({ apiUrl }: { apiUrl: string }) {
             <select
               id={`${id}-${axis.key}`}
               value={valueOf(scenario, axis.key)}
-              onChange={event => apply(withValue(scenario, axis.key, event.target.value))}
+              onChange={event => apply(withValue(scenario, axis.key, event.target.value, live))}
               className="min-w-0 rounded-lg border border-bruma bg-white px-2 py-1 text-marino"
             >
               {axis.options.map(option => (
@@ -149,9 +148,7 @@ export default function ScenarioControls({ apiUrl }: { apiUrl: string }) {
         <p className="mt-2">Latency only delays the default website fixture. Injected faults answer at once.</p>
       )}
       <p className="mt-2">
-        {injected.length
-          ? `Next scan injects: ${injected.map(axis => `${axis.label} ${valueOf(scenario, axis.key)}`).join(" · ")}`
-          : "Next scan: no scenario injected"}
+        {injected.length ? `Next scan injects: ${injected.join(" · ")}` : "Next scan: no scenario injected"}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {!live && (

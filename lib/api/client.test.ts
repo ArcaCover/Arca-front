@@ -62,12 +62,16 @@ describe("downloadReport", () => {
 describe("startScan and the debug scenario header", () => {
   const SCENARIO = JSON.stringify({ bar: "apify_quota", avvo: "apify_quota" });
   const fetchMock = vi.fn<typeof fetch>();
-  const sentHeaders = () => fetchMock.mock.calls[0]?.[1]?.headers;
+  const sentHeaders = (call = 0) => fetchMock.mock.calls[call]?.[1]?.headers;
+  let stored: Map<string, string>;
 
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test");
-    const stored = new Map([[SCENARIO_STORAGE_KEY, SCENARIO]]);
-    vi.stubGlobal("sessionStorage", { getItem: (key: string) => stored.get(key) ?? null });
+    stored = new Map([[SCENARIO_STORAGE_KEY, SCENARIO]]);
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => stored.get(key) ?? null,
+      removeItem: (key: string) => void stored.delete(key),
+    });
     fetchMock.mockImplementation(async () =>
       Response.json({ scanId: "sc_1", sessionToken: "token-1", status: "RUNNING" }, { status: 202 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -82,6 +86,7 @@ describe("startScan and the debug scenario header", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(sentHeaders()).toEqual({ "Content-Type": "application/json" });
+    expect(stored.get(SCENARIO_STORAGE_KEY)).toBe(SCENARIO);
   });
 
   it("sends the stored scenario in mock", async () => {
@@ -90,6 +95,17 @@ describe("startScan and the debug scenario header", () => {
     await startScan({ email: "partner@firm.example", domain: "firm.example" });
 
     expect(sentHeaders()).toEqual({ "Content-Type": "application/json", "X-Arca-Debug-Scenario": SCENARIO });
+  });
+
+  it("sends the scenario with the next scan only: the one after it is a clean scan", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+
+    await startScan({ email: "partner@firm.example", domain: "firm.example" });
+    await startScan({ email: "partner@firm.example", domain: "firm.example" });
+
+    expect(sentHeaders(0)).toEqual({ "Content-Type": "application/json", "X-Arca-Debug-Scenario": SCENARIO });
+    expect(sentHeaders(1)).toEqual({ "Content-Type": "application/json" });
+    expect(stored.has(SCENARIO_STORAGE_KEY)).toBe(false);
   });
 
   it("still starts the scan, without the header, where there is no sessionStorage at all", async () => {

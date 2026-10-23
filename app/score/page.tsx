@@ -75,6 +75,7 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
         if (poll.status === "COMPLETED" || poll.status === "PARTIAL") {
           // Picked field by field from the raw poll: the result also carries the email, which never leaves this page.
           publishDebugState("score", {
+            scanId,
             status: poll.status,
             cached: poll.cached,
             meta: poll.result.meta,
@@ -93,6 +94,7 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
           return;
         }
         if (poll.status === "FAILED") {
+          publishDebugState("score", { scanId, status: poll.status, cached: poll.cached });
           forgetSession(scanId);
           setState({ kind: "failed", message: "This scan did not produce a score." });
           return;
@@ -102,6 +104,11 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
       })
       .catch((error: unknown) => {
         if (cancelled) return;
+        publishDebugState("score", {
+          scanId,
+          status: `error: ${error instanceof ApiError ? error.code : "unexpected"}`,
+          cached: null,
+        });
         if (error instanceof ApiError && (error.code === "unauthorized" || error.code === "not_found")) {
           forgetSession(scanId);
           router.replace("/quote");

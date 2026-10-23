@@ -9,8 +9,8 @@ const BACK: DebugModeResponse = {
   storageBackend: "memory",
   websiteEvidenceProvider: "mock",
   assessmentPlanner: "rules",
-  signalLlmModel: "mock",
-  configured: { openai: false, apify: false, supabase: false },
+  signalLlmModel: null,
+  inUse: { openai: false, apify: false, supabase: false },
 };
 
 const answer = (status: number, body: unknown) =>
@@ -38,6 +38,9 @@ describe("probeBackMode", () => {
 
     expect(await probeBackMode("http://api", answer(200, { mode: "production" }))).toEqual({ kind: "absent" });
     expect(await probeBackMode("http://api", html)).toEqual({ kind: "absent" });
+    // A back from before `inUse` replaced `configured` speaks another shape: never trusted as a mode.
+    const { inUse, ...older } = BACK;
+    expect(await probeBackMode("http://api", answer(200, { ...older, configured: inUse }))).toEqual({ kind: "absent" });
   });
 
   it("calls a network error unreachable", async () => {

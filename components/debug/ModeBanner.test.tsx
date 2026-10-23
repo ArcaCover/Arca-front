@@ -40,10 +40,30 @@ describe("ModeBanner", () => {
     expect(banner().getAttribute("style")).toBeNull();
   });
 
-  it("does not claim a mode while the back has not answered yet", () => {
-    render(<ModeBanner front="mock" check={null} />);
+  // DN-09 §6.2: the shape and colour are the mode's identity, so they wait for the back's answer as the text does.
+  it.each(["mock", "live-debug"] as const)("does not claim %s, in words or looks, while the back has not answered yet", front => {
+    render(<ModeBanner front={front} check={null} />);
 
-    expect(banner().textContent).toBe("Checking the back's mode · front=mock");
+    expect(banner().textContent).toBe(`Checking the back's mode · front=${front}`);
+    expect(banner().className).toContain("bg-bruma");
+    expect(banner().className).toContain("text-marino");
+    for (const look of ["bg-oro", "bg-rojo", "bg-marino", "text-white", "text-oro"]) expect(banner().className).not.toContain(look);
+    expect(banner().getAttribute("style")).toBeNull();
+    expect(banner().querySelector(".bg-oro")).toBeNull();
+    expect(banner().querySelector("svg")).toBeNull();
+  });
+
+  // DN-09 §5.3: a scenario changes the next scan, so while one is armed the strip says so, whatever the state.
+  it("names the scenario the next scan injects, next to the mode", () => {
+    const armed = ["Bar apify_quota", "Avvo apify_quota"];
+    const { rerender } = render(<ModeBanner front="mock" check={{ state: "match", mode: "mock" }} armed={armed} />);
+    expect(banner().textContent).toBe("MOCK · no real APIs · in-memory data · next scan injects: Bar apify_quota, Avvo apify_quota");
+
+    rerender(<ModeBanner front="live-debug" check={null} armed={armed} />);
+    expect(banner().textContent).toBe("Checking the back's mode · front=live-debug · next scan injects: Bar apify_quota, Avvo apify_quota");
+
+    rerender(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} armed={[]} />);
+    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database");
   });
 
   it("carries the sentinel the production leak check looks for", () => {

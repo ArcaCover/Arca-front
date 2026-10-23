@@ -56,6 +56,7 @@ function ResultsScreen() {
             "This result does not belong to this scan.",
           );
         publishDebugState("results", {
+          scanId: value.scanId,
           layer1Score: value.layer1Score,
           layer2Score: value.layer2Score,
           compositeScore: value.compositeScore,
@@ -68,6 +69,7 @@ function ResultsScreen() {
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
+        publishDebugState("results", { scanId, error: cause instanceof ApiError ? cause.code : "unexpected" });
         setError(
           cause instanceof ApiError
             ? cause.message

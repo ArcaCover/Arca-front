@@ -55,14 +55,19 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-type Props = { store: DebugStore; probe: BackModeProbe | null; apiUrl: string };
+type Props = { store: DebugStore; probe: BackModeProbe | null; apiUrl: string; onScenarioChange?: () => void };
 
-export default function StatePanel({ store, probe, apiUrl }: Props) {
+export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: Props) {
   const pathname = usePathname();
   const scanId = useSearchParams().get("scan");
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   const section = SECTIONS[pathname];
-  const published = section ? snapshot[section] : undefined;
+  const last = section ? snapshot[section] : undefined;
+  // Every page publishes the scan its state belongs to. With a scan in the URL, another scan's state is not shown: a
+  // failure path that published nothing yet must not pass off the previous scan's outcome as this one's. /quote has no
+  // scan in its URL, so it shows the start it made last.
+  const published = last && (scanId === null || last.scanId === scanId) ? last : undefined;
+  const empty = last ? "Nothing published for this scan yet" : "Nothing published yet";
   return (
     <section
       id="arca-debug-panel"
@@ -72,14 +77,14 @@ export default function StatePanel({ store, probe, apiUrl }: Props) {
       <dl className={ROWS}>
         <Row label="Page">{section ? `${pathname} (${section})` : `${pathname} (publishes no state)`}</Row>
         {section && (
-          <Row label="Published state">{published ? <Json value={published} /> : "Nothing published yet"}</Row>
+          <Row label="Published state">{published ? <Json value={published} /> : empty}</Row>
         )}
         <Row label="Back mode">
           {probe === null ? "Checking…" : probe.kind === "ok" ? <Json value={probe.body} /> : BACK_MODE[probe.kind]}
         </Row>
         <Row label="Scan">{scanId ?? "No scan in the URL"}</Row>
       </dl>
-      {section === "quote" && <ScenarioControls apiUrl={apiUrl} />}
+      {section === "quote" && <ScenarioControls apiUrl={apiUrl} onScenarioChange={onScenarioChange} />}
       {section === "assessment" && scanId && <AssessmentControls scanId={scanId} />}
       {/* Keyed by scan, so a new scan starts from a fresh token reading and no internal state from the last one. */}
       {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} />}

@@ -89,6 +89,7 @@ function ScanningScreen() {
         const poll = await pollScan(scanId!, token!);
         if (cancelled) return;
         publishDebugState("scanning", {
+          scanId,
           status: poll.status,
           elapsed: poll.status === "RUNNING" ? poll.elapsed : null,
           waitedMs: waited,
@@ -126,11 +127,20 @@ function ScanningScreen() {
       } catch (error) {
         if (cancelled) return;
         if (error instanceof ApiError && (error.code === "unauthorized" || error.code === "not_found")) {
+          publishDebugState("scanning", {
+            scanId,
+            status: `error: ${error.code}`,
+            elapsed: null,
+            waitedMs: waited,
+            pollEveryMs: null,
+            phase: "redirected",
+          });
           forgetSession(scanId!);
           router.replace("/quote");
           return;
         }
         publishDebugState("scanning", {
+          scanId,
           status: `error: ${error instanceof ApiError ? error.code : "unexpected"}`,
           elapsed: null,
           waitedMs: waited,

@@ -22,6 +22,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 // next/font serves the fonts from the front itself; these two are allowed in case a stylesheet still asks Google.
 const FONT_HOSTS = new Set(['fonts.gstatic.com', 'fonts.googleapis.com']);
 const MOCK_LABEL = 'MOCK · no real APIs · in-memory data';
+const STRIP = '[data-arca-debug="arca-debug-sentinel-7f3c"]';
 const MISMATCH_LABEL = 'MODE MISMATCH · front=mock, back unreachable or production';
 // next dev compiles each route on its first visit, which can take a while on this machine.
 const STEP_MS = 60_000;
@@ -104,8 +105,11 @@ async function withPage(browser, name, body) {
   return problems.length === 0;
 }
 
+const stripText = async page => (await page.locator(STRIP).innerText()).replace(/\s+/g, ' ').trim();
+
 // /quote with the panel: clears the limits (and, in mock, the memory), picks the preset, fills the mock firm, submits.
-async function startScan(page, preset) {
+// `armed` is what the strip must say the next scan injects once the preset is chosen.
+async function startScan(page, preset, armed) {
   await page.goto(`${frontendUrl}/quote`);
   await page.getByText(MOCK_LABEL, { exact: true }).waitFor();
   await setPanel(page, true);
@@ -113,15 +117,25 @@ async function startScan(page, preset) {
   await panel(page).getByText('Rate limits and in-memory data cleared').waitFor();
   if (preset) await panel(page).getByRole('button', { name: preset, exact: true }).click();
   await panel(page).getByText(preset ? /^Next scan injects: / : /^Next scan: no scenario injected$/).waitFor();
+  const expected = armed ? `${MOCK_LABEL} · next scan injects: ${armed}` : MOCK_LABEL;
+  await until(() => stripText(page), text => text === expected, `the strip to read "${expected}"`);
   await panel(page).getByRole('button', { name: 'Fill mock firm' }).click();
   // The panel lies over the form; it is closed to reach the button, as a person would.
   await setPanel(page, false);
   await page.getByRole('button', { name: 'Scan my firm' }).click();
 }
 
-function scenarioSent({ scanStarts }) {
-  if (scanStarts.length !== 1) throw new Error(`Expected one POST /scan, saw ${scanStarts.length}`);
-  return scanStarts[0] === null ? null : JSON.parse(scanStarts[0]);
+// One-shot (DN-09 §5.3): once a scan has taken the scenario, the tab holds none and the strip says nothing more.
+async function scenarioTaken(page) {
+  const stored = await page.evaluate(() => sessionStorage.getItem('arca.debug.scenario'));
+  if (stored !== null) throw new Error(`The scenario is still stored after the scan: ${stored}`);
+  await until(() => stripText(page), text => text === MOCK_LABEL, 'the strip to drop the armed scenario');
+}
+
+function scenarioSent({ scanStarts }, count = 1) {
+  if (scanStarts.length !== count) throw new Error(`Expected ${count} POST /scan, saw ${scanStarts.length}`);
+  const last = scanStarts[count - 1];
+  return last === null ? null : JSON.parse(last);
 }
 
 const onPath = pathname => url => url.pathname === pathname;
@@ -163,10 +177,16 @@ async function happyPath(page, seen) {
 }
 
 async function apifyOutOfCredit(page, seen) {
-  await startScan(page, 'Apify out of credit');
+  await startScan(page, 'Apify out of credit', 'Bar apify_quota, Avvo apify_quota');
   await page.waitForURL(onPath('/score'), { timeout: SCAN_MS });
   const sent = scenarioSent(seen);
   if (sent?.bar !== 'apify_quota' || sent.avvo !== 'apify_quota') throw new Error(`Scenario sent: ${JSON.stringify(sent)}`);
+  await scenarioTaken(page);
+  // /quote published the scenario it actually sent, next to the start's answer.
+  const quote = await page.evaluate(() => window.__arcaDebug?.getSnapshot().quote);
+  if (quote?.sentScenario?.bar !== 'apify_quota' || quote.sentScenario.avvo !== 'apify_quota' || quote.scanId === undefined) {
+    throw new Error(`/quote published ${JSON.stringify(quote)}`);
+  }
   await page.getByText('One or more sources did not answer').waitFor();
   await shot(page, '2-apify-out-of-credit');
   await setPanel(page, true);
@@ -175,10 +195,22 @@ async function apifyOutOfCredit(page, seen) {
   if (!bar.reason?.includes('Apify usage limit reached')) throw new Error(`bar.reason is ${bar.reason}`);
   await shot(page, '2-apify-out-of-credit-panel');
   console.log(`  status ${state.status}; bar ${bar.status}/${bar.code}: ${bar.reason}`);
+  // The next scan from the same tab, with nothing chosen again, is a clean one: no header at all.
+  await setPanel(page, false);
+  await page.goto(`${frontendUrl}/quote`);
+  await page.getByText(MOCK_LABEL, { exact: true }).waitFor();
+  await setPanel(page, true);
+  await panel(page).getByText(/^Next scan: no scenario injected$/).waitFor();
+  await panel(page).getByRole('button', { name: 'Fill mock firm' }).click();
+  await setPanel(page, false);
+  await page.getByRole('button', { name: 'Scan my firm' }).click();
+  await page.waitForURL(onPath('/score'), { timeout: SCAN_MS });
+  if (scenarioSent(seen, 2) !== null) throw new Error('The scenario travelled with a second scan');
+  console.log('  one-shot: the second POST /scan carried no scenario header');
 }
 
 async function everySourceDown(page, seen) {
-  await startScan(page, 'Every source down');
+  await startScan(page, 'Every source down', 'Website error, Bar error, Avvo error');
   await page.getByRole('heading', { name: 'We couldn\'t finish your scan' }).waitFor({ timeout: SCAN_MS });
   const sent = scenarioSent(seen);
   const down = ['website', 'bar', 'avvo'].every(source => sent?.[source] === 'error');
@@ -192,11 +224,13 @@ async function sessionExpired(page, seen) {
   page.on('framenavigated', frame => {
     if (frame === page.mainFrame()) visited.push(new URL(frame.url()));
   });
-  await startScan(page, 'Session expired');
+  await startScan(page, 'Session expired', 'Polls unauthorized');
   const scanning = await until(async () => visited.find(onPath('/quote/scanning')), Boolean, '/quote/scanning', SCAN_MS);
   await page.waitForURL(url => url.pathname === '/quote' && !url.search, { timeout: SCAN_MS });
   if (scenarioSent(seen)?.http?.poll !== 'unauthorized') throw new Error('The poll fault did not travel with the scan');
   await page.getByRole('heading', { name: 'Let\'s scan your firm.' }).waitFor();
+  // Back on /quote, the expired-session fault is spent: the next scan would be a normal one.
+  await scenarioTaken(page);
   // The scanning page forgets the token of a session the API refused.
   const token = await page.evaluate(id => sessionStorage.getItem(`arca.scan.${id}`), scanning.searchParams.get('scan'));
   if (token !== null) throw new Error('The refused token is still stored');

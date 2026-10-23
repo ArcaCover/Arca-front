@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +54,17 @@ describe('findDebugLeaks', () => {
     );
 
     expect(findDebugLeaks(dir)).toEqual([]);
+  });
+});
+
+describe('the build script', () => {
+  const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+
+  // DN-09 §12.3: the check runs inside `build`, not in a `postbuild` hook, which `ignore-scripts=true` skips silently.
+  it('runs the debug leak check as part of `build`, with no postbuild hook', () => {
+    expect(scripts.build).toContain('check-no-debug.mjs');
+    expect(scripts.build).toBe('next build && node scripts/check-no-debug.mjs');
+    expect(scripts).not.toHaveProperty('postbuild');
   });
 });
 

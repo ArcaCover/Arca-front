@@ -13,12 +13,28 @@ const MOCK_STRIPES = {
   backgroundImage: "repeating-linear-gradient(135deg, var(--color-marino) 0px 4px, transparent 4px 14px)",
 };
 
-// `check` is null until the back answers: the strip then shows the front's own mode, which the build fixed, and says
-// the back is still being checked rather than vouching for it.
-export default function ModeBanner({ front, check }: { front: DebugMode; check: ModeCheck | null }) {
+// `check` is null until the back answers. The strip then names the front's own mode, which the build fixed, in a
+// neutral bruma that belongs to no mode: the stripes and the rojo are the modes' identity, so they wait for the back
+// to confirm, as the text does. `armed` lists what the next scan injects, whatever the state (DN-09 §5.3).
+export default function ModeBanner({
+  front,
+  check,
+  armed = [],
+}: {
+  front: DebugMode;
+  check: ModeCheck | null;
+  armed?: readonly string[];
+}) {
+  const confirmed = check?.state === "match" ? check.mode : null;
   const mismatch = check?.state === "mismatch";
-  const striped = !mismatch && front === "mock";
-  const tone = mismatch ? "bg-marino text-oro" : front === "live-debug" ? "bg-rojo text-white" : "bg-oro text-marino";
+  const striped = confirmed === "mock";
+  const tone = mismatch
+    ? "bg-marino text-oro"
+    : confirmed === "live-debug"
+      ? "bg-rojo text-white"
+      : confirmed === "mock"
+        ? "bg-oro text-marino"
+        : "bg-bruma text-marino";
   const label =
     check === null
       ? `Checking the back's mode · front=${front}`
@@ -33,7 +49,10 @@ export default function ModeBanner({ front, check }: { front: DebugMode; check: 
       style={striped ? MOCK_STRIPES : undefined}
     >
       {mismatch && <AlertTriangle className="size-4 shrink-0" />}
-      <span className={striped ? "rounded-full bg-oro px-2" : undefined}>{label}</span>
+      <span className={striped ? "rounded-full bg-oro px-2" : undefined}>
+        <span>{label}</span>
+        {armed.length > 0 && <span>{` · next scan injects: ${armed.join(", ")}`}</span>}
+      </span>
     </div>
   );
 }

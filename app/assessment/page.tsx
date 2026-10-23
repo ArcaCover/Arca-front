@@ -44,6 +44,20 @@ const primaryButton =
 
 type LoadState = "loading" | "ready" | "failed" | "expired";
 
+// What the debug panel shows for this page (DN-09 §6.3), after every load and every saved answer.
+function publishAssessment(next: AssessmentView, planningMs: number | null) {
+  publishDebugState("assessment", {
+    scanId: next.scanId,
+    assessmentId: next.assessmentId,
+    status: next.status,
+    planner: next.planner,
+    bankVersion: next.bankVersion,
+    expiresAt: next.expiresAt,
+    progress: next.progress,
+    planningMs,
+  });
+}
+
 function AssessmentScreen({
   scanId,
   requestedId,
@@ -65,6 +79,8 @@ function AssessmentScreen({
   const alive = useRef(true);
   const heading = useRef<HTMLDivElement>(null);
   const focusNext = useRef(false);
+  // Debug panel only: how long the last load waited on PLANNING, or null when it never saw the planner at work.
+  const planningMs = useRef<number | null>(null);
 
   useEffect(() => {
     alive.current = true;
@@ -97,6 +113,7 @@ function AssessmentScreen({
     const id = scanId;
     setState("loading");
     setError(null);
+    let sawPlanning = false;
     async function load(assessmentId?: string) {
       try {
         let activeId = assessmentId ?? requestedId ?? recallAssessment(id);
@@ -113,16 +130,10 @@ function AssessmentScreen({
             "unauthorized",
             "This assessment does not belong to this scan.",
           );
-        publishDebugState("assessment", {
-          assessmentId: next.assessmentId,
-          status: next.status,
-          planner: next.planner,
-          bankVersion: next.bankVersion,
-          expiresAt: next.expiresAt,
-          progress: next.progress,
-          // How long this load has waited for the assessment, PLANNING polls included.
-          planningMs: Date.now() - startedAt,
-        });
+        // How long this load has waited on the planner, counted only once a PLANNING status was actually seen.
+        if (next.status === "PLANNING") sawPlanning = true;
+        planningMs.current = sawPlanning ? Date.now() - startedAt : null;
+        publishAssessment(next, planningMs.current);
         rememberAssessment(id, activeId, next.expiresAt);
         setView(next);
         if (next.status === "EXPIRED")
@@ -211,6 +222,7 @@ function AssessmentScreen({
     try {
       const next = await saveAnswer(view.assessmentId, currentId, draft, token);
       if (!alive.current) return;
+      publishAssessment(next, planningMs.current);
       setView(next);
       showQuestion(nextQuestion(next, currentId, editing), next, editing);
     } catch (cause) {
