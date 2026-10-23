@@ -1,24 +1,11 @@
-// Fails a production build that ships any debug code (DN-09 6.1 and 8.9). Runs as `postbuild`.
+// Fails a production build that ships any debug code (DN-09 6.1 and 8.9). `npm run build` runs it after `next build`.
 // Usage: node scripts/check-no-debug.mjs
-import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+// It runs unconditionally: there is no "am I the entry point" guard to compare paths, which could turn false through a
+// symlink or junction and pass the build silently. The search lives in debug-leaks.mjs, which tests import.
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Strings that only debug code carries. Header names may reach the bundle lowercased.
-const MARKERS = [/arca-debug-sentinel-7f3c/, /__arcaDebug/, /X-Arca-Debug-Scenario/i, /\/__debug\//, /LIVE DEBUG/, /MODE MISMATCH/];
-
-// Source maps are skipped: they carry the original source of every module, so the bridge shows its guarded strings
-// there even when the compiled code folded them away. What ships is the compiled code, and that is what is searched.
-export function findDebugLeaks(dir) {
-  return readdirSync(dir, { recursive: true, withFileTypes: true })
-    .filter(entry => entry.isFile() && !entry.name.endsWith('.map'))
-    .map(entry => join(entry.parentPath, entry.name))
-    .filter(file => {
-      // latin1 reads any file, text or binary, without throwing on invalid UTF-8.
-      const content = readFileSync(file, 'latin1');
-      return MARKERS.some(marker => marker.test(content));
-    });
-}
+import { findDebugLeaks } from './debug-leaks.mjs';
 
 // The same rule as lib/arca-mode.ts, which a plain Node script cannot import.
 const MODES = ['production', 'live-debug', 'mock'];
@@ -29,15 +16,13 @@ function resolveArcaMode(env) {
   return mode;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const mode = resolveArcaMode(process.env);
-  if (mode !== 'production') {
-    console.log(`[check-no-debug] skipped (mode=${mode})`);
-  } else {
-    const root = fileURLToPath(new URL('../.next/', import.meta.url));
-    const leaks = ['static', 'server'].flatMap(dir => findDebugLeaks(join(root, dir)));
-    console.log(`[check-no-debug] ${leaks.length} debug leak(s) in the production build`);
-    for (const leak of leaks) console.log(`  ${leak}`);
-    if (leaks.length > 0) process.exit(1);
-  }
+const mode = resolveArcaMode(process.env);
+if (mode !== 'production') {
+  console.log(`[check-no-debug] skipped (mode=${mode})`);
+} else {
+  const root = fileURLToPath(new URL('../.next/', import.meta.url));
+  const leaks = ['static', 'server'].flatMap(dir => findDebugLeaks(join(root, dir)));
+  console.log(`[check-no-debug] ${leaks.length} debug leak(s) in the production build`);
+  for (const leak of leaks) console.log(`  ${leak}`);
+  if (leaks.length > 0) process.exit(1);
 }

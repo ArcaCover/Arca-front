@@ -1,7 +1,7 @@
 "use client";
 
 // Debug builds only: DebugMount loads this file in mock and live-debug, and a production build never emits it. The
-// sentinel attribute is what the postbuild check looks for to prove that.
+// sentinel attribute is what the build's leak check (scripts/check-no-debug.mjs) looks for to prove that.
 export default function DebugRoot() {
   const live = process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
   return (
