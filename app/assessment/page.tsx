@@ -30,6 +30,7 @@ import {
   recallAssessment,
   rememberAssessment,
 } from "@/lib/api/assessment-session";
+import { publishDebugState } from "@/lib/debug/bridge";
 import {
   answerLabel,
   assessmentHref,
@@ -112,6 +113,16 @@ function AssessmentScreen({
             "unauthorized",
             "This assessment does not belong to this scan.",
           );
+        publishDebugState("assessment", {
+          assessmentId: next.assessmentId,
+          status: next.status,
+          planner: next.planner,
+          bankVersion: next.bankVersion,
+          expiresAt: next.expiresAt,
+          progress: next.progress,
+          // How long this load has waited for the assessment, PLANNING polls included.
+          planningMs: Date.now() - startedAt,
+        });
         rememberAssessment(id, activeId, next.expiresAt);
         setView(next);
         if (next.status === "EXPIRED")

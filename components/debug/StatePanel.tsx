@@ -9,6 +9,8 @@ import type { DebugSection } from "@/lib/debug/bridge";
 import type { BackModeProbe } from "@/lib/debug/mode-check";
 import type { DebugStore } from "@/lib/debug/store";
 import { tokenTimes, type TokenTimes } from "@/lib/debug/token";
+import AssessmentControls from "./AssessmentControls";
+import ScenarioControls from "./ScenarioControls";
 
 // The state that pages keep invisible today (DN-09 §6.3). Everything is rendered as text, never as HTML: reasons and
 // names come from third-party sites.
@@ -27,8 +29,21 @@ const BACK_MODE: Record<Exclude<BackModeProbe["kind"], "ok">, string> = {
 
 const ROWS = "grid gap-x-4 gap-y-2 sm:grid-cols-[9rem_minmax(0,1fr)]";
 
+// Defence in depth (DN-09 §7): pages publish neither, but whatever reaches the panel, it never prints an email or a
+// session token. An `email` key is dropped; an address or a JWT (its header always encodes to "eyJ") inside any string
+// is masked.
+const EMAIL_KEY = /email/i;
+const EMAIL_ADDRESS = /[^\s@"]+@[^\s@"]+\.[^\s@"]+/g;
+const JWT = /eyJ[\w-]*\.[\w-]+\.[\w-]*/g;
+
+function redact(key: string, value: unknown): unknown {
+  if (EMAIL_KEY.test(key)) return undefined;
+  if (typeof value !== "string") return value;
+  return value.replace(JWT, "[token hidden]").replace(EMAIL_ADDRESS, "[email hidden]");
+}
+
 function Json({ value }: { value: unknown }) {
-  return <pre className="font-body whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>;
+  return <pre className="font-body whitespace-pre-wrap">{JSON.stringify(value, redact, 2)}</pre>;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -64,6 +79,8 @@ export default function StatePanel({ store, probe, apiUrl }: Props) {
         </Row>
         <Row label="Scan">{scanId ?? "No scan in the URL"}</Row>
       </dl>
+      {section === "quote" && <ScenarioControls apiUrl={apiUrl} />}
+      {section === "assessment" && scanId && <AssessmentControls scanId={scanId} />}
       {/* Keyed by scan, so a new scan starts from a fresh token reading and no internal state from the last one. */}
       {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} />}
     </section>

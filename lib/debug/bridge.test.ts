@@ -52,6 +52,20 @@ describe("debug bridge", () => {
     expect(debugScenarioHeaders()).toEqual({});
   });
 
+  it("sends no header, and does not throw, when storage is blocked or missing (server render)", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    const blocked = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+
+    expect(debugScenarioHeaders()).toEqual({});
+    blocked.mockRestore();
+
+    vi.stubGlobal("sessionStorage", undefined);
+    expect(debugScenarioHeaders()).toEqual({});
+    vi.unstubAllGlobals();
+  });
+
   it("never lets a broken store break the page", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
     publish.mockImplementation(() => {

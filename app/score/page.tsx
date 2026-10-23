@@ -10,6 +10,7 @@ import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score
 import { adaptScore, type ScoreView } from "@/lib/api/adapt";
 import { ApiError, downloadReport, pollScan } from "@/lib/api/client";
 import { forgetSession, recallSession } from "@/lib/api/session";
+import { publishDebugState } from "@/lib/debug/bridge";
 
 type State =
   | { kind: "loading" }
@@ -72,6 +73,22 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
       .then((poll) => {
         if (cancelled) return;
         if (poll.status === "COMPLETED" || poll.status === "PARTIAL") {
+          // Picked field by field from the raw poll: the result also carries the email, which never leaves this page.
+          publishDebugState("score", {
+            status: poll.status,
+            cached: poll.cached,
+            meta: poll.result.meta,
+            sources: poll.result.sources,
+            preScore: {
+              total: poll.result.preScore.total,
+              tier: poll.result.preScore.tier,
+              decision: poll.result.preScore.decision,
+              confidence: poll.result.preScore.confidence,
+              assessmentStatus: poll.result.preScore.assessmentStatus,
+              flags: poll.result.preScore.flags,
+            },
+            identity: { status: poll.result.identity?.status ?? null },
+          });
           setState({ kind: "ready", view: adaptScore(poll.result, poll.status) });
           return;
         }

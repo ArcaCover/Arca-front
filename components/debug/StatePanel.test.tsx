@@ -7,9 +7,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDebugStore } from "@/lib/debug/store";
 import StatePanel from "./StatePanel";
 
+const navigation = vi.hoisted(() => ({ pathname: "/score", router: { push: () => undefined } }));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/score",
+  usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams("scan=scan-1"),
+  useRouter: () => navigation.router,
 }));
 
 const ISSUED = 1_792_800_000;
@@ -57,6 +60,7 @@ afterEach(() => {
   cleanup();
   sessionStorage.clear();
   vi.unstubAllGlobals();
+  navigation.pathname = "/score";
 });
 
 describe("StatePanel", () => {
@@ -100,5 +104,43 @@ describe("StatePanel", () => {
 
     expect(await screen.findByText("No token stored for this scan")).toBeTruthy();
     expect(screen.getByRole<HTMLButtonElement>("button", { name: "View internal state" }).disabled).toBe(true);
+  });
+
+  // Defence in depth (DN-09 §7): pages must never publish these, and if one ever does, the panel still hides them.
+  it("never prints an email or a session token that a page published, and keeps the rest", () => {
+    const store = createDebugStore();
+    store.publish("score", {
+      email: "partner@firm.example",
+      lead: { Email: "office@firm.example", contact: "write to partner@firm.example" },
+      sessionToken: TOKEN,
+      header: `Bearer ${TOKEN}`,
+      domain: "robust.arca.example",
+      tier: "GUARDED",
+    });
+
+    render(<StatePanel store={store} probe={null} apiUrl="http://api" />);
+
+    expect(page()).not.toContain("@");
+    for (const segment of TOKEN.split(".")) expect(page()).not.toContain(segment);
+    expect(page()).toContain('"domain": "robust.arca.example"');
+    expect(page()).toContain('"tier": "GUARDED"');
+    expect(page()).toContain('"header": "Bearer [token hidden]"');
+  });
+
+  it("mounts the scenario controls on /quote and the assessment controls on /assessment, and neither elsewhere", () => {
+    const { rerender } = render(<StatePanel store={createDebugStore()} probe={null} apiUrl="http://api" />);
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Auto-answer" })).toBeNull();
+
+    navigation.pathname = "/quote";
+    rerender(<StatePanel store={createDebugStore()} probe={null} apiUrl="http://api" />);
+    expect(screen.getByRole("button", { name: "Clear" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Auto-answer" })).toBeNull();
+
+    navigation.pathname = "/assessment";
+    rerender(<StatePanel store={createDebugStore()} probe={null} apiUrl="http://api" />);
+    expect(screen.getByRole("button", { name: "Auto-answer" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Attest & complete" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
   });
 });

@@ -26,6 +26,11 @@ export function publishDebugState(section: DebugSection, data: Record<string, un
 
 export function debugScenarioHeaders(): Record<string, string> {
   if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return {};
-  const scenario = sessionStorage.getItem(SCENARIO_STORAGE_KEY);
-  return scenario ? { "X-Arca-Debug-Scenario": scenario } : {};
+  try {
+    const scenario = sessionStorage.getItem(SCENARIO_STORAGE_KEY);
+    return scenario ? { "X-Arca-Debug-Scenario": scenario } : {};
+  } catch {
+    // No storage on the server, and a blocked one throws: the scan then starts without a scenario.
+    return {};
+  }
 }
