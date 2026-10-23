@@ -125,4 +125,37 @@ describe('check-no-debug CLI', () => {
     expect(result.stdout).toContain('[check-no-debug] skipped (mode=mock)');
     expect(result.status).toBe(0);
   });
+
+  // `next build` reads the mode from .env files too, so the check has to agree with it or a mode kept in
+  // .env.local would fail every local build with false leaks.
+  it('takes the mode from .env.local like next build does', () => {
+    writeFileSync(join(root, '.next', 'static', 'chunks', 'debug.js'), '<div data-arca-debug="arca-debug-sentinel-7f3c">');
+    writeFileSync(join(root, '.env.local'), '# local\nNEXT_PUBLIC_API_URL=http://localhost:8080\nNEXT_PUBLIC_ARCA_MODE="mock"\n');
+
+    const result = run(join(root, 'scripts', 'check-no-debug.mjs'));
+
+    expect(result.stdout).toContain('[check-no-debug] skipped (mode=mock)');
+    expect(result.status).toBe(0);
+  });
+
+  it('lets the shell win over the .env files, as next build does', () => {
+    writeFileSync(join(root, '.env.local'), 'NEXT_PUBLIC_ARCA_MODE=mock\n');
+
+    const result = run(join(root, 'scripts', 'check-no-debug.mjs'), 'production');
+
+    expect(result.stdout).toContain('0 debug leak(s) in the production build');
+    expect(result.status).toBe(0);
+  });
+
+  it('reads .env.production.local before .env.local, .env.production and .env', () => {
+    writeFileSync(join(root, '.env'), 'NEXT_PUBLIC_ARCA_MODE=Broken\n');
+    writeFileSync(join(root, '.env.production'), 'NEXT_PUBLIC_ARCA_MODE=Broken\n');
+    writeFileSync(join(root, '.env.local'), 'NEXT_PUBLIC_ARCA_MODE=Broken\n');
+    writeFileSync(join(root, '.env.production.local'), 'NEXT_PUBLIC_ARCA_MODE=live-debug\n');
+
+    const result = run(join(root, 'scripts', 'check-no-debug.mjs'));
+
+    expect(result.stdout).toContain('[check-no-debug] skipped (mode=live-debug)');
+    expect(result.status).toBe(0);
+  });
 });
