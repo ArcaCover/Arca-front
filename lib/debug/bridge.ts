@@ -6,6 +6,9 @@ declare global {
   interface Window {
     // Installed by lib/debug/store.ts, which only a mock or live-debug build loads.
     __arcaDebug?: { publish(section: DebugSection, data: Record<string, unknown>): void };
+    // The panel loads lazily, after pages have published on mount: the last state per section waits here until the
+    // store installs and adopts it.
+    __arcaDebugPending?: Partial<Record<DebugSection, Record<string, unknown>>>;
   }
 }
 
@@ -14,7 +17,8 @@ export const SCENARIO_STORAGE_KEY = "arca.debug.scenario";
 export function publishDebugState(section: DebugSection, data: Record<string, unknown>): void {
   if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return;
   try {
-    window.__arcaDebug?.publish(section, data);
+    if (window.__arcaDebug) window.__arcaDebug.publish(section, data);
+    else window.__arcaDebugPending = { ...window.__arcaDebugPending, [section]: data };
   } catch {
     // The panel is a spectator: whatever happens to it, the page carries on.
   }
