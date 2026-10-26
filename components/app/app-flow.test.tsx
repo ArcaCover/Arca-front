@@ -22,7 +22,8 @@ import { rememberSession } from "@/lib/api/session";
 import { signIn } from "@/lib/app/auth";
 import {
   acceptInvitation, adminListDeletionRequests, adminListOrganizations, adminListPlans, adminReviewDeletion, adminUpdatePlan,
-  attachAnalysis, createClaim, createOrg, getMe, getPlans, invite, listAnalyses, listMembers, requestDeletion, setMemberRole,
+  attachAnalysis, createClaim, createOrg, getMe, getPlans, invite, listAnalyses, listMembers, portal, requestDeletion,
+  setMemberRole,
 } from "@/lib/app/client";
 import { loadAppSession, loadPendingClaim, recallOrg, saveAppSession, savePendingClaim } from "@/lib/app/session";
 import { debugPay } from "@/lib/debug/bridge";
@@ -658,6 +659,26 @@ describe("the rest of the demo path", () => {
     expect(await screen.findByText(/Monthly \(example price\)/)).toBeTruthy();
     expect(screen.getByText(/pending payment/i)).toBeTruthy();
     expect(button("Pay with Monthly (example price)").disabled).toBe(false);
+  });
+
+  it("offers a paid organization the billing portal instead of another checkout", async () => {
+    signedIn(org({ billingStatus: "active", paidAccess: true }));
+    vi.mocked(portal).mockResolvedValue({ url: `${window.location.origin}/#portal` });
+    inApp("/app/billing", <BillingPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Manage billing" }));
+    await waitFor(() => expect(window.location.hash).toBe("#portal"));
+    expect(portal).toHaveBeenCalledExactlyOnceWith("org_1");
+    expect(screen.getByText("Active")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Pay with/ })).toBeNull();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("tells someone who is not the owner that only the owner manages billing", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "production");
+    signedIn(org({ role: "member", billingStatus: "pending_payment", paidAccess: false }));
+    inApp("/app/billing", <BillingPage />);
+    expect(await screen.findByText("Only the owner can manage billing.")).toBeTruthy();
+    expect(button("Pay with Monthly (example price)").disabled).toBe(true);
   });
 
   it("accepts an invitation after signing in, and opens that organization", async () => {
