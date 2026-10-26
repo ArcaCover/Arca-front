@@ -157,6 +157,21 @@ describe("the /app session guard", () => {
   });
 });
 
+describe("the /app frame under the debug strip", () => {
+  // The strip is fixed at the top: one text-xs line (1rem) with py-1, so 1.5rem, which pt-6 clears.
+  it.each(["mock", "live-debug"])("leaves room for the strip in %s", mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+    const { container } = inApp("/app/login", <LoginPage />);
+    expect((container.firstElementChild as HTMLElement).className).toContain("pt-6");
+  });
+
+  it.each([undefined, "production"])("adds no room when the mode is %s, which has no strip", mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+    const { container } = inApp("/app/login", <LoginPage />);
+    expect((container.firstElementChild as HTMLElement).className).not.toContain("pt-6");
+  });
+});
+
 describe("the organization panel", () => {
   it("goes to billing when the API answers 402 for the analyses", async () => {
     signedIn(org({ billingStatus: "pending_payment", paidAccess: false }));

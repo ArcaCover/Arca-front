@@ -167,8 +167,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 }
 
 function Frame({ header, children }: { header?: ReactNode; children: ReactNode }) {
+  // In the debug modes DebugRoot's strip is fixed over the top of the page: one text-xs line with py-1, 1.5rem tall.
+  // Without this room it covers the organization, the email and Sign out. Literal comparison, as DN-09 asks.
+  const debugStrip =
+    process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
   return (
-    <div className="min-h-screen text-marino">
+    <div className={`min-h-screen text-marino${debugStrip ? " pt-6" : ""}`}>
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-marino/10 bg-white px-6 py-4">
         <Link href="/app" className="font-heading text-lg font-semibold">
           Arca
