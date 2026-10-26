@@ -305,11 +305,12 @@ describe("switching organization in the header", () => {
     inApp("/app/settings", <SettingsPage />);
     await userEvent.type(await screen.findByLabelText("Reason"), "Closing the firm");
     await userEvent.click(button("Request deletion"));
-    expect(await screen.findByText(/Deletion requested/)).toBeTruthy();
+    expect(await screen.findByText(/A deletion request is pending review/)).toBeTruthy();
     await waitFor(() => expect(getMe).toHaveBeenCalledTimes(2));
     await userEvent.selectOptions(select("Organization"), "org_2");
     expect(await screen.findByText("Second Firm", { selector: "dd" })).toBeTruthy();
-    expect(screen.queryByText(/Deletion requested/)).toBeNull();
+    expect(screen.queryByText(/A deletion request is pending review/)).toBeNull();
+    expect(button("Request deletion").disabled).toBe(false);
     expect(requestDeletion).toHaveBeenCalledExactlyOnceWith("org_1", "Closing the firm");
   });
 });
@@ -682,6 +683,18 @@ describe("the rest of the demo path", () => {
     await userEvent.type(await screen.findByLabelText("Reason"), "Closing the firm");
     await userEvent.click(button("Request deletion"));
     await waitFor(() => expect(requestDeletion).toHaveBeenCalledExactlyOnceWith("org_1", "Closing the firm"));
-    expect(await screen.findByText(/pending review/i)).toBeTruthy();
+    expect(await screen.findByText(/A deletion request is pending review/)).toBeTruthy();
+    // A second request would only meet the back's 409.
+    expect(button("Request deletion").disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Reason").disabled).toBe(true);
+  });
+
+  it("offers no second deletion request while one is pending, even in mock", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    signedIn(org({ deletionPending: true }));
+    inApp("/app/settings", <SettingsPage />);
+    expect(await screen.findByText(/A deletion request is pending review/)).toBeTruthy();
+    expect(button("Request deletion").disabled).toBe(true);
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Reason").disabled).toBe(true);
   });
 });

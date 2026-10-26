@@ -19,6 +19,8 @@ export default function SettingsPage() {
     process.env.NEXT_PUBLIC_ARCA_MODE === "mock" ||
     process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug" ||
     can(org.role, "org.request_deletion");
+  // One request at a time: a second one would only meet the back's 409, so the form closes until ARCA reviews it.
+  const pending = requested || org.deletionPending;
 
   // Only a request: nothing is deleted until a person at ARCA approves it (DN-10 §2).
   async function submit(event: FormEvent) {
@@ -50,9 +52,9 @@ export default function SettingsPage() {
         <dd>{org.billingStatus.replace("_", " ")}</dd>
       </dl>
       <h2 className="mt-8 font-heading text-lg">Request deletion</h2>
-      {requested || org.deletionPending ? (
+      {pending ? (
         <p role="status" className="mt-2 rounded-2xl bg-oro/20 p-4 text-sm">
-          Deletion requested. It is pending review by ARCA: nothing is deleted until then, and access continues meanwhile.
+          A deletion request is pending review by ARCA. Nothing is deleted until then, and access continues meanwhile.
         </p>
       ) : (
         <p className="mt-2 text-sm text-marino/70">A person at ARCA reviews every request. Nothing is deleted before then.</p>
@@ -63,14 +65,15 @@ export default function SettingsPage() {
           <textarea
             required
             maxLength={2000}
+            disabled={pending}
             value={reason}
             onChange={event => setReason(event.target.value)}
-            className="mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2"
+            className="mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2 disabled:opacity-60"
           />
         </label>
         <button
           type="submit"
-          disabled={busy || !canRequest}
+          disabled={busy || pending || !canRequest}
           className="rounded-full border border-rojo/40 px-5 py-2 text-sm font-semibold text-rojo disabled:opacity-60"
         >
           Request deletion
