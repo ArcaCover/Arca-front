@@ -225,6 +225,23 @@ describe("the organization panel", () => {
     expect(screen.getByText(/demo scoring model/i)).toBeTruthy();
   });
 
+  it("confirms a payment back from checkout only once the organization is paid", async () => {
+    navigation.query = "paid=1";
+    signedIn(org({ billingStatus: "active", paidAccess: true }));
+    inApp("/app", <AppHome />);
+    expect(await screen.findByText("Payment received. Your organization is active.")).toBeTruthy();
+    expect(screen.queryByText("Payment is being confirmed.")).toBeNull();
+  });
+
+  it("says the payment is being confirmed when ?paid=1 arrives before the organization is paid", async () => {
+    navigation.query = "paid=1";
+    signedIn(org({ billingStatus: "pending_payment", paidAccess: false }));
+    vi.mocked(listAnalyses).mockReturnValue(new Promise(() => {}));
+    inApp("/app", <AppHome />);
+    expect(await screen.findByText("Payment is being confirmed.")).toBeTruthy();
+    expect(screen.queryByText(/Payment received/)).toBeNull();
+  });
+
   it("warns that a deletion is pending while access continues", async () => {
     signedIn(org({ deletionPending: true }));
     inApp("/app", <AppHome />);

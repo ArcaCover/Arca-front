@@ -35,7 +35,12 @@ function Panel() {
   return (
     <>
       <h1 className="font-heading text-2xl">Your analyses</h1>
-      {paid && <p className="mt-3 text-sm">Payment received. Your organization is active.</p>}
+      {/* ?paid=1 only says the checkout came back; the payment counts once /me shows the organization paid. */}
+      {paid && (
+        <p className="mt-3 text-sm">
+          {org.paidAccess ? "Payment received. Your organization is active." : "Payment is being confirmed."}
+        </p>
+      )}
       {org.deletionPending && (
         <p className="mt-3 rounded-2xl bg-oro/20 p-4 text-sm">
           A deletion request is pending review by ARCA. Nothing is deleted until then, and access continues meanwhile.
