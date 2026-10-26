@@ -246,7 +246,8 @@ describe("the organization panel", () => {
     signedIn(org({ deletionPending: true }));
     inApp("/app", <AppHome />);
     expect(await screen.findByText(/deletion request is pending review/i)).toBeTruthy();
-    expect(listAnalyses).toHaveBeenCalledOnce();
+    // The notice can render before the page's effect asks for the analyses; under load the assertion has to wait for it.
+    await waitFor(() => expect(listAnalyses).toHaveBeenCalledOnce());
   });
 
   it("tells a user without organizations to complete an analysis, with a link to /quote", async () => {
