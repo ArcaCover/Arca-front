@@ -141,7 +141,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <AppContext.Provider value={context}>{children}</AppContext.Provider>
+          {/* Keyed by organization: switching remounts the page, so no state from the previous one carries over. */}
+          <AppContext.Provider key={context.org.id} value={context}>
+            {children}
+          </AppContext.Provider>
         </>
       ) : (
         // Every account belongs to an organization once a claim succeeds; one that failed lands here (DN-10 §4.7).

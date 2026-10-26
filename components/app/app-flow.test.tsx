@@ -193,6 +193,73 @@ describe("the organization panel", () => {
   });
 });
 
+describe("switching organization in the header", () => {
+  const first = org({ id: "org_1", name: "First Firm" });
+  const second = org({ id: "org_2", name: "Second Firm" });
+
+  it("on the panel, shows only the new organization's analyses or error", async () => {
+    signedIn(first, second);
+    vi.mocked(listAnalyses).mockImplementation(async id => {
+      if (id === "org_1") return [analysis()];
+      throw new ApiError("forbidden", "Your role does not allow this");
+    });
+    inApp("/app", <AppHome />);
+    expect(await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" })).toBeTruthy();
+    await userEvent.selectOptions(select("Organization"), "org_2");
+    expect((await screen.findByRole("alert")).textContent).toContain("Your role does not allow this");
+    expect(screen.queryByRole("img", { name: /AI Governance Score/ })).toBeNull();
+    expect(screen.getByText(/save them to Second Firm/)).toBeTruthy();
+    expect(listAnalyses).toHaveBeenLastCalledWith("org_2");
+  });
+
+  it("on members, drops the previous organization's people and invite link while the new list loads", async () => {
+    signedIn(first, second);
+    vi.mocked(listMembers).mockImplementation(id =>
+      id === "org_1"
+        ? Promise.resolve({
+            members: [{ userId: "u_owner", email: "owner@firstfirm.com", role: "owner", joinedAt: "2026-10-25T10:00:00.000Z" }],
+            invitations: [],
+          })
+        : new Promise(() => {}),
+    );
+    vi.mocked(invite).mockResolvedValue({
+      id: "inv_2", email: "new@firstfirm.com", role: "member", expiresAt: "2026-11-01T10:00:00.000Z",
+      inviteUrl: "http://localhost:3000/app/invite/FirstFirmInviteToken0123456789",
+    });
+    inApp("/app/members", <MembersPage />);
+    await screen.findByText("owner@firstfirm.com");
+    await userEvent.type(screen.getByLabelText("Email to invite"), "new@firstfirm.com");
+    await userEvent.click(button("Send invitation"));
+    await screen.findByRole("button", { name: "Copy invite link" });
+    await userEvent.selectOptions(select("Organization"), "org_2");
+    expect(await screen.findByText("Loading members…")).toBeTruthy();
+    expect(screen.queryByText("owner@firstfirm.com")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy invite link" })).toBeNull();
+    expect(listMembers).toHaveBeenLastCalledWith("org_2");
+  });
+
+  it("on settings, does not carry a deletion requested for the previous organization", async () => {
+    signedIn(first, second);
+    vi.mocked(getMe)
+      .mockResolvedValueOnce(me([first, second]))
+      .mockResolvedValue(me([{ ...first, deletionPending: true }, second]));
+    vi.mocked(requestDeletion).mockResolvedValue({
+      id: "del_1", orgId: "org_1", reason: "Closing the firm", status: "pending",
+      requestedAt: "2026-10-25T12:00:00.000Z", reviewedAt: null, reviewNote: null,
+    });
+    inApp("/app/settings", <SettingsPage />);
+    await userEvent.type(await screen.findByLabelText("Reason"), "Closing the firm");
+    await userEvent.click(button("Request deletion"));
+    expect(await screen.findByText(/Deletion requested/)).toBeTruthy();
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(2));
+    await userEvent.selectOptions(select("Organization"), "org_2");
+    expect(await screen.findByText("Second Firm", { selector: "dd" })).toBeTruthy();
+    expect(screen.queryByText(/Deletion requested/)).toBeNull();
+    expect(requestDeletion).toHaveBeenCalledExactlyOnceWith("org_1", "Closing the firm");
+  });
+});
+
 describe("sign-up from the results", () => {
   beforeEach(() => {
     savePendingClaim({ claimId: "cl_1", email: "owner@smithlaw.com", expiresAt: future() });
