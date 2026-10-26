@@ -176,6 +176,39 @@ describe("the organization panel", () => {
     expect(screen.getByRole("link", { name: /Add an analysis/ }).getAttribute("href")).toBe("/quote");
   });
 
+  it("keeps the results page's disclosures on a claimed assessment: demo model, partial evidence and the action plan", async () => {
+    signedIn(org());
+    const assessment = fixtureAssessmentResult();
+    assessment.domains[0] = { ...assessment.domains[0], label: "Governance", weight: 25, status: "PARTIAL" };
+    assessment.actionPlan = [
+      { id: "policy", domain: "governance", title: "Document the policy", detail: "Create a written policy.", pointsGain: 5 },
+      { id: "training", domain: "training", title: "Train the team", detail: "Run a session.", pointsGain: 3 },
+    ];
+    vi.mocked(listAnalyses).mockResolvedValue([{ ...analysis(), assessment }]);
+    inApp("/app", <AppHome />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    expect(screen.getByText(/demo scoring model/i).textContent).toMatch(
+      /Commercial decisions are blocked for this demo.*does not establish eligibility for insurance/,
+    );
+    expect(screen.getByText("25% weight · partial evidence")).toBeTruthy();
+    const plan = screen.getByRole("list", { name: "Action plan" });
+    expect(plan.tagName).toBe("OL");
+    expect([...plan.querySelectorAll("li")].map(item => item.textContent)).toEqual([
+      expect.stringContaining("Document the policy"),
+      expect.stringContaining("Train the team"),
+    ]);
+  });
+
+  it("says a scan-only analysis has too little evidence for a decision when the scan withheld it", async () => {
+    signedIn(org());
+    const layer1 = fixtureResult({ scanId: "sc_demo" });
+    layer1.preScore = { ...layer1.preScore, decision: "UNKNOWN", assessmentStatus: "INSUFFICIENT_EVIDENCE" };
+    vi.mocked(listAnalyses).mockResolvedValue([{ ...analysis(), layer1, assessment: null }]);
+    inApp("/app", <AppHome />);
+    expect(await screen.findByText(/not enough evidence in this scan for a coverage decision/i)).toBeTruthy();
+    expect(screen.getByText(/demo scoring model/i)).toBeTruthy();
+  });
+
   it("warns that a deletion is pending while access continues", async () => {
     signedIn(org({ deletionPending: true }));
     inApp("/app", <AppHome />);
