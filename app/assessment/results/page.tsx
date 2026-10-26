@@ -12,6 +12,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { AssessmentResult } from "@arca/contracts";
+import SaveResultsCta from "@/components/app/SaveResultsCta";
 import AssessmentShell from "@/components/assessment/AssessmentShell";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
 import { ApiError, getAssessmentResult } from "@/lib/api/client";
@@ -277,6 +278,7 @@ function ResultsScreen() {
                 </ul>
               </details>
             )}
+            {scanId && <SaveResultsCta scanId={scanId} />}
             <div className="mt-8 flex items-center justify-between gap-3 border-t border-marino/10 pt-5">
               <span className="text-[10px] leading-5 text-marino/70">
                 Completed{" "}
