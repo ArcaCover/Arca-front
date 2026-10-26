@@ -11,6 +11,7 @@ import { signIn } from "@/lib/app/auth";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -19,8 +20,9 @@ export default function LoginPage() {
     setBusy(true);
     setMessage(null);
     try {
-      if ((await signIn(email.trim())) === "signed_in") {
-        router.replace("/app");
+      const signedIn = platformAdmin ? await signIn(email.trim(), { platformAdmin }) : await signIn(email.trim());
+      if (signedIn === "signed_in") {
+        router.replace(platformAdmin ? "/app/admin" : "/app");
         return;
       }
       setMessage(SIGN_IN_NOT_AVAILABLE);
@@ -44,6 +46,13 @@ export default function LoginPage() {
             className="mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2"
           />
         </label>
+        {/* DN-10 §4.6: in mock, the simulated sign-in is also how someone at ARCA becomes a platform admin. */}
+        {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={platformAdmin} onChange={event => setPlatformAdmin(event.target.checked)} />
+            Sign in as an ARCA platform admin (mock)
+          </label>
+        )}
         <button type="submit" disabled={busy} className="rounded-full bg-oro px-5 py-2 text-sm font-semibold disabled:opacity-60">
           Sign in
         </button>

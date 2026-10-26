@@ -15,6 +15,8 @@ import { loadAppSession, rememberOrg } from "@/lib/app/session";
 // Sign-in, sign-up and an invitation are where a visitor gets a session, so they are the only pages open without one.
 const PUBLIC = ["/app/login", "/app/signup", "/app/invite/"];
 const isPublic = (pathname: string) => PUBLIC.some(path => pathname === path || pathname.startsWith(path));
+// The ARCA staff page needs a session but no organization: a platform admin need not belong to one.
+const STAFF = "/app/admin";
 
 type State = { kind: "loading" } | { kind: "ready"; me: MeResponse } | { kind: "failed"; message: string };
 
@@ -146,6 +148,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {children}
           </AppContext.Provider>
         </>
+      ) : pathname === STAFF ? (
+        children
       ) : (
         // Every account belongs to an organization once a claim succeeds; one that failed lands here (DN-10 §4.7).
         <section className="rounded-3xl bg-white p-6">

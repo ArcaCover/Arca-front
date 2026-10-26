@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { AnalysisView, MeResponse, OrgView } from "@arca/contracts";
 
+import AdminPage from "@/app/app/admin/page";
 import AppLayout from "@/app/app/layout";
 import AppHome from "@/app/app/page";
 import BillingPage from "@/app/app/billing/page";
@@ -20,8 +21,8 @@ import { fixtureResult } from "@/lib/api/fixture";
 import { rememberSession } from "@/lib/api/session";
 import { signIn } from "@/lib/app/auth";
 import {
-  acceptInvitation, attachAnalysis, createClaim, createOrg, getMe, getPlans, invite, listAnalyses, listMembers, requestDeletion,
-  setMemberRole,
+  acceptInvitation, adminListDeletionRequests, adminListOrganizations, adminListPlans, adminReviewDeletion, adminUpdatePlan,
+  attachAnalysis, createClaim, createOrg, getMe, getPlans, invite, listAnalyses, listMembers, requestDeletion, setMemberRole,
 } from "@/lib/app/client";
 import { loadAppSession, loadPendingClaim, recallOrg, saveAppSession, savePendingClaim } from "@/lib/app/session";
 import { debugPay } from "@/lib/debug/bridge";
@@ -112,6 +113,7 @@ describe("the /app session guard", () => {
     ["/app/billing/mock-checkout", () => <MockCheckoutPage />],
     ["/app/members", () => <MembersPage />],
     ["/app/settings", () => <SettingsPage />],
+    ["/app/admin", () => <AdminPage />],
   ])("sends %s to the login when there is no session, and asks the API nothing", async (pathname, page) => {
     inApp(pathname, page());
     await waitFor(() => expect(navigation.router.replace).toHaveBeenCalledWith("/app/login"));
@@ -320,6 +322,12 @@ describe.each([undefined, "production", "live-debug"])("sign-in outside mock (mo
     expect(navigation.router.push).not.toHaveBeenCalled();
   });
 
+  it("the login offers no platform admin sign-in", async () => {
+    inApp("/app/login", <LoginPage />);
+    await screen.findByLabelText("Email");
+    expect(screen.queryByLabelText(/platform admin/i)).toBeNull();
+  });
+
   it("the sign-up says the same and creates nothing", async () => {
     savePendingClaim({ claimId: "cl_1", email: "owner@smithlaw.com", expiresAt: future() });
     inApp("/app/signup", <SignupPage />);
@@ -338,6 +346,94 @@ describe("login in mock", () => {
     await userEvent.click(button("Sign in"));
     await waitFor(() => expect(navigation.router.replace).toHaveBeenCalledWith("/app"));
     expect(signIn).toHaveBeenCalledExactlyOnceWith("me@smithlaw.com");
+  });
+
+  it("signs in as an ARCA platform admin and opens the admin page", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    inApp("/app/login", <LoginPage />);
+    await userEvent.type(await screen.findByLabelText("Email"), "ops@arca.example");
+    await userEvent.click(screen.getByLabelText(/platform admin/i));
+    await userEvent.click(button("Sign in"));
+    await waitFor(() => expect(navigation.router.replace).toHaveBeenCalledWith("/app/admin"));
+    expect(signIn).toHaveBeenCalledExactlyOnceWith("ops@arca.example", { platformAdmin: true });
+  });
+});
+
+describe("the platform admin page (proof of concept)", () => {
+  const monthly = { code: "monthly", name: "Monthly (example price)", amountCents: 49_900, currency: "usd", interval: "month" as const };
+  const annual = { code: "annual", name: "Annual (example price)", amountCents: 499_000, currency: "usd", interval: "year" as const };
+  const pending = {
+    id: "del_1", orgId: "org_1", reason: "Closing the firm", status: "pending" as const,
+    requestedAt: "2026-10-25T12:00:00.000Z", reviewedAt: null, reviewNote: null,
+  };
+
+  /** An ARCA person: a platform admin who belongs to no organization. */
+  function staff() {
+    saveAppSession({ token: "app-token", email: "ops@arca.example", expiresAt: future() });
+    vi.mocked(getMe).mockResolvedValue({ user: { id: "u_ops", email: "ops@arca.example" }, organizations: [], platformAdmin: true });
+  }
+
+  beforeEach(() => {
+    vi.mocked(adminListPlans).mockResolvedValue([monthly, annual]);
+    vi.mocked(adminListDeletionRequests).mockResolvedValue([pending]);
+    vi.mocked(adminListOrganizations).mockResolvedValue([
+      { id: "org_1", name: "Smith Law", billingStatus: "active", deleted: false, members: 2 },
+    ]);
+  });
+
+  it("shows Not available to someone who is not a platform admin, and asks the admin API nothing", async () => {
+    signedIn();
+    inApp("/app/admin", <AdminPage />);
+    expect(await screen.findByText("Not available")).toBeTruthy();
+    expect(screen.queryByText("Complete an analysis to create your organization")).toBeNull();
+    expect(adminListPlans).not.toHaveBeenCalled();
+    expect(adminListDeletionRequests).not.toHaveBeenCalled();
+  });
+
+  it("opens for a platform admin without an organization, with the plans and the deletion requests", async () => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    expect(await screen.findByRole("heading", { name: "Platform admin (proof of concept)" })).toBeTruthy();
+    expect((await screen.findByLabelText<HTMLInputElement>("Price of Monthly (example price) in USD")).value).toBe("499.00");
+    expect(screen.getByLabelText<HTMLInputElement>("Price of Annual (example price) in USD").value).toBe("4990.00");
+    expect(await screen.findByText("Closing the firm")).toBeTruthy();
+    expect(screen.getByText("Smith Law")).toBeTruthy();
+    expect(button("Approve the deletion of Smith Law")).toBeTruthy();
+    expect(button("Reject the deletion of Smith Law")).toBeTruthy();
+    expect(screen.queryByText("Complete an analysis to create your organization")).toBeNull();
+  });
+
+  it("changes a plan's price with the admin API and shows the new one", async () => {
+    staff();
+    vi.mocked(adminUpdatePlan).mockResolvedValue({ ...monthly, amountCents: 45_000 });
+    inApp("/app/admin", <AdminPage />);
+    const input = await screen.findByLabelText<HTMLInputElement>("Price of Monthly (example price) in USD");
+    await userEvent.clear(input);
+    await userEvent.type(input, "450");
+    await userEvent.click(button("Save the price of Monthly (example price)"));
+    expect(await screen.findByText("Monthly (example price) now costs $450.00 / month.")).toBeTruthy();
+    expect(adminUpdatePlan).toHaveBeenCalledExactlyOnceWith("monthly", { amountCents: 45_000 });
+  });
+
+  it.each([
+    ["Approve", "approve", "approved"],
+    ["Reject", "reject", "rejected"],
+  ] as const)("%ss a pending deletion request and shows how it was closed", async (label, decision, status) => {
+    staff();
+    vi.mocked(adminReviewDeletion).mockResolvedValue({ ...pending, status, reviewedAt: "2026-10-25T13:00:00.000Z" });
+    inApp("/app/admin", <AdminPage />);
+    await userEvent.click(await screen.findByRole("button", { name: `${label} the deletion of Smith Law` }));
+    expect(await screen.findByText(status)).toBeTruthy();
+    expect(adminReviewDeletion).toHaveBeenCalledExactlyOnceWith("del_1", decision);
+    expect(screen.queryByRole("button", { name: /the deletion of Smith Law/ })).toBeNull();
+  });
+
+  it("shows the API's reason when a review is refused", async () => {
+    staff();
+    vi.mocked(adminReviewDeletion).mockRejectedValue(new ApiError("conflict", "This deletion request was already reviewed"));
+    inApp("/app/admin", <AdminPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Reject the deletion of Smith Law" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("already reviewed");
   });
 });
 

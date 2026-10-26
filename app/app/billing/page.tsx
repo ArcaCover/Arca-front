@@ -5,6 +5,7 @@ import { can, type BillingStatus, type PlanView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { checkout, getPlans } from "@/lib/app/client";
+import { formatPrice } from "@/lib/app/price";
 
 const STATUS: Record<BillingStatus, string> = {
   pending_payment: "Pending payment",
@@ -12,9 +13,6 @@ const STATUS: Record<BillingStatus, string> = {
   past_due: "Past due",
   canceled: "Canceled",
 };
-
-const price = (plan: PlanView) =>
-  `${new Intl.NumberFormat("en-US", { style: "currency", currency: plan.currency.toUpperCase() }).format(plan.amountCents / 100)} / ${plan.interval}`;
 
 export default function BillingPage() {
   const { org } = useApp();
@@ -82,7 +80,7 @@ export default function BillingPage() {
           {plans.map(plan => (
             <li key={plan.code} className="rounded-3xl border border-marino/10 bg-white p-6">
               <h2 className="font-heading text-lg">{plan.name}</h2>
-              <p className="mt-1 text-sm text-marino/70">{price(plan)}</p>
+              <p className="mt-1 text-sm text-marino/70">{formatPrice(plan)}</p>
               <button
                 type="button"
                 aria-label={`Pay with ${plan.name}`}
