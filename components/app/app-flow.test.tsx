@@ -521,16 +521,52 @@ describe("SaveResultsCta", () => {
     expect(attachAnalysis).not.toHaveBeenCalled();
   });
 
-  it("with a session and an organization, adds the analysis to it and opens the panel", async () => {
+  it("adds the analysis to a paid organization when the claim is the owner's own email, and opens the panel", async () => {
     signedIn(org({ id: "org_2", name: "Smith Law" }));
-    vi.mocked(createClaim).mockResolvedValue({ claimId: "cl_2", email: "me@smithlaw.com", expiresAt: future() });
+    vi.mocked(createClaim).mockResolvedValue({ claimId: "cl_2", email: "Me@SmithLaw.com", expiresAt: future() });
     vi.mocked(attachAnalysis).mockResolvedValue(analysis());
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Add this analysis to Smith Law" }));
+    // Until the claim says whose analysis it is, the button does not promise either path.
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results" }));
     await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app"));
     expect(createClaim).toHaveBeenCalledExactlyOnceWith("synthetic-scan-capability");
     expect(attachAnalysis).toHaveBeenCalledExactlyOnceWith("org_2", "cl_2");
     expect(loadPendingClaim()).toBeNull();
+  });
+
+  it("takes a claim made with another email to sign-up, not to the signed-in organization", async () => {
+    signedIn(org({ id: "org_2", name: "Smith Law" }));
+    const claim = { claimId: "cl_3", email: "someone@otherfirm.com", expiresAt: future() };
+    vi.mocked(createClaim).mockResolvedValue(claim);
+    render(<SaveResultsCta scanId="sc_demo" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results" }));
+    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_3"));
+    expect(attachAnalysis).not.toHaveBeenCalled();
+    expect(loadPendingClaim()).toEqual(claim);
+  });
+
+  it.each([
+    ["a viewer, whose role cannot add analyses", org({ role: "viewer" })],
+    ["an organization that has not paid", org({ billingStatus: "pending_payment", paidAccess: false })],
+  ])("sends %s to sign-up, and says so on the button", async (_case, target) => {
+    signedIn(target);
+    const claim = { claimId: "cl_4", email: "me@smithlaw.com", expiresAt: future() };
+    vi.mocked(createClaim).mockResolvedValue(claim);
+    render(<SaveResultsCta scanId="sc_demo" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_4"));
+    expect(attachAnalysis).not.toHaveBeenCalled();
+    expect(loadPendingClaim()).toEqual(claim);
+  });
+
+  it("goes to billing when the API answers 402 to the attach", async () => {
+    signedIn(org({ id: "org_2" }));
+    vi.mocked(createClaim).mockResolvedValue({ claimId: "cl_5", email: "me@smithlaw.com", expiresAt: future() });
+    vi.mocked(attachAnalysis).mockRejectedValue(new ApiError("payment_required", "This organization has no active subscription"));
+    render(<SaveResultsCta scanId="sc_demo" />);
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results" }));
+    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/billing"));
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("shows the API's reason when the analysis cannot be saved", async () => {

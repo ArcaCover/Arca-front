@@ -3,13 +3,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import type { OrgView } from "@arca/contracts";
+import { can, type OrgView } from "@arca/contracts";
 
 import { activeOrg } from "@/components/app/AppContext";
 import { ApiError } from "@/lib/api/client";
 import { recallSession } from "@/lib/api/session";
 import { attachAnalysis, createClaim, getMe } from "@/lib/app/client";
 import { loadAppSession, savePendingClaim } from "@/lib/app/session";
+
+// An organization the analysis may be added to: the signed-in user's role adds analyses there and it has paid. Any other
+// would answer 403 or 402, which leaves the user nowhere, so the claim goes to sign-up instead.
+const canAttachTo = (org: OrgView) => can(org.role, "analysis.create") && org.paidAccess;
+
+// The claim is the visitor's email from the scan. Only the person signed in with that same email may add it to their own
+// organization (the back refuses another email with 403); sign-up signs in again as the claim's email.
+const sameEmail = (a: string | undefined, b: string) => a !== undefined && a.toLowerCase() === b.toLowerCase();
 
 // The end of the anonymous funnel (DN-10 §3). The scan token is traded for a one-use claim ticket: a visitor without an
 // organization takes it to sign-up, and a signed-in customer adds the analysis to the organization they already have.
@@ -27,7 +35,7 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
     lookup
       .catch(() => null)
       .then(org => {
-        if (!cancelled) setTarget(org);
+        if (!cancelled) setTarget(org && canAttachTo(org) ? org : null);
       });
     return () => {
       cancelled = true;
@@ -44,7 +52,7 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
     setError(null);
     try {
       const claim = await createClaim(token);
-      if (target) {
+      if (target && sameEmail(loadAppSession()?.email, claim.email)) {
         await attachAnalysis(target.id, claim.claimId);
         router.push("/app");
       } else {
@@ -52,6 +60,11 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
         router.push(`/app/signup?claim=${encodeURIComponent(claim.claimId)}`);
       }
     } catch (cause) {
+      // The organization stopped being paid since /me was read: billing is where the owner can fix that (DN-10 §4.5).
+      if (cause instanceof ApiError && cause.code === "payment_required") {
+        router.push("/app/billing");
+        return;
+      }
       setError(cause instanceof ApiError ? cause.message : "We could not save your results. Please try again.");
       setBusy(false);
     }
@@ -62,7 +75,7 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
       <h2 className="font-heading text-xl font-medium tracking-tight">Keep these results.</h2>
       <p className="mt-2 text-sm leading-7 text-marino/70">
         {target
-          ? "Save this analysis with the others in your organization."
+          ? `If this scan was made with your email, it joins the analyses of ${target.name}; otherwise you create an organization for it.`
           : "Create your organization to keep this analysis and invite your colleagues."}
       </p>
       <button
@@ -71,7 +84,8 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
         disabled={busy || target === undefined}
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-oro px-5 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        {target ? `Add this analysis to ${target.name}` : "Save your results and activate your account"}
+        {/* Which path a signed-in customer takes depends on the claim's email, unknown until the claim exists. */}
+        {target === null ? "Save your results and activate your account" : "Save your results"}
         <ArrowRight aria-hidden className="h-4 w-4" />
       </button>
       {error && (
