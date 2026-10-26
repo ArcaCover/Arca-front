@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import { SIGN_IN_NOT_AVAILABLE, useBrowser } from "@/components/app/AppContext";
 import { ApiError } from "@/lib/api/client";
-import { signIn } from "@/lib/app/auth";
+import { signIn, signOut } from "@/lib/app/auth";
 import { acceptInvitation } from "@/lib/app/client";
 import { loadAppSession, rememberOrg } from "@/lib/app/session";
 
@@ -18,7 +18,9 @@ export default function InvitePage() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const session = browser ? loadAppSession() : null;
+  // Set once the person signs out here, so the page asks for the invited email instead.
+  const [signedOut, setSignedOut] = useState(false);
+  const session = browser && !signedOut ? loadAppSession() : null;
 
   async function accept(event: FormEvent) {
     event.preventDefault();
@@ -45,7 +47,20 @@ export default function InvitePage() {
       <p className="mt-3 text-sm text-marino/70">Sign in with the email the invitation was sent to.</p>
       <form onSubmit={accept} className="mt-6 space-y-4">
         {session ? (
-          <p className="text-sm">Signed in as {session.email}.</p>
+          <p className="text-sm">
+            Signed in as {session.email}.{" "}
+            {/* The invitation is for one email: someone else signed in on this browser has to leave first. */}
+            <button
+              type="button"
+              onClick={() => {
+                signOut();
+                setSignedOut(true);
+              }}
+              className="font-semibold underline"
+            >
+              Not you? Sign out
+            </button>
+          </p>
         ) : (
           <label className="block text-sm">
             Email

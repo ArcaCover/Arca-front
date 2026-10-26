@@ -711,6 +711,20 @@ describe("the rest of the demo path", () => {
     expect(document.body.textContent).not.toContain("inv_token");
   });
 
+  it("lets someone signed in as another email sign out on the invitation, and sign in as the invited one", async () => {
+    navigation.params = { token: "inv_token" };
+    saveAppSession({ token: "app-token", email: "other@elsewhere.com", expiresAt: future() });
+    vi.mocked(acceptInvitation).mockResolvedValue(org({ id: "org_9", role: "member" }));
+    inApp("/app/invite/inv_token", <InvitePage />);
+    expect(await screen.findByText(/Signed in as other@elsewhere.com/)).toBeTruthy();
+    await userEvent.click(button("Not you? Sign out"));
+    expect(loadAppSession()).toBeNull();
+    await userEvent.type(await screen.findByLabelText("Email"), "member@smithlaw.com");
+    await userEvent.click(button("Sign in and accept"));
+    await waitFor(() => expect(navigation.router.replace).toHaveBeenCalledWith("/app"));
+    expect(signIn).toHaveBeenCalledExactlyOnceWith("member@smithlaw.com");
+  });
+
   it("requests the deletion with a reason, and deletes nothing", async () => {
     signedIn(org());
     vi.mocked(requestDeletion).mockResolvedValue({

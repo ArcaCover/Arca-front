@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { signIn, signOut } from "./auth";
-import { loadAppSession, saveAppSession } from "./session";
+import { loadAppSession, loadPendingClaim, recallOrg, rememberOrg, saveAppSession, savePendingClaim } from "./session";
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -10,6 +10,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test");
   vi.stubGlobal("fetch", fetchMock);
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -52,11 +53,16 @@ describe("signIn", () => {
 });
 
 describe("signOut", () => {
-  it("drops the session", () => {
-    saveAppSession({ token: "app-token", email: "ana@smithlaw.com", expiresAt: new Date(Date.now() + 3_600_000).toISOString() });
+  it("drops the session, the remembered organization and the pending claim", () => {
+    const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
+    saveAppSession({ token: "app-token", email: "ana@smithlaw.com", expiresAt });
+    rememberOrg("org_1");
+    savePendingClaim({ claimId: "cl_1", email: "ana@smithlaw.com", expiresAt });
 
     signOut();
 
     expect(loadAppSession()).toBeNull();
+    expect(recallOrg()).toBeNull();
+    expect(loadPendingClaim()).toBeNull();
   });
 });

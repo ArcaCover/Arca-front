@@ -1,6 +1,6 @@
 import { debugSignIn } from "@/lib/debug/bridge";
 
-import { clearAppSession, saveAppSession } from "./session";
+import { clearAppSession, clearPendingClaim, forgetOrg, saveAppSession } from "./session";
 
 /** `not_configured` until Supabase Auth is wired up, which comes after the demo: only the mock sign-in exists today. */
 export async function signIn(
@@ -13,6 +13,9 @@ export async function signIn(
   return "signed_in";
 }
 
+// Everything the webapp kept for this person goes with them: the next one to sign in on this browser starts clean.
 export function signOut(): void {
   clearAppSession();
+  forgetOrg();
+  clearPendingClaim();
 }

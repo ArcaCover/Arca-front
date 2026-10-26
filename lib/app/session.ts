@@ -108,3 +108,7 @@ export function rememberOrg(id: string): void {
 export function recallOrg(): string | null {
   return read(local, ORG_KEY);
 }
+
+export function forgetOrg(): void {
+  remove(local, ORG_KEY);
+}
