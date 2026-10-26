@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 
 import { ApiError } from "@/lib/api/client";
 import { debugPay } from "@/lib/debug/bridge";
@@ -58,9 +58,13 @@ function MockCheckout() {
 }
 
 export default function MockCheckoutPage() {
-  return (
-    <Suspense fallback={null}>
-      <MockCheckout />
-    </Suspense>
-  );
+  // Only the mock back has a simulated checkout; in every other mode this page does not exist (DN-09 literal guard).
+  if (process.env.NEXT_PUBLIC_ARCA_MODE === "mock") {
+    return (
+      <Suspense fallback={null}>
+        <MockCheckout />
+      </Suspense>
+    );
+  }
+  notFound();
 }

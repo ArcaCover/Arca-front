@@ -40,6 +40,10 @@ vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
   useSearchParams: () => new URLSearchParams(navigation.query),
   useParams: () => navigation.params,
+  // What Next's notFound() does: it throws, and the nearest not-found boundary renders instead.
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
 }));
 vi.mock("next/link", () => ({ default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} /> }));
 vi.mock("@/lib/app/client");
@@ -578,8 +582,18 @@ describe("SaveResultsCta", () => {
   });
 });
 
+describe.each([undefined, "production", "live-debug"])("the simulated checkout (mode %s)", mode => {
+  it("does not exist", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+    navigation.query = "session=cs_mock_1";
+    expect(() => render(<MockCheckoutPage />)).toThrow("NEXT_NOT_FOUND");
+    expect(debugPay).not.toHaveBeenCalled();
+  });
+});
+
 describe("the rest of the demo path", () => {
   it("pays a simulated checkout and returns to the panel", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     signedIn(org({ billingStatus: "pending_payment", paidAccess: false }));
     navigation.query = "session=cs_mock_1";
     vi.mocked(debugPay).mockResolvedValue(true);
