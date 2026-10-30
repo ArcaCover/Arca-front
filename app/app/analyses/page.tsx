@@ -149,7 +149,7 @@ export default function AnalysesPage() {
                       </td>
                       <td role="cell" className="col-start-2 md:table-cell md:px-4 md:py-3">
                         <span aria-hidden className="mr-2 text-xs text-marino/55 md:hidden">Score</span>
-                        <span className="font-semibold tabular-nums">{score === null ? "—" : score}</span>
+                        <span className="font-semibold tabular-nums">{score === null ? "—" : Math.round(score)}</span>
                       </td>
                       <td role="cell" className="col-start-2 md:table-cell md:px-4 md:py-3">
                         <TierBadge tier={tier} />
@@ -224,7 +224,7 @@ export default function AnalysesPage() {
                               </p>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className="font-heading text-2xl font-semibold tabular-nums">{score === null ? "—" : score}</span>
+                              <span className="font-heading text-2xl font-semibold tabular-nums">{score === null ? "—" : Math.round(score)}</span>
                               <TierBadge tier={tier} />
                             </div>
                           </div>

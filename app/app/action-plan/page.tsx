@@ -121,7 +121,7 @@ function ActionPlan() {
             {done} of {all.length} actions done
           </p>
         </div>
-        <StatCard icon={Sparkles} label="Potential points" value={`+${potential}`} hint="If every open action is done" />
+        <StatCard icon={Sparkles} label="Potential points" value={`+${Math.round(potential * 10) / 10}`} hint="If every open action is done" />
         <StatCard icon={CheckCircle2} label="Done" value={done} hint={`${all.length - done} still open`} />
       </div>
 

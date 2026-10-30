@@ -24,7 +24,7 @@ export default function TopBar({ organization, onMenu, top }: { organization: Re
       <div className="min-w-0 shrink text-sm">{organization}</div>
       <div className="ml-auto flex items-center gap-2">
         <WorkspaceSearch />
-        <Link href="/quote" className={`${buttonClass.primary} hidden sm:inline-flex`}>
+        <Link href="/quote" className={`${buttonClass.primary} max-sm:hidden`}>
           <Plus aria-hidden className="h-4 w-4" />
           New analysis
         </Link>

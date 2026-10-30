@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
@@ -101,7 +101,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <span className="block truncate font-heading font-semibold">{context.org.name}</span>
       );
     return (
-      <div className={`min-h-screen bg-canvas text-marino${debugStrip() ? " pt-6" : ""}`}>
+      <div
+        style={{ "--app-top": debugStrip() ? "1.5rem" : "0px" } as CSSProperties}
+        className={`min-h-screen bg-canvas text-marino${debugStrip() ? " pt-6" : ""}`}
+      >
         <ToastProvider>
           {/* Keyed by organization: switching remounts the pages and the sample state, so nothing carries over. */}
           <AppContext.Provider key={context.org.id} value={context}>

@@ -67,7 +67,8 @@ export function Dialog({
         tabIndex={-1}
         className={
           drawer
-            ? "absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-white shadow-2xl"
+            ? // --app-top is the debug strip's height, set by the /app shell; the panel starts below it.
+              "absolute bottom-0 right-0 top-[var(--app-top,0px)] flex w-full max-w-md flex-col bg-white shadow-2xl"
             : "absolute left-1/2 top-1/2 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl bg-white shadow-2xl"
         }
       >
