@@ -174,10 +174,11 @@ async function memberIsRefused({ owner, member: { page } }) {
   await page.waitForURL(onPath('/app'));
   await gauge(page, demo.score).waitFor();
 
+  // The organization is already paid, so billing offers the portal, not a checkout (ebfc3cf); both need billing.manage.
   await page.goto(`${frontendUrl}/app/billing`);
-  const checkout = page.waitForResponse(response => apiPath(response, /^\/orgs\/[^/]+\/billing\/checkout$/, 'POST'));
-  await page.getByRole('button', { name: `Pay with ${MONTHLY}` }).click();
-  if ((await checkout).status() !== 403) throw new Error(`The member's checkout answered ${(await checkout).status()}`);
+  const portal = page.waitForResponse(response => apiPath(response, /^\/orgs\/[^/]+\/billing\/portal$/, 'POST'));
+  await page.getByRole('button', { name: 'Manage billing' }).click();
+  if ((await portal).status() !== 403) throw new Error(`The member's billing portal answered ${(await portal).status()}`);
   await page.getByRole('alert').filter({ hasText: FORBIDDEN }).waitFor();
   await shot(page, '3-member-cannot-pay');
 
@@ -189,7 +190,7 @@ async function memberIsRefused({ owner, member: { page } }) {
   await page.getByRole('alert').filter({ hasText: FORBIDDEN }).waitFor();
   if ((await ownerRole.inputValue()) !== 'owner') throw new Error('The owner lost the owner role');
   await shot(page, '3-member-cannot-set-roles');
-  console.log('  the member joined by the link and sees the analysis; checkout 403, role change 403, both shown');
+  console.log('  the member joined by the link and sees the analysis; billing portal 403, role change 403, both shown');
 }
 
 // 4. The simulated platform admin changes a plan's price → /app/billing shows it.
@@ -207,10 +208,15 @@ async function adminChangesPrice({ owner, admin: { page } }) {
   await page.getByText(`${MONTHLY} now costs $${NEW_PRICE} / month.`).waitFor();
   await shot(page, '4-admin-price');
 
+  // The owner's organization is paid, so its billing page offers the portal and lists no plans (ebfc3cf). The plans it
+  // would list come from GET /plans, so that is where the new price has to show.
+  const plans = await (await fetch(`${apiUrl}/plans`)).json();
+  const monthly = plans.find(plan => plan.code === 'monthly');
+  if (monthly?.amountCents !== Number(NEW_PRICE) * 100) throw new Error(`GET /plans still prices monthly at ${monthly?.amountCents}`);
   await owner.page.goto(`${frontendUrl}/app/billing`);
-  await owner.page.getByText(`$${NEW_PRICE} / month`).waitFor();
-  await shot(owner.page, '4-billing-new-price');
-  console.log(`  ${MONTHLY} set to $${NEW_PRICE} on /app/admin; the owner's /app/billing shows $${NEW_PRICE} / month`);
+  await owner.page.getByRole('button', { name: 'Manage billing' }).waitFor();
+  await shot(owner.page, '4-billing-paid');
+  console.log(`  ${MONTHLY} set to $${NEW_PRICE} on /app/admin; GET /plans, which billing lists for unpaid organizations, returns it`);
 }
 
 // 5. Request deletion → a pending request, nothing deleted; access continues with a notice. ARCA sees it and rejects it.
