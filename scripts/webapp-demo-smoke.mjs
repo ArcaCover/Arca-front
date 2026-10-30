@@ -218,7 +218,8 @@ async function deletionStaysPending({ owner: { page }, admin }) {
   await page.goto(`${frontendUrl}/app/settings`);
   await page.getByLabel('Reason').fill('Closing the firm (demo)');
   await page.getByRole('button', { name: 'Request deletion' }).click();
-  await page.getByText(/^Deletion requested\. It is pending review by ARCA/).waitFor();
+  // Settings states the pending request next to its closed form (16b299e); the layout leaves its own notice out there.
+  await page.getByText(/A deletion request is pending review by ARCA/).waitFor();
   await page.goto(`${frontendUrl}/app`);
   await page.getByText(/A deletion request is pending review by ARCA/).waitFor();
   await gauge(page, demo.score).waitFor();

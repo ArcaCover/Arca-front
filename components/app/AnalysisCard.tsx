@@ -10,7 +10,7 @@ type Summary = { score: number | null; tier: TierName; bars: Bar[]; decisionWith
 
 // With an assessment, the combined score and the six domains, as /assessment/results shows them. A scan claimed without
 // one keeps its Layer 1 score and four categories, as /score shows them.
-function summary({ assessment, layer1, scanStatus }: AnalysisView): Summary {
+export function summary({ assessment, layer1, scanStatus }: AnalysisView): Summary {
   if (assessment) {
     return {
       score: assessment.compositeScore,

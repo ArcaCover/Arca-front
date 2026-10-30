@@ -111,7 +111,8 @@ Members, Settings y Help no se bloquean, como hoy.
 - **Workspace**: Overview, Analyses, Action plan, Monitoring, Coverage, Documents
 - **Organization**: Members, Billing, Settings, Activity
 - **Pie**: Help & support, el enlace a `/app/admin` si `me.platformAdmin`, y una tarjeta pequeña
-  con el estado de la org (plan activo, pendiente de pago o borrado pendiente).
+  con el estado de la org. Dice "Plan active", "Awaiting payment", "Payment overdue" o "Deletion
+  requested", con textos distintos a los de Billing y a los avisos para no duplicarlos.
 
 Cada ítem lleva icono de `lucide-react`, `aria-current="page"` y una píldora de contador donde
 aplique: acciones abiertas y alertas sin leer, ambas de muestra.
@@ -124,8 +125,10 @@ aplique: acciones abiertas y alertas sin leer, ambas de muestra.
   resultados; Enter navega.
 - Botón dorado "New analysis" que lleva a `/quote`.
 - Campana con contador y panel de alertas de muestra, con "Mark all as read" local.
-- Menú de usuario con email, rol en la org activa, Settings, Help y **Sign out**, que conserva el
-  comportamiento actual.
+
+El email, el rol en la org activa y **Sign out** van en el pie de la barra lateral. Están siempre
+visibles, no dentro de un menú: así hay un solo "Sign out" en la página y conserva el
+comportamiento actual.
 
 **Móvil (< `lg`)**: barra superior con botón de menú que abre la navegación en un panel lateral
 (diálogo con foco atrapado); la búsqueda pasa a un icono.
@@ -296,8 +299,11 @@ tipo, y "Export CSV" deshabilitado. Refuerza la idea de trazabilidad de CLAUDE.m
 
 **Datos de muestra** en `lib/app/mock/`:
 
-- Un archivo por dominio: `alerts.ts`, `actions.ts`, `activity.ts`, `documents.ts`, `history.ts`,
-  `invoices.ts`, `team.ts` y `search.ts`.
+- `actions.ts`, `alerts.ts` y `team.ts` para lo que tiene estado.
+- `records.ts` para el resto: historial, benchmark, actividad, documentos, facturas, sesiones y
+  límites.
+- `dates.ts` para las fechas.
+- El índice de búsqueda se arma en la barra superior a partir de la navegación y de estos datos.
 - Datos deterministas, sin `Math.random`, para que pruebas y capturas sean estables.
 - Fechas relativas a "hoy" calculadas una vez.
 - Cabecera de archivo: `// Sample data for the /app preview. Not connected to the API (see spec 2026-10-29).`
