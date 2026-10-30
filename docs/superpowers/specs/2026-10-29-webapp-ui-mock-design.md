@@ -261,7 +261,8 @@ can manage billing." Además:
 
 ### 6.9 Settings (`/app/settings`)
 
-Pestañas:
+Secciones en una sola página con un índice lateral de anclas, no pestañas: así el formulario de
+borrado sigue visible sin un clic previo, como lo esperan las pruebas de DN-10.
 
 - **General**: la ficha actual de la org (real), más el perfil de la firma: estado principal,
   número de abogados y áreas de práctica. Es local, con "Save" que da un aviso de vista previa.
@@ -307,6 +308,15 @@ el layout, con `useReducer`. No se persisten.
 
 **Avisos de vista previa**: un único texto para toda la app, "Preview only: this isn't connected
 yet.", más el detalle de cada caso.
+
+**Un solo DOM para todos los tamaños.** La barra lateral es el mismo elemento en escritorio y en
+móvil (en móvil se desliza como panel). No se duplican piezas por breakpoint. Las pruebas corren
+en jsdom, que no aplica media queries, y un nombre de organización o un "Sign out" duplicados las
+romperían. Por la misma razón:
+
+- El nombre de la org aparece una sola vez como texto exacto.
+- Los bloques de muestra no usan `role="alert"`.
+- Ninguna lista de muestra se llama "Action plan": ese nombre es de la `AnalysisCard` real.
 
 ## 8. Verificación
 

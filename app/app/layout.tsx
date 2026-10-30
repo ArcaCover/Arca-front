@@ -7,6 +7,11 @@ import { LogOut } from "lucide-react";
 import type { MeResponse } from "@arca/contracts";
 
 import { AppContext, activeOrg, type AppState } from "@/components/app/AppContext";
+import { SampleStateProvider } from "@/components/app/SampleState";
+import { OrgNotices } from "@/components/app/shell/OrgNotices";
+import Sidebar from "@/components/app/shell/Sidebar";
+import TopBar from "@/components/app/shell/TopBar";
+import { ToastProvider } from "@/components/app/ui";
 import { ApiError } from "@/lib/api/client";
 import { signOut } from "@/lib/app/auth";
 import { getMe } from "@/lib/app/client";
@@ -20,13 +25,6 @@ const STAFF = "/app/admin";
 
 type State = { kind: "loading" } | { kind: "ready"; me: MeResponse } | { kind: "failed"; message: string };
 
-const NAV = [
-  { href: "/app", label: "Analyses" },
-  { href: "/app/billing", label: "Billing" },
-  { href: "/app/members", label: "Members" },
-  { href: "/app/settings", label: "Settings" },
-];
-
 export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -35,6 +33,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState(0);
   // Re-picked when the user switches organization; the remembered one wins on the next load.
   const [picked, setPicked] = useState<string | null>(null);
+  // The navigation panel below lg.
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const leave = useCallback(() => {
     signOut();
@@ -77,32 +77,63 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   if (open) return <Frame>{children}</Frame>;
 
+  if (state.kind === "ready" && context) {
+    const organization =
+      state.me.organizations.length > 1 ? (
+        <label className="flex items-center gap-2">
+          <span className="sr-only">Organization</span>
+          <select
+            value={context.org.id}
+            onChange={event => {
+              rememberOrg(event.target.value);
+              setPicked(event.target.value);
+            }}
+            className="max-w-[12rem] rounded-full border border-marino/20 bg-white px-3 py-1.5 font-semibold sm:max-w-xs"
+          >
+            {state.me.organizations.map(option => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <span className="block truncate font-heading font-semibold">{context.org.name}</span>
+      );
+    return (
+      <div className={`min-h-screen bg-canvas text-marino${debugStrip() ? " pt-6" : ""}`}>
+        <ToastProvider>
+          {/* Keyed by organization: switching remounts the pages and the sample state, so nothing carries over. */}
+          <AppContext.Provider key={context.org.id} value={context}>
+            <SampleStateProvider>
+              <Sidebar
+                me={state.me}
+                org={context.org}
+                pathname={pathname}
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                onSignOut={leave}
+                top={debugStrip() ? "1.5rem" : "0px"}
+              />
+              <div className="lg:pl-64">
+                <TopBar organization={organization} onMenu={() => setMenuOpen(true)} top={debugStrip() ? "1.5rem" : "0px"} />
+                <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+                  <OrgNotices pathname={pathname} />
+                  {children}
+                </main>
+              </div>
+            </SampleStateProvider>
+          </AppContext.Provider>
+        </ToastProvider>
+      </div>
+    );
+  }
+
   return (
     <Frame
       header={
         state.kind === "ready" && (
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            {org && state.me.organizations.length > 1 ? (
-              <label className="flex items-center gap-2">
-                <span className="sr-only">Organization</span>
-                <select
-                  value={org.id}
-                  onChange={event => {
-                    rememberOrg(event.target.value);
-                    setPicked(event.target.value);
-                  }}
-                  className="rounded-full border border-marino/20 bg-white px-3 py-1.5"
-                >
-                  {state.me.organizations.map(option => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              org && <span className="font-semibold">{org.name}</span>
-            )}
             <span className="text-marino/70">{state.me.user.email}</span>
             <button
               type="button"
@@ -129,25 +160,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             Try again
           </button>
         </div>
-      ) : context ? (
-        <>
-          <nav aria-label="App" className="mb-8 flex flex-wrap gap-2 text-sm">
-            {NAV.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={pathname === item.href ? "page" : undefined}
-                className="rounded-full border border-marino/15 bg-white px-3 py-1.5 aria-[current=page]:bg-marino aria-[current=page]:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          {/* Keyed by organization: switching remounts the page, so no state from the previous one carries over. */}
-          <AppContext.Provider key={context.org.id} value={context}>
-            {children}
-          </AppContext.Provider>
-        </>
       ) : pathname === STAFF ? (
         children
       ) : (
@@ -166,13 +178,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   );
 }
 
+// In the debug modes DebugRoot's strip is fixed over the top of the page: one text-xs line with py-1, 1.5rem tall.
+// Without this room it covers the organization, the email and Sign out. Literal comparison, as DN-09 asks.
+const debugStrip = () =>
+  process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
+
+/** The plain frame of the public pages, the loading and failed states and the staff page. */
 function Frame({ header, children }: { header?: ReactNode; children: ReactNode }) {
-  // In the debug modes DebugRoot's strip is fixed over the top of the page: one text-xs line with py-1, 1.5rem tall.
-  // Without this room it covers the organization, the email and Sign out. Literal comparison, as DN-09 asks.
-  const debugStrip =
-    process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
   return (
-    <div className={`min-h-screen text-marino${debugStrip ? " pt-6" : ""}`}>
+    <div className={`min-h-screen text-marino${debugStrip() ? " pt-6" : ""}`}>
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-marino/10 bg-white px-6 py-4">
         <Link href="/app" className="font-heading text-lg font-semibold">
           Arca
