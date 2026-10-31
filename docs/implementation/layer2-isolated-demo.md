@@ -11,7 +11,7 @@ arca-isolated/
   Arca-front/
 ```
 
-`@arca/contracts` resolves to `file:../Arca-back/packages/contracts`. Build the backend packages before building or testing the frontend. Next.js has an explicit Turbopack root at the parent directory so the sibling package symlink resolves. Both checkouts are required; this fork deliberately does not fetch the published 0.1.0 contracts.
+`@arca/contracts` installs from the `contracts-v0.2.0` release tarball of Arca-back (CLAUDE.md §3), so this checkout builds on its own, Vercel included. To try contracts that are not released yet, run `npm install ../Arca-back/packages/contracts --no-save` after building the backend packages; do not commit a `file:` dependency.
 
 ```sh
 cd ../Arca-back
