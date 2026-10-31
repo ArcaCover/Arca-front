@@ -16,7 +16,7 @@
     "test:browser:modes": "node scripts/debug-modes-smoke.mjs"
   },
   "dependencies": {
-    "@arca/contracts": "file:../Arca-back/packages/contracts",
+    "@arca/contracts": "https://github.com/ArcaCover/Arca-back/releases/download/contracts-v0.3.0/arca-contracts-0.3.0.tgz",
     "@supabase/supabase-js": "^2.110.0",
     "lucide-react": "^1.23.0",
     "next": "^16.2.10",
