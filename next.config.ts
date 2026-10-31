@@ -1,4 +1,3 @@
-import path from "node:path";
 import type { NextConfig } from "next";
 import { resolveArcaMode } from "./lib/arca-mode";
 
@@ -8,9 +7,6 @@ import { resolveArcaMode } from "./lib/arca-mode";
 const mode = resolveArcaMode(process.env);
 
 const nextConfig: NextConfig = {
-  // This isolated prototype consumes contracts from the paired sibling checkout.
-  // Turbopack must be able to resolve that symlink outside the frontend directory.
-  turbopack: { root: path.resolve(process.cwd(), "..") },
   env: { NEXT_PUBLIC_ARCA_MODE: mode },
 };
 
