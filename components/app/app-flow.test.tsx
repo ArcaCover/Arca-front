@@ -696,7 +696,8 @@ describe("the rest of the demo path", () => {
     signedIn(org({ role: "member", billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/billing", <BillingPage />);
     expect(await screen.findByText("Only the owner can manage billing.")).toBeTruthy();
-    expect(button("Pay with Monthly (example price)").disabled).toBe(true);
+    // The note renders before the plans arrive, so the button is awaited rather than read at once.
+    expect((await screen.findByRole<HTMLButtonElement>("button", { name: "Pay with Monthly (example price)" })).disabled).toBe(true);
   });
 
   it("accepts an invitation after signing in, and opens that organization", async () => {
