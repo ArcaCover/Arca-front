@@ -4,16 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "dev:mock": "node scripts/with-mode.mjs mock next dev --webpack",
+    "dev:live-debug": "node scripts/with-mode.mjs live-debug next dev --webpack",
+    "build": "next build && node scripts/check-no-debug.mjs",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "test:browser:assessment": "node scripts/assessment-browser-smoke.mjs"
+    "test:browser:assessment": "node scripts/assessment-browser-smoke.mjs",
+    "test:browser:modes": "node scripts/debug-modes-smoke.mjs"
   },
   "dependencies": {
-    "@arca/contracts": "file:../Arca-back/packages/contracts",
+    "@arca/contracts": "https://github.com/ArcaCover/Arca-back/releases/download/contracts-v0.3.0/arca-contracts-0.3.0.tgz",
     "@supabase/supabase-js": "^2.110.0",
     "lucide-react": "^1.23.0",
     "next": "^16.2.10",

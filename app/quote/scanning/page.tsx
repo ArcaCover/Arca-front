@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, RotateCcw } from "lucide-react";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { ApiError, pollScan } from "@/lib/api/client";
 import { forgetSession, recallSession } from "@/lib/api/session";
+import { publishDebugState } from "@/lib/debug/bridge";
 
 // What Layer 1 actually reads: the firm's website, the Florida Bar register and Avvo.
 // Nothing here promises a source the scan does not have (CLAUDE.md §7).
@@ -87,6 +88,16 @@ function ScanningScreen() {
       try {
         const poll = await pollScan(scanId!, token!);
         if (cancelled) return;
+        publishDebugState("scanning", {
+          scanId,
+          status: poll.status,
+          elapsed: poll.status === "RUNNING" ? poll.elapsed : null,
+          waitedMs: waited,
+          pollEveryMs: poll.status !== "RUNNING" || waited >= GIVE_UP_AFTER_MS ? null
+            : waited >= BACK_OFF_AFTER_MS ? SLOW_POLL_MS : FAST_POLL_MS,
+          phase: poll.status === "RUNNING" ? (waited >= GIVE_UP_AFTER_MS ? "failed" : "polling")
+            : poll.status === "FAILED" ? "failed" : "done",
+        });
 
         if (poll.status === "RUNNING") {
           // The API reports how long it has been working; the bar follows that rather than
@@ -116,10 +127,26 @@ function ScanningScreen() {
       } catch (error) {
         if (cancelled) return;
         if (error instanceof ApiError && (error.code === "unauthorized" || error.code === "not_found")) {
+          publishDebugState("scanning", {
+            scanId,
+            status: `error: ${error.code}`,
+            elapsed: null,
+            waitedMs: waited,
+            pollEveryMs: null,
+            phase: "redirected",
+          });
           forgetSession(scanId!);
           router.replace("/quote");
           return;
         }
+        publishDebugState("scanning", {
+          scanId,
+          status: `error: ${error instanceof ApiError ? error.code : "unexpected"}`,
+          elapsed: null,
+          waitedMs: waited,
+          pollEveryMs: waited < GIVE_UP_AFTER_MS ? SLOW_POLL_MS : null,
+          phase: waited < GIVE_UP_AFTER_MS ? "polling" : "failed",
+        });
         // A blip in the network is not a failed scan: keep polling until we run out of patience.
         if (waited < GIVE_UP_AFTER_MS) {
           timer = setTimeout(tick, SLOW_POLL_MS);

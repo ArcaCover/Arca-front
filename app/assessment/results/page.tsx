@@ -18,6 +18,7 @@ import { ApiError, getAssessmentResult } from "@/lib/api/client";
 import { recallSession } from "@/lib/api/session";
 import { recallAssessment } from "@/lib/api/assessment-session";
 import { assessmentHref } from "@/lib/assessment";
+import { publishDebugState } from "@/lib/debug/bridge";
 
 function ResultsScreen() {
   const params = useSearchParams();
@@ -54,10 +55,21 @@ function ResultsScreen() {
             "unauthorized",
             "This result does not belong to this scan.",
           );
+        publishDebugState("results", {
+          scanId: value.scanId,
+          layer1Score: value.layer1Score,
+          layer2Score: value.layer2Score,
+          compositeScore: value.compositeScore,
+          tier: value.tier,
+          flags: value.flags,
+          bankVersion: value.bankVersion,
+          scoringVersion: value.scoringVersion,
+        });
         setResult(value);
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
+        publishDebugState("results", { scanId, error: cause instanceof ApiError ? cause.code : "unexpected" });
         setError(
           cause instanceof ApiError
             ? cause.message

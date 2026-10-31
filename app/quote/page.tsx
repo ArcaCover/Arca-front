@@ -7,6 +7,7 @@ import { ArrowRight, Globe, Loader2, Mail } from "lucide-react";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { ApiError, startScan } from "@/lib/api/client";
 import { rememberSession } from "@/lib/api/session";
+import { publishDebugState, sentDebugScenario } from "@/lib/debug/bridge";
 import { isEmailProviderAddress, isEmailProviderDomain } from "@/lib/email-providers";
 
 // Enough to catch a typo, not enough to argue with RFC 5322.
@@ -74,6 +75,12 @@ export default function QuotePage() {
       // both land on the `scans` row. The front does not write to the database itself
       // (CLAUDE.md §3: business logic lives behind the API).
       const started = await startScan({ email: email.trim(), domain: domain.trim() });
+      publishDebugState("quote", {
+        scanId: started.scanId,
+        lastError: null,
+        response: { status: started.status, cached: "cached" in started ? started.cached : false },
+        sentScenario: sentDebugScenario(),
+      });
       rememberSession(started.scanId, started.sessionToken);
 
       // Only the scanId travels in the URL from here. The email and the domain are insured
@@ -85,6 +92,14 @@ export default function QuotePage() {
       router.push(next);
     } catch (error) {
       setSubmitting(false);
+      publishDebugState("quote", {
+        scanId: null,
+        lastError: error instanceof ApiError
+          ? { code: error.code, retryAfter: error.retryAfter ?? null }
+          : { code: "unexpected", retryAfter: null },
+        response: null,
+        sentScenario: sentDebugScenario(),
+      });
       if (!(error instanceof ApiError)) {
         setFormError("Something went wrong starting your scan. Please try again.");
         return;

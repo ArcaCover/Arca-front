@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, downloadReport } from "@/lib/api/client";
+import { ApiError, downloadReport, startScan } from "@/lib/api/client";
+import { SCENARIO_STORAGE_KEY } from "@/lib/debug/bridge";
 
 describe("API base URL", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
@@ -53,5 +54,67 @@ describe("downloadReport", () => {
     const error = await downloadReport("sc_1", "token-1").catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "report_unavailable" });
+  });
+});
+
+// The debug scenario rides on POST /scan only in a debug build (DN-09 §5.3, §8.11). These tests run in Node, which has
+// no sessionStorage, so each one installs the storage it needs.
+describe("startScan and the debug scenario header", () => {
+  const SCENARIO = JSON.stringify({ bar: "apify_quota", avvo: "apify_quota" });
+  const fetchMock = vi.fn<typeof fetch>();
+  const sentHeaders = (call = 0) => fetchMock.mock.calls[call]?.[1]?.headers;
+  let stored: Map<string, string>;
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test");
+    stored = new Map([[SCENARIO_STORAGE_KEY, SCENARIO]]);
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => stored.get(key) ?? null,
+      removeItem: (key: string) => void stored.delete(key),
+    });
+    fetchMock.mockImplementation(async () =>
+      Response.json({ scanId: "sc_1", sessionToken: "token-1", status: "RUNNING" }, { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => { fetchMock.mockReset(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+  it("sends no scenario header in production, even with a scenario stored", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", undefined);
+
+    await startScan({ email: "partner@firm.example", domain: "firm.example" });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(sentHeaders()).toEqual({ "Content-Type": "application/json" });
+    expect(stored.get(SCENARIO_STORAGE_KEY)).toBe(SCENARIO);
+  });
+
+  it("sends the stored scenario in mock", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+
+    await startScan({ email: "partner@firm.example", domain: "firm.example" });
+
+    expect(sentHeaders()).toEqual({ "Content-Type": "application/json", "X-Arca-Debug-Scenario": SCENARIO });
+  });
+
+  it("sends the scenario with the next scan only: the one after it is a clean scan", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+
+    await startScan({ email: "partner@firm.example", domain: "firm.example" });
+    await startScan({ email: "partner@firm.example", domain: "firm.example" });
+
+    expect(sentHeaders(0)).toEqual({ "Content-Type": "application/json", "X-Arca-Debug-Scenario": SCENARIO });
+    expect(sentHeaders(1)).toEqual({ "Content-Type": "application/json" });
+    expect(stored.has(SCENARIO_STORAGE_KEY)).toBe(false);
+  });
+
+  it("still starts the scan, without the header, where there is no sessionStorage at all", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    vi.unstubAllGlobals();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(typeof globalThis.sessionStorage).toBe("undefined");
+
+    await expect(startScan({ email: "partner@firm.example", domain: "firm.example" })).resolves.toMatchObject({ scanId: "sc_1" });
+    expect(sentHeaders()).toEqual({ "Content-Type": "application/json" });
   });
 });

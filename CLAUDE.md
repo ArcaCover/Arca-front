@@ -1418,7 +1418,7 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 
 This section applies only to this isolated implementation checkout and supersedes the historical Layer 2 mock status above. The original repositories, remote branches and deployments are unchanged.
 
-- Layer 2 now uses the sibling isolated backend's shared `@arca/contracts` package through `file:../Arca-back/packages/contracts`. Keep both checkouts together and build the backend packages first.
+- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.3.0` on this branch, which also carries the debug and webapp contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
 - `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
 - `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
 - Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial/PDF controls were removed.
