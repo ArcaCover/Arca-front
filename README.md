@@ -2,8 +2,9 @@
 
 Sitio de Arca y el embudo `/quote` → scan → `/score` → assessment → resultados, en Next 16.
 
-El front no corre solo: consume los contratos del back con `file:../Arca-back/packages/contracts` y llama a su
-API. Clona [ArcaCover/Arca-back](https://github.com/ArcaCover/Arca-back) en la misma carpeta que este repo y
+El front instala los contratos del back desde una release de Arca-back (`contracts-v<versión>`), así que compila
+solo, también en Vercel. Para probar contratos sin publicar: `npm install ../Arca-back/packages/contracts --no-save`.
+Para correrlo sí necesita la API del back. Clona [ArcaCover/Arca-back](https://github.com/ArcaCover/Arca-back) en la misma carpeta que este repo y
 sigue "Ejecutar localmente" en su README. Ahí está todo el arranque, incluido `npm run stack -- mock`, que
 levanta los dos repos a la vez.
 
