@@ -49,7 +49,11 @@ export type ApiErrorCode =
   | "report_unavailable"
   | "rate_limited"
   | "unauthorized"
+  | "payment_required"
+  | "forbidden"
   | "not_found"
+  | "gone"
+  | "not_configured"
   | "internal_error"
   | "network"
   | "contract"
@@ -84,11 +88,15 @@ const ERROR_CODES = new Set<string>([
   "report_unavailable",
   "rate_limited",
   "unauthorized",
+  "payment_required",
+  "forbidden",
   "not_found",
+  "gone",
+  "not_configured",
   "internal_error",
 ]);
 
-async function failure(response: Response): Promise<ApiError> {
+export async function apiFailure(response: Response): Promise<ApiError> {
   const retryAfter = Number(response.headers.get("Retry-After")) || undefined;
   const body: unknown = await response.json().catch(() => null);
   const payload = body as { error?: unknown; message?: unknown } | null;
@@ -107,7 +115,7 @@ async function failure(response: Response): Promise<ApiError> {
   );
 }
 
-async function send(path: string, init: RequestInit): Promise<Response> {
+export async function apiSend(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${baseUrl()}${path}`, {
       ...init,
@@ -124,7 +132,7 @@ async function send(path: string, init: RequestInit): Promise<Response> {
 
 /** Every response is parsed against the published contract before the UI sees it, so a
     deployment mismatch surfaces as a legible error instead of a render crash. */
-function parse<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
+export function apiParse<T>(schema: { parse: (value: unknown) => T }, body: unknown): T {
   try {
     return schema.parse(body);
   } catch {
@@ -139,24 +147,24 @@ export async function startScan(input: {
   email: string;
   domain: string;
 }): Promise<Scan> {
-  const response = await send("/scan", {
+  const response = await apiSend("/scan", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...takeDebugScenarioHeaders() },
     body: JSON.stringify({ email: input.email, domain: input.domain }),
   });
-  if (!response.ok) throw await failure(response);
-  return parse(ScanResponse, await response.json().catch(() => null));
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(ScanResponse, await response.json().catch(() => null));
 }
 
 export async function pollScan(
   scanId: string,
   sessionToken: string,
 ): Promise<Poll> {
-  const response = await send(`/scan/${encodeURIComponent(scanId)}`, {
+  const response = await apiSend(`/scan/${encodeURIComponent(scanId)}`, {
     headers: { Authorization: `Bearer ${sessionToken}` },
   });
-  if (!response.ok) throw await failure(response);
-  return parse(PollResponse, await response.json().catch(() => null));
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(PollResponse, await response.json().catch(() => null));
 }
 
 /** The Quick Scan Report, rendered by the API from the stored result. The filename is the
@@ -165,13 +173,13 @@ export async function downloadReport(
   scanId: string,
   sessionToken: string,
 ): Promise<{ blob: Blob; filename: string }> {
-  const response = await send(
+  const response = await apiSend(
     `/scan/${encodeURIComponent(scanId)}/report.pdf`,
     {
       headers: { Authorization: `Bearer ${sessionToken}` },
     },
   );
-  if (!response.ok) throw await failure(response);
+  if (!response.ok) throw await apiFailure(response);
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const filename =
     /filename="([^"]+)"/.exec(disposition)?.[1] ??
@@ -181,15 +189,15 @@ export async function downloadReport(
 
 /** The server owns the question list, branch rules, answer validation and scoring. */
 export async function startAssessment(scanId: string, token: string) {
-  const response = await send(
+  const response = await apiSend(
     `/scan/${encodeURIComponent(scanId)}/assessment`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     },
   );
-  if (!response.ok) throw await failure(response);
-  return parse(
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(
     StartedAssessmentResponse,
     await response.json().catch(() => null),
   );
@@ -199,14 +207,14 @@ export async function getAssessment(
   assessmentId: string,
   token: string,
 ): Promise<Assessment> {
-  const response = await send(
+  const response = await apiSend(
     `/assessment/${encodeURIComponent(assessmentId)}`,
     {
       headers: { Authorization: `Bearer ${token}` },
     },
   );
-  if (!response.ok) throw await failure(response);
-  return parse(AssessmentView, await response.json().catch(() => null));
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(AssessmentView, await response.json().catch(() => null));
 }
 
 export async function saveAnswer(
@@ -215,7 +223,7 @@ export async function saveAnswer(
   answer: AnswerValue,
   token: string,
 ): Promise<Assessment> {
-  const response = await send(
+  const response = await apiSend(
     `/assessment/${encodeURIComponent(assessmentId)}/answers/${encodeURIComponent(questionId)}`,
     {
       method: "PUT",
@@ -226,15 +234,15 @@ export async function saveAnswer(
       body: JSON.stringify({ answer }),
     },
   );
-  if (!response.ok) throw await failure(response);
-  return parse(AssessmentView, await response.json().catch(() => null));
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(AssessmentView, await response.json().catch(() => null));
 }
 
 export async function completeAssessment(
   assessmentId: string,
   token: string,
 ): Promise<Result> {
-  const response = await send(
+  const response = await apiSend(
     `/assessment/${encodeURIComponent(assessmentId)}/complete`,
     {
       method: "POST",
@@ -245,20 +253,20 @@ export async function completeAssessment(
       body: JSON.stringify({ attestation: true }),
     },
   );
-  if (!response.ok) throw await failure(response);
-  return parse(AssessmentResult, await response.json().catch(() => null));
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(AssessmentResult, await response.json().catch(() => null));
 }
 
 export async function getAssessmentResult(
   assessmentId: string,
   token: string,
 ): Promise<Result> {
-  const response = await send(
+  const response = await apiSend(
     `/assessment/${encodeURIComponent(assessmentId)}/result`,
     {
       headers: { Authorization: `Bearer ${token}` },
     },
   );
-  if (!response.ok) throw await failure(response);
-  return parse(AssessmentResult, await response.json().catch(() => null));
+  if (!response.ok) throw await apiFailure(response);
+  return apiParse(AssessmentResult, await response.json().catch(() => null));
 }
