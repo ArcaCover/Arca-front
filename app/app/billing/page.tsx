@@ -2,22 +2,16 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { CreditCard, Download, Info } from "lucide-react";
-import type { BillingStatus, PlanView } from "@arca/contracts";
+import { CreditCard, Download } from "lucide-react";
+import type { PlanView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
-import { Badge, Card, PageHeader, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
+import { Badge, Card, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
 import { seesSampleInvoices, useAccess } from "@/lib/app/access";
 import { checkout, getPlans, portal } from "@/lib/app/client";
+import { BILLING_STATUS_LABEL } from "@/lib/app/labels";
 import { SAMPLE_INVOICES } from "@/lib/app/mock/records";
 import { formatPrice } from "@/lib/app/price";
-
-const STATUS: Record<BillingStatus, string> = {
-  pending_payment: "Pending payment",
-  active: "Active",
-  past_due: "Past due",
-  canceled: "Canceled",
-};
 
 export default function BillingPage() {
   const { org } = useApp();
@@ -51,6 +45,12 @@ export default function BillingPage() {
   const access = useAccess();
   const canPay = access.can("billing.manage");
   const seesInvoices = seesSampleInvoices(access.role, access.forbiddenShown);
+  // Only what the role sees below: the invoices for the owner and the admin, and who receives them for the owner alone.
+  const description = !seesInvoices
+    ? "Your organization's plan."
+    : canPay
+      ? "Your organization's plan, its invoices and who receives them."
+      : "Your organization's plan and its invoices.";
 
   async function leaveFor(page: () => Promise<{ url: string }>) {
     setBusy(true);
@@ -73,17 +73,8 @@ export default function BillingPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Organization"
-        title="Billing"
-        description={seesInvoices ? "Your organization's plan, its invoices and who receives them." : "Your organization's plan."}
-      />
-      {!canPay && (
-        <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
-          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          Only the owner can manage billing.
-        </p>
-      )}
+      <PageHeader eyebrow="Organization" title="Billing" description={description} />
+      {!canPay && <ReadOnlyNotice>Only the owner can manage billing.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
           {error}
@@ -98,7 +89,7 @@ export default function BillingPage() {
             </span>
             <div className="text-sm">
               <p>
-                Status: <strong>{STATUS[org.billingStatus]}</strong>
+                Status: <strong>{BILLING_STATUS_LABEL[org.billingStatus]}</strong>
               </p>
               {!org.paidAccess &&
                 (canPay ? (

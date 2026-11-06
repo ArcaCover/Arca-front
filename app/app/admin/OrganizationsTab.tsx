@@ -6,8 +6,10 @@ import type { AdminOrgDetailView, AdminOrgView } from "@arca/contracts";
 
 import { Badge, Field, buttonClass, formatDate } from "@/components/app/ui";
 import { adminGetOrganization, adminListOrganizations } from "@/lib/app/client";
+import { BILLING_STATUS_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
-import { BILLING_LABEL, ROLE_LABEL, messageOf } from "./shared";
+import { LoadFailed } from "./LoadFailed";
+import { messageOf } from "./shared";
 
 // Every organization, the deleted ones too, and one of them in full without leaving /app/admin (DN-11 §4.5, §6.4): the
 // layout's staff guard matches that path exactly, so the detail is state of this tab, not a page of its own.
@@ -19,6 +21,8 @@ export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void
   const [list, setList] = useState<AdminOrgView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  // Bumped by Try again, so a list that failed is asked for again without leaving the tab.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,14 +36,18 @@ export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   if (open) return <OrganizationDetail id={open} onBack={() => setOpen(null)} onAudit={onAudit} />;
   if (error) {
     return (
-      <p role="alert" className="text-sm text-rojo">
-        {error}
-      </p>
+      <LoadFailed
+        message={error}
+        onRetry={() => {
+          setError(null);
+          setAttempt(value => value + 1);
+        }}
+      />
     );
   }
   if (!list) {
@@ -57,7 +65,7 @@ export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void
           <span className="min-w-0 flex-1 break-words">
             <strong>{nameOf(org)}</strong> · {count(org.members, "member", "members")}
           </span>
-          <Badge>{BILLING_LABEL[org.billingStatus]}</Badge>
+          <Badge>{BILLING_STATUS_LABEL[org.billingStatus]}</Badge>
           {org.deleted && <Badge tone="danger">Deleted</Badge>}
           <button type="button" aria-label={`Open ${nameOf(org)}`} onClick={() => setOpen(org.id)} className={buttonClass.secondary}>
             Open
@@ -115,7 +123,7 @@ function OrganizationDetail({ id, onBack, onAudit }: { id: string; onBack: () =>
       {back}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <h2 className="break-words font-heading text-lg">{nameOf(detail)}</h2>
-        <Badge>{BILLING_LABEL[detail.billingStatus]}</Badge>
+        <Badge>{BILLING_STATUS_LABEL[detail.billingStatus]}</Badge>
         {detail.deleted && <Badge tone="danger">Deleted</Badge>}
       </div>
       <dl className="mt-4 grid gap-4 rounded-3xl border border-marino/10 bg-white p-4 sm:grid-cols-3">

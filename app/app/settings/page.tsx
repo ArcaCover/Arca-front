@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { CalendarDays, FolderOpen, Info, Laptop, Scale, Smartphone } from "lucide-react";
+import { CalendarDays, FolderOpen, Laptop, Scale, Smartphone } from "lucide-react";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
-import { Badge, Card, PageHeader, SampleBadge, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
+import {
+  Badge, Card, PageHeader, ReadOnlyNotice, SampleBadge, buttonClass, formatDate, inputClass, usePreview,
+} from "@/components/app/ui";
 import { useAccess } from "@/lib/app/access";
 import { renameOrg, requestDeletion } from "@/lib/app/client";
 import { SAMPLE_SESSIONS } from "@/lib/app/mock/records";
@@ -49,6 +51,9 @@ export default function SettingsPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renamed, setRenamed] = useState(false);
+  // The name the last rename saved. org.name keeps the old one until /me answers again, and the same name sent twice would
+  // only audit a second rename.
+  const [saved, setSaved] = useState<string | null>(null);
 
   // Sample values for the local forms below: nothing here is read from or sent to the API.
   const [profile, setProfile] = useState({ state: "Florida", attorneys: "12", areas: ["Immigration", "Personal injury"] });
@@ -64,7 +69,7 @@ export default function SettingsPage() {
   const canRequest = access.can("org.request_deletion");
   const canTransfer = access.can("org.transfer_ownership");
   const ownerOnly = !canRequest || !canTransfer;
-  const unchangedName = name.trim() === "" || name.trim() === org.name;
+  const unchangedName = name.trim() === "" || name.trim() === org.name || name.trim() === saved;
   // One request at a time: a second one would only meet the back's 409, so the form closes until ARCA reviews it.
   const pending = requested || org.deletionPending;
 
@@ -93,6 +98,7 @@ export default function SettingsPage() {
     try {
       const updated = await renameOrg(org.id, name.trim());
       setName(updated.name);
+      setSaved(updated.name);
       setRenamed(true);
       // The top bar and the sidebar show the name from /me.
       reload();
@@ -118,12 +124,11 @@ export default function SettingsPage() {
     <>
       <PageHeader eyebrow="Organization" title="Settings" description="Your organization's details, notifications, security and data." />
       {(!canEdit || ownerOnly) && (
-        <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
-          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+        <ReadOnlyNotice>
           {canEdit
             ? "Only the owner can request the organization's deletion or transfer its ownership."
             : "Ask an owner or admin to change the organization's details. Only the owner can request its deletion."}
-        </p>
+        </ReadOnlyNotice>
       )}
 
       <div className="grid gap-6 lg:grid-cols-[11rem_1fr]">

@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
-import { Download, FileText, Info, Upload, X } from "lucide-react";
+import { Download, FileText, Upload, X } from "lucide-react";
 
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import { useAnalyses } from "@/components/app/useAnalyses";
-import { Badge, Card, EmptyState, PageHeader, buttonClass, formatDate, usePreview } from "@/components/app/ui";
+import { Badge, Card, EmptyState, PageHeader, ReadOnlyNotice, buttonClass, formatDate, usePreview } from "@/components/app/ui";
 import { useCan } from "@/lib/app/access";
 import { SAMPLE_TEMPLATES } from "@/lib/app/mock/records";
 
@@ -27,12 +27,7 @@ function Documents() {
 
   return (
     <>
-      {!canUpload && (
-        <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
-          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          Ask an owner or admin to add evidence files.
-        </p>
-      )}
+      {!canUpload && <ReadOnlyNotice>Ask an owner or admin to add evidence files.</ReadOnlyNotice>}
       <Card
         title="Reports"
         description="The PDF report of each saved analysis. The report is generated with the scan's own access token, which this workspace does not hold yet."

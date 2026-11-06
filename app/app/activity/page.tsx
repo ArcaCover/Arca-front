@@ -46,6 +46,8 @@ export default function ActivityPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [person, setPerson] = useState(EVERYONE);
   const [kind, setKind] = useState<KindFilter>("all");
+  // Bumped by Try again, so a first page that failed is asked for again without leaving the page.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +61,12 @@ export default function ActivityPage() {
     return () => {
       cancelled = true;
     };
-  }, [org.id, fail]);
+  }, [org.id, fail, attempt]);
+
+  function retry() {
+    setError(null);
+    setAttempt(value => value + 1);
+  }
 
   async function loadMore(before: number) {
     setError(null);
@@ -98,7 +105,14 @@ export default function ActivityPage() {
     return (
       <>
         {header}
-        {alert || (
+        {alert ? (
+          <>
+            {alert}
+            <button type="button" onClick={retry} className={buttonClass.secondary}>
+              Try again
+            </button>
+          </>
+        ) : (
           <p role="status" className="text-sm text-marino/70">
             Loading activity…
           </p>
@@ -107,7 +121,11 @@ export default function ActivityPage() {
     );
   }
 
-  const rows = log.events.map(event => ({ event, actor: actorOf(event), ...describeAction(event.action, event.targetLabel) }));
+  const rows = log.events.map(event => ({
+    event,
+    actor: actorOf(event),
+    ...describeAction(event.action, event.targetLabel, { member: event.actor.kind === "member", email: event.actor.email }),
+  }));
   const people = [...new Map(rows.map(({ actor }) => [actor.key, actor.name])).entries()];
   const byPerson = person === EVERYONE ? rows : rows.filter(row => row.actor.key === person);
   const visible = kind === "all" ? byPerson : byPerson.filter(row => row.kind === kind);

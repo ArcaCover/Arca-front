@@ -63,8 +63,9 @@ export default function RoleControls() {
         setBusy(false);
         return;
       }
-      // The new session is in hand before the old one goes, so a failed sign-in leaves the current user signed in.
-      const session = await mockSignIn(user.email);
+      // The new session is in hand before the old one goes, so a failed sign-in leaves the current user signed in. The ARCA
+      // admin also asks the mock login for the platform grant, so the button keeps working if the seed's grant changes.
+      const session = await mockSignIn(user.email, role === "platform_admin" || undefined);
       signOut();
       saveAppSession(session);
       // The seeded owner may have made other organizations during the demo; this one opens first.

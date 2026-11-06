@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import type { AnchorHTMLAttributes, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   ActivityEventView, AdminAuditEventView, AdminMetricsView, AdminOrgDetailView, MeResponse, OrgView, Role,
 } from "@arca/contracts";
 
+import { ACTION_LABELS, describeAction, describeChange } from "@/app/app/activity/events";
 import ActivityPage from "@/app/app/activity/page";
 import AdminPage from "@/app/app/admin/page";
 import AppLayout from "@/app/app/layout";
@@ -92,6 +93,41 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllEnvs();
+});
+
+describe("the activity's words", () => {
+  const SYSTEM = { member: false, email: null };
+
+  it("says a member joined on their own, and names who was added when someone else made the join", () => {
+    expect(describeAction("member.joined", "new@smithlaw.com", { member: true, email: "new@smithlaw.com" }).text).toBe(
+      "joined the organization",
+    );
+    // The demo seed adds its members as the system (DN-11 §4.3).
+    expect(describeAction("member.joined", "viewer@smithlaw.com", SYSTEM).text).toBe("added viewer@smithlaw.com to the organization");
+    expect(describeAction("member.joined", "viewer@smithlaw.com", { member: true, email: "owner@smithlaw.com" }).text).toBe(
+      "added viewer@smithlaw.com to the organization",
+    );
+    expect(describeAction("member.joined", null, SYSTEM).text).toBe("added a member to the organization");
+    // A member whose profile is gone has no email left, as the one who acted nor as the one who joined.
+    expect(describeAction("member.joined", null, { member: true, email: null }).text).toBe("joined the organization");
+  });
+
+  it("puts a generic noun where the back could not name the target, so no sentence trails off", () => {
+    expect(describeAction("member.role_changed", "member@smithlaw.com", SYSTEM).text).toBe("changed the role of member@smithlaw.com");
+    expect(describeAction("member.role_changed", null, SYSTEM).text).toBe("changed a member's role");
+    expect(describeAction("analysis.claimed", null, SYSTEM).text).toBe("saved an analysis");
+    expect(describeAction("invitation.revoked", null, SYSTEM).text).toBe("closed an invitation");
+    for (const action of Object.keys(ACTION_LABELS)) {
+      expect(describeAction(action, null, SYSTEM).text).not.toMatch(/\b(of|for|the action|the plan|invited|removed)$/);
+    }
+  });
+
+  it("shows the role a removed member had, not a change to none", () => {
+    expect(describeChange("member.removed", { from: "admin", to: null })).toBe("Role: Admin");
+    expect(describeChange("member.role_changed", { from: "member", to: "admin" })).toBe("Role: Member → Admin");
+    // A due date that was cleared still says so.
+    expect(describeChange("action.updated", { from: "2026-11-01", to: null })).toBe("Due date: Nov 1, 2026 → none");
+  });
 });
 
 describe("the organization's activity", () => {
@@ -193,6 +229,47 @@ describe("the organization's activity", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
     expect(screen.getByText("changed the role of member@smithlaw.com")).toBeTruthy();
     expect(button("Load more").disabled).toBe(false);
+  });
+
+  it("names who the system added, and the role a removed member had", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity).mockResolvedValue({
+      events: [
+        event({
+          id: "e8", action: "member.joined", actor: { kind: "system", email: null }, targetLabel: "viewer@smithlaw.com",
+          change: { from: null, to: "viewer" },
+        }),
+        event({
+          id: "e7", action: "member.joined", actor: { kind: "member", email: "member@smithlaw.com" },
+          targetLabel: "member@smithlaw.com", change: { from: null, to: "member" },
+        }),
+        event({ id: "e6", action: "member.removed", targetLabel: "admin@smithlaw.com", change: { from: "admin", to: null } }),
+      ],
+      nextBefore: null,
+    });
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByText("added viewer@smithlaw.com to the organization")).toBeTruthy();
+    expect(actor("System")).toBeTruthy();
+    expect(screen.getByText("Role: Viewer")).toBeTruthy();
+    expect(screen.queryByText("joined the organization", { selector: "p" })?.textContent).toBe("member@smithlaw.com joined the organization");
+    expect(screen.getByText("removed admin@smithlaw.com")).toBeTruthy();
+    expect(screen.getByText("Role: Admin")).toBeTruthy();
+    expect(screen.queryByText(/→ none/)).toBeNull();
+  });
+
+  it("offers to try again when the first page cannot load", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce({ events: EVENTS, nextBefore: null });
+    inApp("/app/activity", <ActivityPage />);
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(listActivity).toHaveBeenCalledTimes(2);
   });
 
   it("shows an action the front has no words for under its own name", async () => {
@@ -372,6 +449,75 @@ describe("the platform admin page", () => {
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
   });
 
+  it("says who the system added, where the audit has no change line to say it", async () => {
+    staff();
+    vi.mocked(adminListAudit).mockResolvedValue({
+      events: [
+        audit({ id: "a6", action: "member.joined", actorKind: "system", actorEmail: null, targetLabel: "viewer@smithlaw.com" }),
+        audit({ id: "a5", action: "member.joined", actorEmail: "new@smithlaw.com", targetLabel: "new@smithlaw.com" }),
+      ],
+      nextBefore: null,
+    });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    const events = await screen.findByRole("list", { name: "Audit events" });
+    expect(within(events).getByText("added viewer@smithlaw.com to the organization")).toBeTruthy();
+    expect(within(events).getByText("joined the organization").textContent).toBe("new@smithlaw.com joined the organization");
+  });
+
+  it("ties Load more to the list on screen: a page asked before the filter changed neither holds the button nor shows its error", async () => {
+    staff();
+    let refuse: (cause: unknown) => void = () => undefined;
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (refuse = reject)))
+      .mockResolvedValueOnce({ events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })], nextBefore: 7 });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect(button("Loading…").disabled).toBe(true);
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    expect(await screen.findByText("removed member@smithlaw.com")).toBeTruthy();
+    expect(button("Load more").disabled).toBe(false);
+
+    await act(async () => refuse(new ApiError("network", "We could not reach the server.")));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(button("Load more").disabled).toBe(false);
+    expect(screen.queryByText("created the organization")).toBeNull();
+  });
+
+  it("offers to try again when the audit's first page cannot load", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: null });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByText("created the organization")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminListAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers to try again when the organizations cannot load", async () => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    // The panel's own read takes the first answer; the tab's is the one that fails.
+    await screen.findByRole("tab", { name: "Organizations" });
+    vi.mocked(adminListOrganizations)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce(ORGS);
+    await openTab("Organizations");
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("list", { name: "Organizations" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("shows the counts, and only counts", async () => {
     staff();
     inApp("/app/admin", <AdminPage />);
@@ -388,11 +534,18 @@ describe("the platform admin page", () => {
     expect(screen.getByRole("tabpanel").textContent).not.toMatch(/\$/);
   });
 
-  it("shows the API's reason when a tab cannot load", async () => {
+  it("shows the API's reason when a tab cannot load, and offers to try again", async () => {
     staff();
-    vi.mocked(adminGetMetrics).mockRejectedValue(new ApiError("forbidden", "Platform admin access required"));
+    vi.mocked(adminGetMetrics)
+      .mockRejectedValueOnce(new ApiError("forbidden", "Platform admin access required"))
+      .mockResolvedValueOnce(METRICS);
     inApp("/app/admin", <AdminPage />);
     await openTab("Metrics");
     expect((await screen.findByRole("alert")).textContent).toContain("Platform admin access required");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("region", { name: "Organizations" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminGetMetrics).toHaveBeenCalledTimes(2);
   });
 });

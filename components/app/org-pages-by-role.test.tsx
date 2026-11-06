@@ -142,18 +142,21 @@ describe("members", () => {
 
 describe("billing (D10: open to every role, managed by the owner)", () => {
   const NOTE = "Only the owner can manage billing.";
+  const OWNER_SEES = "Your organization's plan, its invoices and who receives them.";
   const view = () => ({
     note: screen.queryByText(NOTE) !== null,
     manage: has("button", "Manage billing"),
     invoices: has("heading", "Invoices"),
     contact: has("heading", "Billing contact"),
+    // The page's description names only what the role sees below it.
+    description: screen.getByText(/^Your organization's plan/).textContent,
   });
 
   it.each<[Role, ReturnType<typeof view>]>([
-    ["owner", { note: false, manage: true, invoices: true, contact: true }],
-    ["admin", { note: true, manage: false, invoices: true, contact: false }],
-    ["member", { note: true, manage: false, invoices: false, contact: false }],
-    ["viewer", { note: true, manage: false, invoices: false, contact: false }],
+    ["owner", { note: false, manage: true, invoices: true, contact: true, description: OWNER_SEES }],
+    ["admin", { note: true, manage: false, invoices: true, contact: false, description: "Your organization's plan and its invoices." }],
+    ["member", { note: true, manage: false, invoices: false, contact: false, description: "Your organization's plan." }],
+    ["viewer", { note: true, manage: false, invoices: false, contact: false, description: "Your organization's plan." }],
   ])("shows a %s of a paid organization what its role reads and manages", async (role, expected) => {
     signedIn(org({ role }));
     inApp("/app/billing", <BillingPage />);
@@ -188,13 +191,26 @@ describe("billing (D10: open to every role, managed by the owner)", () => {
     },
   );
 
+  it("shows the admin of an unpaid organization no invoices, not sample ones, and nothing to pay with", async () => {
+    signedIn(org({ role: "admin", ...UNPAID }));
+    inApp("/app/billing", <BillingPage />);
+    expect(await screen.findByText("Monthly (example price)")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Invoices" })).toBeTruthy();
+    expect(screen.getByText("No invoices yet. They appear here once a plan is active.")).toBeTruthy();
+    expect(screen.queryByRole("table", { name: "Invoices" })).toBeNull();
+    expect(screen.queryByText("Sample data")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Pay with/ })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Billing contact" })).toBeNull();
+    expect(screen.getByText("Your organization's plan and its invoices.")).toBeTruthy();
+  });
+
   it("in mock with the switch on, gives a member the owner's controls so the back's 403 shows", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     sessionStorage.setItem(SWITCH_KEY, "1");
     signedIn(org({ role: "member" }));
     inApp("/app/billing", <BillingPage />);
     expect(await screen.findByRole("button", { name: "Manage billing" })).toBeTruthy();
-    expect(view()).toEqual({ note: false, manage: true, invoices: true, contact: true });
+    expect(view()).toEqual({ note: false, manage: true, invoices: true, contact: true, description: OWNER_SEES });
   });
 });
 
@@ -273,6 +289,30 @@ describe("settings", () => {
     expect(getMe).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps Rename off once the name is saved, while /me still has the old one", async () => {
+    signedIn(org({ role: "owner" }));
+    vi.mocked(renameOrg).mockResolvedValue(org({ name: "Smith & Jones Law" }));
+    inApp("/app/settings", <SettingsPage />);
+    const input = await screen.findByLabelText<HTMLInputElement>("Organization name");
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(1));
+    // The reload that follows the rename has not answered yet: General still shows the old name.
+    vi.mocked(getMe).mockReturnValue(new Promise(() => undefined));
+
+    await userEvent.clear(input);
+    await userEvent.type(input, "Smith & Jones Law");
+    const rename = screen.getByRole<HTMLButtonElement>("button", { name: "Rename" });
+    await userEvent.click(rename);
+    expect(await screen.findByText("Name saved.")).toBeTruthy();
+    expect(screen.getByText("Smith Law", { selector: "dd" })).toBeTruthy();
+    expect(rename.disabled).toBe(true);
+    await userEvent.click(rename);
+    expect(renameOrg).toHaveBeenCalledOnce();
+
+    // A different name can still be sent.
+    await userEvent.type(input, " LLP");
+    expect(rename.disabled).toBe(false);
+  });
+
   it("shows the API's reason when the rename is refused", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     sessionStorage.setItem(SWITCH_KEY, "1");
@@ -305,6 +345,18 @@ describe("coverage", () => {
       expect(screen.getByText("AI Work Product Errors")).toBeTruthy();
     },
   );
+
+  it.each<Role>(["member", "viewer"])("in mock with the switch on, gives a %s every button back", async role => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    sessionStorage.setItem(SWITCH_KEY, "1");
+    signedIn(org({ role }));
+    inApp("/app/coverage", <CoveragePage />);
+    expect(await screen.findByRole("heading", { name: "No active policy" })).toBeTruthy();
+    expect(BUTTONS.map(name => has("button", name))).toEqual(BUTTONS.map(() => true));
+    expect(screen.queryByText(NOTE)).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Request a quote" }));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+  });
 });
 
 describe("documents", () => {
@@ -321,6 +373,34 @@ describe("documents", () => {
       expect(screen.queryByText(NOTE) !== null).toBe(!allowed);
     },
   );
+
+  it.each<Role>(["member", "viewer"])("in mock with the switch on, gives a %s the evidence upload back", async role => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    sessionStorage.setItem(SWITCH_KEY, "1");
+    signedIn(org({ role }));
+    inApp("/app/documents", <DocumentsPage />);
+    expect(await screen.findByRole("button", { name: "Download AI use policy template" })).toBeTruthy();
+    expect(screen.getByLabelText(/Add evidence files/)).toBeTruthy();
+    expect(has("heading", "Evidence")).toBe(true);
+    expect(screen.queryByText(NOTE)).toBeNull();
+  });
+});
+
+describe("the permissions' words", () => {
+  it("words each permission the same on Members and in Help", async () => {
+    signedIn(org({ role: "owner" }));
+    const members = inApp("/app/members", <MembersPage />);
+    await screen.findByText("owner@smithlaw.com");
+    expect(screen.getByRole("row", { name: /^Assign actions and add or delete the organization's own/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /^See the organization and its analyses/ })).toBeTruthy();
+    members.unmount();
+
+    inApp("/app/help", <HelpPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Who sees what in my organization?" }));
+    const owner = screen.getByText("Owner", { selector: "span" }).closest("li")!;
+    expect(owner.textContent).toContain("assign actions and add or delete the organization's own");
+    expect(owner.textContent).toContain("see the organization and its analyses");
+  });
 });
 
 describe("help", () => {

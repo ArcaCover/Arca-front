@@ -4,14 +4,18 @@ import { useEffect, useState } from "react";
 import type { AdminMetricsView } from "@arca/contracts";
 
 import { adminGetMetrics } from "@/lib/app/client";
+import { BILLING_STATUS_LABEL } from "@/lib/app/labels";
 
-import { BILLING_LABEL, messageOf } from "./shared";
+import { LoadFailed } from "./LoadFailed";
+import { messageOf } from "./shared";
 
 // Counts only (DN-11 §4.5): the back sends no figure about money, and nothing here derives one.
 
 export function MetricsTab() {
   const [metrics, setMetrics] = useState<AdminMetricsView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bumped by Try again, so counts that failed are asked for again without leaving the tab.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,13 +29,17 @@ export function MetricsTab() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   if (error) {
     return (
-      <p role="alert" className="text-sm text-rojo">
-        {error}
-      </p>
+      <LoadFailed
+        message={error}
+        onRetry={() => {
+          setError(null);
+          setAttempt(value => value + 1);
+        }}
+      />
     );
   }
   if (!metrics) {
@@ -52,10 +60,10 @@ export function MetricsTab() {
       <Counts
         title="Organizations"
         items={[
-          [BILLING_LABEL.pending_payment, organizations.pending_payment],
-          [BILLING_LABEL.active, organizations.active],
-          [BILLING_LABEL.past_due, organizations.past_due],
-          [BILLING_LABEL.canceled, organizations.canceled],
+          [BILLING_STATUS_LABEL.pending_payment, organizations.pending_payment],
+          [BILLING_STATUS_LABEL.active, organizations.active],
+          [BILLING_STATUS_LABEL.past_due, organizations.past_due],
+          [BILLING_STATUS_LABEL.canceled, organizations.canceled],
           ["Deleted", organizations.deleted],
         ]}
       />

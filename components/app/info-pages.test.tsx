@@ -213,7 +213,7 @@ describe("/app/help", () => {
     expect(question.getAttribute("aria-expanded")).toBe("true");
     const answer = document.getElementById(question.getAttribute("aria-controls") ?? "");
     expect(answer?.hidden).toBe(false);
-    expect(answer?.textContent).toMatch(/Viewer can see the organization's analyses and pages\./);
+    expect(answer?.textContent).toMatch(/Viewer can see the organization and its analyses\./);
     await userEvent.click(question);
     expect(question.getAttribute("aria-expanded")).toBe("false");
   });

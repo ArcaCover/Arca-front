@@ -163,12 +163,13 @@ describe("RoleControls", () => {
   });
 
   it.each([
-    ["owner", "owner@demo.arca.example", "/app"],
-    ["admin", "admin@demo.arca.example", "/app"],
-    ["member", "member@demo.arca.example", "/app"],
-    ["viewer", "viewer@demo.arca.example", "/app"],
-    ["ARCA admin", "ops@demo.arca.example", "/app/admin"],
-  ])("Sign in as %s signs the previous user out, signs in as the seeded user and loads %s", async (who, email, home) => {
+    ["owner", "owner@demo.arca.example", "/app", { email: "owner@demo.arca.example" }],
+    ["admin", "admin@demo.arca.example", "/app", { email: "admin@demo.arca.example" }],
+    ["member", "member@demo.arca.example", "/app", { email: "member@demo.arca.example" }],
+    ["viewer", "viewer@demo.arca.example", "/app", { email: "viewer@demo.arca.example" }],
+    // The ARCA admin also asks the mock login for the platform grant, so the button does not rest on the seed's alone.
+    ["ARCA admin", "ops@demo.arca.example", "/app/admin", { email: "ops@demo.arca.example", platformAdmin: true }],
+  ])("Sign in as %s signs the previous user out, signs in as the seeded user and loads %s", async (who, email, home, login) => {
     previousUser();
     render(<RoleControls />);
 
@@ -177,7 +178,7 @@ describe("RoleControls", () => {
     await waitFor(() => expect(assign).toHaveBeenCalledExactlyOnceWith(home));
     expect(sent()).toEqual([
       { request: "POST http://api.test/__debug/seed", debugHeader: "1", authorization: null, body: undefined },
-      { request: "POST http://api.test/__debug/auth/login", debugHeader: "1", authorization: null, body: { email } },
+      { request: "POST http://api.test/__debug/auth/login", debugHeader: "1", authorization: null, body: login },
     ]);
     expect(loadAppSession()).toEqual({ token: `token-${email.split("@")[0]}`, email, expiresAt: expect.any(String) });
     // Nothing of the previous user stays: their organization and their claim went with signOut().

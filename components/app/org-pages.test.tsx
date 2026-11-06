@@ -99,7 +99,7 @@ describe("members", () => {
     const cells = within(screen.getByRole("row", { name: /^Manage billing/ })).getAllByRole("cell");
     // Columns follow ROLES: owner, admin, member, viewer.
     expect(cells.map(cell => cell.textContent)).toEqual(["Allowed", "Not allowed", "Not allowed", "Not allowed"]);
-    const read = within(screen.getByRole("row", { name: /^View the organization/ })).getAllByRole("cell");
+    const read = within(screen.getByRole("row", { name: /^See the organization and its analyses/ })).getAllByRole("cell");
     expect(read.every(cell => cell.textContent === "Allowed")).toBe(true);
   });
 

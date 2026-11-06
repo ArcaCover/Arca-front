@@ -1,36 +1,25 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Check, Copy, Info, Minus, Search, UserPlus } from "lucide-react";
+import { Check, Copy, Minus, Search, UserPlus } from "lucide-react";
 import {
   PERMISSIONS, ROLES, ROLE_PERMISSIONS, type InvitationView, type InviteRequest, type MemberView, type Permission, type Role,
 } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
-import { Avatar, Badge, Card, PageHeader, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import { Avatar, Badge, Card, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass } from "@/components/app/ui";
 import { useAccess } from "@/lib/app/access";
 import { invite, listMembers, removeMember, revokeInvitation, setMemberRole } from "@/lib/app/client";
+import { PERMISSION_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
 type People = { members: MemberView[]; invitations: InvitationView[] };
 type InvitableRole = InviteRequest["role"];
 const INVITABLE: InvitableRole[] = ["admin", "member", "viewer"];
 
-const ROLE_LABEL: Record<Role, string> = { owner: "Owner", admin: "Admin", member: "Member", viewer: "Viewer" };
-
-// A Record over Permission, so a permission added to the contract fails the typecheck until it gets a name here.
-const PERMISSION_LABEL: Record<Permission, string> = {
-  "org.read": "View the organization and its analyses",
-  "org.update": "Edit the organization's details, make coverage requests and add evidence",
-  "analysis.create": "Save analyses to the organization",
-  "actions.update": "Change the status of actions",
-  "actions.assign": "Assign actions and add the organization's own",
-  "activity.read": "See the organization's activity",
-  "members.invite": "Invite people",
-  "members.remove": "Remove members",
-  "members.set_role": "Change roles",
-  "billing.manage": "Manage billing",
-  "org.transfer_ownership": "Transfer ownership",
-  "org.request_deletion": "Request deletion",
+// A row of the permission table stands alone, so its words start with a capital.
+const permissionRow = (permission: Permission) => {
+  const words = PERMISSION_LABEL[permission];
+  return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
 // The invite link carries the invitation's secret, so the page shows only its start and copies the rest.
@@ -118,12 +107,7 @@ export default function MembersPage() {
           )
         }
       />
-      {readOnly && (
-        <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
-          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-          Ask an owner or admin to invite people or change roles.
-        </p>
-      )}
+      {readOnly && <ReadOnlyNotice>Ask an owner or admin to invite people or change roles.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
           {error}
@@ -305,7 +289,7 @@ export default function MembersPage() {
               {PERMISSIONS.map(permission => (
                 <tr key={permission}>
                   <th scope="row" className="py-2.5 pr-4 font-normal">
-                    {PERMISSION_LABEL[permission]}
+                    {permissionRow(permission)}
                   </th>
                   {ROLES.map(option => (
                     <td key={option} className="px-3 py-2.5 text-center">
