@@ -246,6 +246,10 @@ tales. El estado es local, y un aviso dice que se reinicia al recargar.~~
   (`updateAction`, `createAction` y `deleteAction`) y vuelve a leer el plan.
 - El responsable se elige entre los miembros que pueden marcar acciones (D11). La fecha se guarda al
   salir del campo, no en cada tecla.
+- Mientras el cambio de una acción va en camino, sus selectores de estado y de responsable quedan
+  inertes (`aria-disabled`), no deshabilitados, para que no pierdan el foco; lo que se elija entretanto
+  se ignora. Un cambio de estado lleva la acción a la lista de su nuevo estado: el foco la sigue a su
+  selector de estado y un `Toast` dice a qué estado pasó.
 - Las acciones propias se pueden borrar; las del assessment solo cambian de estado (D13).
 - Un aviso dice que marcar una acción no cambia el score (D16): "A new analysis updates the score".
 - Por rol: owner y admin lo hacen todo; el `member` solo cambia el estado; el `viewer` lo lee.
@@ -260,8 +264,10 @@ tales. El estado es local, y un aviso dice que se reinicia al recargar.~~
   leído. Al abrir una, un panel lateral muestra la explicación y la acción sugerida; los botones son
   "Mark as read", "Dismiss" y "Create action". Con DN-11 (D17), "Create action" abre el formulario de
   acción propia con el texto sugerido y, al confirmarlo, la guarda en el plan real; la alerta dice si
-  su sugerencia ya está en el plan. "Create action" y "Dismiss" siguen `actions.assign`; "Mark as
-  read" es personal.
+  su sugerencia ya está en el plan. "Create action" espera a que el plan se lea; si la lectura falla,
+  el panel lo dice con `LoadFailed` y "Try again". Si al llegar el plan el foco había caído a la
+  página (el botón "Try again" se va con el fallo), pasa a "Create action" o al enlace al plan.
+  "Create action" y "Dismiss" siguen `actions.assign`; "Mark as read" es personal.
 - **Textos genéricos**, por ejemplo "A state bar published new guidance on generative AI in
   filings". Todos llevan `Sample data`.
 
@@ -357,11 +363,12 @@ el sistema, solo con su tipo. Quedan los filtros por persona y por tipo de event
 - `Toast` (con un proveedor en el layout), `Sparkline` (SVG)
 - `ReadOnlyNotice`: la línea de solo lectura de DN-11 §6.1: una por página, arriba, dice quién puede
   hacer el cambio
-- `LoadFailed`: la primera lectura de una página o pestaña que falló, con el motivo de la API y "Try
-  again". En la actividad y el panel de ARCA, una negativa (401, 403, 404, 410) no ofrece "Try
-  again", ni "Load more" si fue una página siguiente, porque la respuesta sería la misma, y dice por
-  qué. El panel de ARCA no tiene organización de la que salir, así que con un 401 ofrece "Sign in
-  again" (`app/app/activity/ReadFailed.tsx`)
+- `LoadFailed`: la primera lectura de una página o pestaña que falló (o el plan en el panel de una
+  alerta de Monitoring), con el motivo de la API y "Try again". En la actividad y el panel de ARCA,
+  una negativa (401, 403, 404, 410) no ofrece "Try again", ni "Load more" si fue una página
+  siguiente, porque la respuesta sería la misma, y dice por qué. El panel de ARCA no tiene
+  organización de la que salir, así que con un 401 ofrece "Sign in again"
+  (`app/app/activity/ReadFailed.tsx`)
 
 **Datos de muestra** en `lib/app/mock/`:
 
