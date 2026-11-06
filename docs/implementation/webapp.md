@@ -6,7 +6,7 @@ Today the webapp runs in `mock` only: the sign-in and the payment are simulated,
 
 | Route | What it is |
 |---|---|
-| `/app/signup` | Reached from "Save your results and activate your account" on `/assessment/results`; creates the organization with the analysis |
+| `/app/signup` | Reached from "Save your results and activate your account" on `/assessment/results`, or from "Save your results to a new organization" for someone already signed in to an organization. Its title says "to a new organization" when the signed-in email is the claim's, and "activate your account" otherwise, since the sign-up then signs in as the claim's email. Creates the organization with the analysis |
 | `/app/login` | Sign-in; in mock it also offers "Sign in as an ARCA platform admin (mock)" |
 | `/app`, `/app/billing`, `/app/members`, `/app/settings` | The organization's panel, payment, people and deletion request |
 | `/app/invite/[token]` | Accepting an invitation |

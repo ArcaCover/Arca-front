@@ -111,7 +111,7 @@ lo nuevo vive en datos locales.
 | `/app/documents` | nueva | lista de análisis (para sus reportes) | documentos y subida de evidencia local |
 | `/app/members` | rehecha | todo lo actual | — |
 | `/app/billing` | rehecha | todo lo actual | historial de facturas, contacto de facturación |
-| `/app/settings` | rehecha con pestañas | org, renombrarla (DN-11, `org.update`) y solicitud de borrado actuales | perfil de la firma, notificaciones, seguridad, integraciones |
+| `/app/settings` | rehecha por secciones, con índice de anclas (§6.9) | org, renombrarla (DN-11, `org.update`) y solicitud de borrado actuales | perfil de la firma, notificaciones, seguridad, integraciones |
 | `/app/activity` | nueva; real con DN-11 | la actividad de la organización (`GET /orgs/:id/activity`), que sale de `audit_log` | — |
 | `/app/help` | nueva | — | preguntas frecuentes, contacto, formulario de comentarios |
 
@@ -127,7 +127,8 @@ desde DN-11, ya no se bloquea: no exige pago (D5).
 **Por rol (DN-11 §6.2).** Cada pantalla muestra solo lo que el rol puede hacer, en todos los modos.
 Una pantalla en solo lectura quita los controles y dice una vez, arriba, quién puede hacer el
 cambio. Ni el `member` ni el `viewer` abren la actividad: el layout muestra "Your role can't open
-this page".
+this page". La pantalla que el rol no abre conserva el título de la página como h1, y el plan de
+acción y Monitoring bloqueados sin pago conservan su encabezado.
 
 ## 5. Shell
 
@@ -354,6 +355,13 @@ el sistema, solo con su tipo. Quedan los filtros por persona y por tipo de event
 - `Badge` (incluye `SampleBadge`), `Tabs`, `EmptyState`, `LockedState`
 - `Modal` y `Drawer`, sobre `<dialog>` nativo
 - `Toast` (con un proveedor en el layout), `Sparkline` (SVG)
+- `ReadOnlyNotice`: la línea de solo lectura de DN-11 §6.1: una por página, arriba, dice quién puede
+  hacer el cambio
+- `LoadFailed`: la primera lectura de una página o pestaña que falló, con el motivo de la API y "Try
+  again". En la actividad y el panel de ARCA, una negativa (401, 403, 404, 410) no ofrece "Try
+  again", ni "Load more" si fue una página siguiente, porque la respuesta sería la misma, y dice por
+  qué. El panel de ARCA no tiene organización de la que salir, así que con un 401 ofrece "Sign in
+  again" (`app/app/activity/ReadFailed.tsx`)
 
 **Datos de muestra** en `lib/app/mock/`:
 
