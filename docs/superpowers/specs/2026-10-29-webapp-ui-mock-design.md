@@ -92,7 +92,10 @@ lo nuevo vive en datos locales.
   organization" y `demo.arca.example`).
 - **Pruebas**:
   - `typecheck`, `lint` y `test` en verde.
-  - `app-flow.test.tsx` se ajusta solo donde el layout movió algo.
+  - ~~`app-flow.test.tsx` se ajusta solo donde el layout movió algo.~~ Con DN-11 cambia también donde
+    DN-11 cambia el comportamiento a propósito: D3 en lugar de la regla de botones activos de DN-10 §5,
+    el plan de acción real en lugar del de muestra, el `member` sin `SaveResultsCta` (D2) y el Overview
+    por rol. Las reglas de DN-10 que siguen vigentes se siguen probando.
   - `npm run test:browser:webapp` (smoke de DN-10) sigue pasando.
 
 ## 4. Mapa de pantallas
@@ -225,8 +228,9 @@ El aviso del modelo de demostración de `AnalysisCard` se conserva.
 ### 6.3 Action plan (`/app/action-plan`)
 
 Lista agrupada por estado (To do, In progress, Done), con un resumen arriba: progreso y puntos
-potenciales. Cada acción muestra título, dominio, puntos y responsable (selector con miembros de
-muestra), fecha límite y selector de estado. Hay filtros por dominio y por responsable.
+potenciales. Cada acción muestra título, dominio, puntos y responsable (~~selector con miembros de
+muestra~~; con DN-11, los miembros reales que pueden marcar acciones, ver abajo), fecha límite y
+selector de estado. Hay filtros por dominio y por responsable.
 
 ~~Las acciones vienen del último assessment real cuando existe, más unas de muestra marcadas como
 tales. El estado es local, y un aviso dice que se reinicia al recargar.~~
