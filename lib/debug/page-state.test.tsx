@@ -197,7 +197,7 @@ describe("state the pages publish", () => {
 
     render(<AssessmentPage />);
 
-    await waitFor(() => expect(store.getSnapshot().assessment).toMatchObject({ status: "READY" }), { timeout: 4000 });
+    await waitFor(() => expect(store.getSnapshot().assessment).toMatchObject({ status: "READY" }));
     expect(store.getSnapshot().assessment?.planningMs).toEqual(expect.any(Number));
   });
 });
