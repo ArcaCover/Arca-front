@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { CreditCard, Download } from "lucide-react";
-import type { BillingStatus, PlanView } from "@arca/contracts";
+import Link from "next/link";
+import { CreditCard, Download, Info } from "lucide-react";
+import type { BillingStatus, PlanView, Role } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Badge, Card, PageHeader, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
-import { useCan } from "@/lib/app/access";
+import { useAccess } from "@/lib/app/access";
 import { checkout, getPlans, portal } from "@/lib/app/client";
 import { SAMPLE_INVOICES } from "@/lib/app/mock/records";
 import { formatPrice } from "@/lib/app/price";
@@ -17,6 +18,10 @@ const STATUS: Record<BillingStatus, string> = {
   past_due: "Past due",
   canceled: "Canceled",
 };
+
+// The sample invoices are for the people who run the organization (DN-11 §6.2). No permission of the contract covers
+// reading them, so the rule is a list of roles; like every view rule, it yields to the debug switch.
+const INVOICE_ROLES: readonly Role[] = ["owner", "admin"];
 
 export default function BillingPage() {
   const { org } = useApp();
@@ -44,8 +49,12 @@ export default function BillingPage() {
     };
   }, [fail, org.paidAccess]);
 
-  // The button follows the role in every mode; only the debug switch brings it back, to show the back's 403 (DN-11 D3).
-  const canPay = useCan("billing.manage");
+  // Billing opens for every role so an unpaid organization never leaves anyone without a way out (D10), but only the owner
+  // manages it. The rest read the status: their controls are not shown in any mode, and only the debug switch brings them
+  // back, to show the back's 403 (DN-11 D3).
+  const access = useAccess();
+  const canPay = access.can("billing.manage");
+  const seesInvoices = access.forbiddenShown || INVOICE_ROLES.includes(access.role);
 
   async function leaveFor(page: () => Promise<{ url: string }>) {
     setBusy(true);
@@ -71,8 +80,14 @@ export default function BillingPage() {
       <PageHeader
         eyebrow="Organization"
         title="Billing"
-        description="Your organization's plan, its invoices and who receives them."
+        description={seesInvoices ? "Your organization's plan, its invoices and who receives them." : "Your organization's plan."}
       />
+      {!canPay && (
+        <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
+          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+          Only the owner can manage billing.
+        </p>
+      )}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
           {error}
@@ -89,19 +104,22 @@ export default function BillingPage() {
               <p>
                 Status: <strong>{STATUS[org.billingStatus]}</strong>
               </p>
-              {!org.paidAccess && (
-                <p className="mt-1 text-marino/70">Choose a plan to open your organization&apos;s analyses.</p>
-              )}
-              {!canPay && <p className="mt-1 text-marino/70">Only the owner can manage billing.</p>}
+              {!org.paidAccess &&
+                (canPay ? (
+                  <p className="mt-1 text-marino/70">Choose a plan to open your organization&apos;s analyses.</p>
+                ) : (
+                  // The paywall sends an unpaid organization's pages here, so someone who cannot pay still gets a way on.
+                  <p className="mt-1 text-marino/70">
+                    Your organization&apos;s analyses open once the owner chooses a plan. Questions?{" "}
+                    <Link href="/app/help" className="font-semibold underline underline-offset-2">
+                      Contact ARCA
+                    </Link>
+                  </p>
+                ))}
             </div>
           </div>
-          {org.paidAccess && (
-            <button
-              type="button"
-              onClick={() => leaveFor(() => portal(org.id))}
-              disabled={busy || !canPay}
-              className={buttonClass.secondary}
-            >
+          {org.paidAccess && canPay && (
+            <button type="button" onClick={() => leaveFor(() => portal(org.id))} disabled={busy} className={buttonClass.secondary}>
               Manage billing
             </button>
           )}
@@ -122,111 +140,117 @@ export default function BillingPage() {
                 <h2 className="font-heading text-lg font-semibold">{plan.name}</h2>
                 <p className="mt-1 font-heading text-2xl font-semibold">{formatPrice(plan)}</p>
                 <p className="mt-2 flex-1 text-sm text-marino/70">Opens the organization&apos;s analyses for every member.</p>
-                <button
-                  type="button"
-                  aria-label={`Pay with ${plan.name}`}
-                  onClick={() => leaveFor(() => checkout(org.id, plan.code))}
-                  disabled={busy || !canPay}
-                  className={`${buttonClass.primary} mt-5 self-start`}
-                >
-                  Pay
-                </button>
+                {canPay && (
+                  <button
+                    type="button"
+                    aria-label={`Pay with ${plan.name}`}
+                    onClick={() => leaveFor(() => checkout(org.id, plan.code))}
+                    disabled={busy}
+                    className={`${buttonClass.primary} mt-5 self-start`}
+                  >
+                    Pay
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         ))}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card
-          className="lg:col-span-2"
-          title="Invoices"
-          description="Amounts are left out on purpose: this preview does not invent charges."
-          sample={org.paidAccess}
-        >
-          {org.paidAccess ? (
-            <div className="overflow-x-auto">
-              <table aria-label="Invoices" className="w-full min-w-[30rem] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-marino/10 text-xs uppercase tracking-wide text-marino/55">
-                    <th scope="col" className="py-2 pr-4 font-semibold">Invoice</th>
-                    <th scope="col" className="py-2 pr-4 font-semibold">Period</th>
-                    <th scope="col" className="py-2 pr-4 font-semibold">Issued</th>
-                    <th scope="col" className="py-2 pr-4 font-semibold">Status</th>
-                    <th scope="col" className="py-2 font-semibold">
-                      <span className="sr-only">Download</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-marino/10">
-                  {SAMPLE_INVOICES.map(invoice => (
-                    <tr key={invoice.id}>
-                      <td className="py-3 pr-4 font-semibold">{invoice.id}</td>
-                      <td className="py-3 pr-4">{invoice.period}</td>
-                      <td className="py-3 pr-4">{formatDate(invoice.issued)}</td>
-                      <td className="py-3 pr-4">
-                        <Badge tone={invoice.status === "paid" ? "success" : "info"}>
-                          {invoice.status === "paid" ? "Paid" : "Open"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 text-right">
-                        <button
-                          type="button"
-                          disabled
-                          aria-label={`Download ${invoice.id} (coming soon)`}
-                          title="Coming soon"
-                          className={buttonClass.ghost}
-                        >
-                          <Download aria-hidden className="h-4 w-4" />
-                        </button>
-                      </td>
+      {seesInvoices && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <Card
+            className={canPay ? "lg:col-span-2" : "lg:col-span-3"}
+            title="Invoices"
+            description="Amounts are left out on purpose: this preview does not invent charges."
+            sample={org.paidAccess}
+          >
+            {org.paidAccess ? (
+              <div className="overflow-x-auto">
+                <table aria-label="Invoices" className="w-full min-w-[30rem] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-marino/10 text-xs uppercase tracking-wide text-marino/55">
+                      <th scope="col" className="py-2 pr-4 font-semibold">Invoice</th>
+                      <th scope="col" className="py-2 pr-4 font-semibold">Period</th>
+                      <th scope="col" className="py-2 pr-4 font-semibold">Issued</th>
+                      <th scope="col" className="py-2 pr-4 font-semibold">Status</th>
+                      <th scope="col" className="py-2 font-semibold">
+                        <span className="sr-only">Download</span>
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            // An organization that has not paid has had no charges, so sample invoices would contradict its status.
-            <p className="text-sm text-marino/70">No invoices yet. They appear here once a plan is active.</p>
-          )}
-        </Card>
+                  </thead>
+                  <tbody className="divide-y divide-marino/10">
+                    {SAMPLE_INVOICES.map(invoice => (
+                      <tr key={invoice.id}>
+                        <td className="py-3 pr-4 font-semibold">{invoice.id}</td>
+                        <td className="py-3 pr-4">{invoice.period}</td>
+                        <td className="py-3 pr-4">{formatDate(invoice.issued)}</td>
+                        <td className="py-3 pr-4">
+                          <Badge tone={invoice.status === "paid" ? "success" : "info"}>
+                            {invoice.status === "paid" ? "Paid" : "Open"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 text-right">
+                          <button
+                            type="button"
+                            disabled
+                            aria-label={`Download ${invoice.id} (coming soon)`}
+                            title="Coming soon"
+                            className={buttonClass.ghost}
+                          >
+                            <Download aria-hidden className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              // An organization that has not paid has had no charges, so sample invoices would contradict its status.
+              <p className="text-sm text-marino/70">No invoices yet. They appear here once a plan is active.</p>
+            )}
+          </Card>
 
-        <Card title="Billing contact" description="Who receives invoices and payment notices." sample>
-          <form onSubmit={saveContact} className="space-y-3 text-sm">
-            <label className="block">
-              Contact name
-              <input
-                value={contact.name}
-                onChange={event => setContact({ ...contact, name: event.target.value })}
-                autoComplete="name"
-                className={inputClass}
-              />
-            </label>
-            <label className="block">
-              Billing email
-              <input
-                type="email"
-                value={contact.email}
-                onChange={event => setContact({ ...contact, email: event.target.value })}
-                autoComplete="email"
-                className={inputClass}
-              />
-            </label>
-            <label className="block">
-              Mailing address
-              <textarea
-                rows={2}
-                value={contact.address}
-                onChange={event => setContact({ ...contact, address: event.target.value })}
-                autoComplete="street-address"
-                className={inputClass}
-              />
-            </label>
-            <button type="submit" className={buttonClass.secondary}>
-              Save
-            </button>
-          </form>
-        </Card>
-      </div>
+          {canPay && (
+            <Card title="Billing contact" description="Who receives invoices and payment notices." sample>
+              <form onSubmit={saveContact} className="space-y-3 text-sm">
+                <label className="block">
+                  Contact name
+                  <input
+                    value={contact.name}
+                    onChange={event => setContact({ ...contact, name: event.target.value })}
+                    autoComplete="name"
+                    className={inputClass}
+                  />
+                </label>
+                <label className="block">
+                  Billing email
+                  <input
+                    type="email"
+                    value={contact.email}
+                    onChange={event => setContact({ ...contact, email: event.target.value })}
+                    autoComplete="email"
+                    className={inputClass}
+                  />
+                </label>
+                <label className="block">
+                  Mailing address
+                  <textarea
+                    rows={2}
+                    value={contact.address}
+                    onChange={event => setContact({ ...contact, address: event.target.value })}
+                    autoComplete="street-address"
+                    className={inputClass}
+                  />
+                </label>
+                <button type="submit" className={buttonClass.secondary}>
+                  Save
+                </button>
+              </form>
+            </Card>
+          )}
+        </div>
+      )}
     </>
   );
 }

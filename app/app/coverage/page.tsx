@@ -1,11 +1,12 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { FileWarning, Handshake, MessageSquareQuote, ShieldOff } from "lucide-react";
+import { FileWarning, Handshake, Info, MessageSquareQuote, ShieldOff } from "lucide-react";
 
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import { Badge, Card, Dialog, PageHeader, buttonClass, inputClass, usePreview } from "@/components/app/ui";
 import { FIRST_PARTY_GROUP, THIRD_PARTY_GROUP } from "@/components/coverage/coverage-details";
+import { useCan } from "@/lib/app/access";
 import { ILLUSTRATIVE_LIMITS } from "@/lib/app/mock/records";
 
 type Open = "quote" | "broker" | "incident" | null;
@@ -14,9 +15,18 @@ function Coverage() {
   const [open, setOpen] = useState<Open>(null);
   const close = () => setOpen(null);
   const preview = usePreview();
+  // Quotes, broker introductions and incident reports speak for the organization, so they follow org.update (DN-11 §6.2).
+  // The rest read the page; only the debug switch brings the buttons back.
+  const canAct = useCan("org.update");
 
   return (
     <>
+      {!canAct && (
+        <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
+          <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+          Ask an owner or admin to request a quote, connect with a broker or report an incident.
+        </p>
+      )}
       <Card>
         <div className="flex flex-wrap items-start gap-4">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-bruma">
@@ -30,20 +40,22 @@ function Coverage() {
             </p>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setOpen("quote")} className={buttonClass.primary}>
-            <MessageSquareQuote aria-hidden className="h-4 w-4" />
-            Request a quote
-          </button>
-          <button type="button" onClick={() => setOpen("broker")} className={buttonClass.secondary}>
-            <Handshake aria-hidden className="h-4 w-4" />
-            Connect with a broker
-          </button>
-          <button type="button" onClick={() => setOpen("incident")} className={buttonClass.secondary}>
-            <FileWarning aria-hidden className="h-4 w-4" />
-            Report an incident
-          </button>
-        </div>
+        {canAct && (
+          <div className="mt-5 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setOpen("quote")} className={buttonClass.primary}>
+              <MessageSquareQuote aria-hidden className="h-4 w-4" />
+              Request a quote
+            </button>
+            <button type="button" onClick={() => setOpen("broker")} className={buttonClass.secondary}>
+              <Handshake aria-hidden className="h-4 w-4" />
+              Connect with a broker
+            </button>
+            <button type="button" onClick={() => setOpen("incident")} className={buttonClass.secondary}>
+              <FileWarning aria-hidden className="h-4 w-4" />
+              Report an incident
+            </button>
+          </div>
+        )}
       </Card>
 
       <Card

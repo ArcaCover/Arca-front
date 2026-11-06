@@ -11,7 +11,7 @@ const CALENDLY = "https://calendly.com/arcacover/discovery";
 
 const PERMISSION_LABEL: Record<Permission, string> = {
   "org.read": "see the organization's analyses and pages",
-  "org.update": "edit the organization's details",
+  "org.update": "edit the organization's details, make coverage requests and add evidence",
   "analysis.create": "save new analyses",
   "actions.update": "change the status of actions",
   "actions.assign": "assign actions and add or delete the organization's own",
