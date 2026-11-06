@@ -2,26 +2,42 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Check, X } from "lucide-react";
-import type { DeletionRequestView, PlanView } from "@arca/contracts";
+import type { AdminOrgView, DeletionRequestView, PlanView } from "@arca/contracts";
 
-import { ApiError } from "@/lib/api/client";
+import { Tabs, type TabItem } from "@/components/app/ui";
 import {
   adminListDeletionRequests, adminListOrganizations, adminListPlans, adminReviewDeletion, adminUpdatePlan, getMe,
 } from "@/lib/app/client";
 import { formatPrice } from "@/lib/app/price";
 
-// A proof of concept of ARCA's own panel (DN-10 §4.6): the plans' prices and the deletion queue. It asks /me itself,
-// because a platform admin need not belong to any organization; the admin routes refuse everyone else anyway.
+import { AuditTab } from "./AuditTab";
+import { MetricsTab } from "./MetricsTab";
+import { OrganizationsTab } from "./OrganizationsTab";
+import { messageOf } from "./shared";
 
-type Panel = { plans: PlanView[]; requests: DeletionRequestView[]; orgNames: Map<string, string> };
+// A proof of concept of ARCA's own panel (DN-10 §4.6, DN-11 §4.5). It asks /me itself, because a platform admin need not
+// belong to any organization; the admin routes refuse everyone else anyway. Operations, the default tab, is the panel as
+// DN-10 left it: the plans' prices and the deletion queue. The others read the organizations, the audit and the counts.
+// The tabs are local state, not paths, so the layout's staff guard keeps matching /app/admin exactly.
+
+type Panel = { plans: PlanView[]; requests: DeletionRequestView[]; organizations: AdminOrgView[]; orgNames: Map<string, string> };
 type State = { kind: "loading" } | { kind: "not_admin" } | { kind: "ready"; panel: Panel } | { kind: "failed"; message: string };
 
-const messageOf = (cause: unknown) => (cause instanceof ApiError ? cause.message : "Something went wrong. Please try again.");
+type Tab = "operations" | "organizations" | "audit" | "metrics";
+const TABS: TabItem<Tab>[] = [
+  { key: "operations", label: "Operations" },
+  { key: "organizations", label: "Organizations" },
+  { key: "audit", label: "Audit" },
+  { key: "metrics", label: "Metrics" },
+];
 
 export default function AdminPage() {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("operations");
+  // The audit's organization filter; empty for every organization. Kept here so an organization's detail can open it.
+  const [auditOrg, setAuditOrg] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +50,7 @@ export default function AdminPage() {
         adminListOrganizations(),
       ]);
       const orgNames = new Map(organizations.map(org => [org.id, org.name]));
-      return { kind: "ready", panel: { plans, requests, orgNames } } as const;
+      return { kind: "ready", panel: { plans, requests, organizations, orgNames } } as const;
     })()
       .then(next => {
         if (!cancelled) setState(next);
@@ -99,22 +115,21 @@ export default function AdminPage() {
     );
   }
 
-  const { plans, requests, orgNames } = state.panel;
-  return (
+  const { plans, requests, organizations, orgNames } = state.panel;
+  const operations = (
     <>
-      <h1 className="font-heading text-2xl">Platform admin (proof of concept)</h1>
       {error && (
-        <p role="alert" className="mt-4 text-sm text-rojo">
+        <p role="alert" className="mb-6 text-sm text-rojo">
           {error}
         </p>
       )}
       {notice && (
-        <p role="status" className="mt-4 text-sm">
+        <p role="status" className="mb-6 text-sm">
           {notice}
         </p>
       )}
 
-      <h2 className="mt-8 font-heading text-lg">Plans</h2>
+      <h2 className="font-heading text-lg">Plans</h2>
       <p className="mt-1 text-sm text-marino/70">The next checkout charges the price saved here.</p>
       <ul className="mt-3 space-y-3">
         {plans.map(plan => {
@@ -190,6 +205,36 @@ export default function AdminPage() {
           );
         })}
       </ul>
+    </>
+  );
+
+  return (
+    <>
+      <h1 className="font-heading text-2xl">Platform admin (proof of concept)</h1>
+      <div className="mt-6">
+        <Tabs
+          items={TABS}
+          active={tab}
+          onChange={setTab}
+          label="Platform admin"
+          panel={
+            tab === "operations" ? (
+              operations
+            ) : tab === "organizations" ? (
+              <OrganizationsTab
+                onAudit={orgId => {
+                  setAuditOrg(orgId);
+                  setTab("audit");
+                }}
+              />
+            ) : tab === "audit" ? (
+              <AuditTab organizations={organizations} orgId={auditOrg} onOrgChange={setAuditOrg} />
+            ) : (
+              <MetricsTab />
+            )
+          }
+        />
+      </div>
     </>
   );
 }
