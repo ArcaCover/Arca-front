@@ -511,6 +511,9 @@ function DueDate({
   // the browser would keep showing the half-typed parts.
   const [field, setField] = useState(0);
   async function commit(input: HTMLInputElement) {
+    // Switching to another window or tab blurs the field too, but it stays the page's active element: the user has not
+    // left it, so the typed parts and the focus stay, and a year still being typed (0020) is not saved.
+    if (document.activeElement === input) return;
     // A partly edited date reads as "" too. Only a field really emptied clears the date; a half-typed one goes back to
     // the saved date instead of removing it.
     if (draft === "" && input.validity.badInput) {

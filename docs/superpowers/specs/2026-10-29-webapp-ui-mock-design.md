@@ -245,11 +245,14 @@ tales. El estado es local, y un aviso dice que se reinicia al recargar.~~
   propias de la organización. Se leen de `ActionsProvider`, y cada cambio pasa por la API
   (`updateAction`, `createAction` y `deleteAction`) y vuelve a leer el plan.
 - El responsable se elige entre los miembros que pueden marcar acciones (D11). La fecha se guarda al
-  salir del campo, no en cada tecla.
+  salir del campo, no en cada tecla. Pasar a otra ventana o pestaña no cuenta como salir: el campo
+  sigue siendo el elemento activo de la página, así que no se guarda nada (un año a medio escribir,
+  como 0020, ya es una fecha) y lo tecleado y el foco se quedan donde estaban.
 - Mientras el cambio de una acción va en camino, sus selectores de estado y de responsable quedan
-  inertes (`aria-disabled`), no deshabilitados, para que no pierdan el foco; lo que se elija entretanto
-  se ignora. Un cambio de estado lleva la acción a la lista de su nuevo estado: el foco la sigue a su
-  selector de estado y un `Toast` dice a qué estado pasó.
+  inertes (`aria-disabled`, atenuados como los controles deshabilitados), no deshabilitados, para que
+  no pierdan el foco; lo que se elija entretanto se ignora. Un cambio de estado lleva la acción a la
+  lista de su nuevo estado: si el foco seguía en su selector de estado al llegar la respuesta, la sigue
+  hasta allí, y un `Toast` dice a qué estado pasó.
 - Las acciones propias se pueden borrar; las del assessment solo cambian de estado (D13).
 - Un aviso dice que marcar una acción no cambia el score (D16): "A new analysis updates the score".
 - Por rol: owner y admin lo hacen todo; el `member` solo cambia el estado; el `viewer` lo lee.

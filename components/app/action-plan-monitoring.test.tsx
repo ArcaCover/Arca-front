@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { AnchorHTMLAttributes, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ActionItemView, ActionPlanResponse, MeResponse, MemberView, OrgView, Role } from "@arca/contracts";
 
@@ -224,6 +224,9 @@ describe("the action plan by role", () => {
     // Inert rather than disabled while it is sent, so the focus stays on it.
     expect(status("Document the policy")!.getAttribute("aria-disabled")).toBe("true");
     expect(status("Document the policy")!.disabled).toBe(false);
+    // It looks as its disabled neighbours do.
+    expect(status("Document the policy")!.classList).toContain("aria-disabled:opacity-60");
+    expect(status("Document the policy")!.classList).toContain("aria-disabled:cursor-not-allowed");
     expect(document.activeElement).toBe(status("Document the policy"));
     expect(status("Name an incident lead")!.getAttribute("aria-disabled")).toBeNull();
     expect(deleteIncident().disabled).toBe(false);
@@ -261,6 +264,8 @@ describe("the action plan by role", () => {
     const select = assigneeSelect("Document the policy")!;
     expect(select.getAttribute("aria-disabled")).toBe("true");
     expect(select.disabled).toBe(false);
+    expect(select.classList).toContain("aria-disabled:opacity-60");
+    expect(select.classList).toContain("aria-disabled:cursor-not-allowed");
     expect(document.activeElement).toBe(select);
     expect(assigneeSelect("Name an incident lead")!.getAttribute("aria-disabled")).toBeNull();
 
@@ -471,6 +476,52 @@ describe("the action plan by role", () => {
     await waitFor(() => expect(dueDate("Document the policy")!.validity.badInput).toBe(false));
     expect(dueDate("Document the policy")!.value).toBe("");
     expect(updateAction).not.toHaveBeenCalled();
+  });
+
+  it("keeps a half-typed date, and the focus, when only the window loses the focus", async () => {
+    signedIn(org());
+    inApp("/app/action-plan", <ActionPlanPage />);
+
+    await list("Actions to do");
+    const field = dueDate("Document the policy")!;
+    act(() => field.focus());
+    Object.defineProperty(field, "validity", { configurable: true, value: { badInput: true } });
+    fireEvent.change(field, { target: { value: "" } });
+    // Switching to another window or tab blurs the field, which stays the page's active element.
+    fireEvent.blur(field);
+    await act(async () => {});
+    expect(dueDate("Document the policy")).toBe(field);
+    expect(field.isConnected).toBe(true);
+    expect(document.activeElement).toBe(field);
+    expect(field.validity.badInput).toBe(true);
+
+    // Leaving it for another control does start it over.
+    act(() => status("Document the policy")!.focus());
+    await waitFor(() => expect(dueDate("Document the policy")!.validity.badInput).toBe(false));
+    expect(field.isConnected).toBe(false);
+    expect(updateAction).not.toHaveBeenCalled();
+  });
+
+  it("saves a date when the field is left, not when only the window loses the focus", async () => {
+    signedIn(org());
+    vi.mocked(updateAction).mockResolvedValue({ ...POLICY, dueDate: "2026-12-15" });
+    inApp("/app/action-plan", <ActionPlanPage />);
+
+    await list("Actions to do");
+    const field = dueDate("Document the policy")!;
+    act(() => field.focus());
+    // A year still being typed is already a whole date.
+    fireEvent.change(field, { target: { value: "0020-12-15" } });
+    fireEvent.blur(field);
+    await act(async () => {});
+    expect(updateAction).not.toHaveBeenCalled();
+    expect(field.value).toBe("0020-12-15");
+
+    // Enter leaves the field.
+    fireEvent.change(field, { target: { value: "2026-12-15" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(document.activeElement).not.toBe(field);
+    await waitFor(() => expect(updateAction).toHaveBeenCalledExactlyOnceWith("org_1", POLICY.key, { dueDate: "2026-12-15" }));
   });
 
   it("puts the saved date back when the back refuses it", async () => {

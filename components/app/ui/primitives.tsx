@@ -182,7 +182,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export const inputClass =
   "mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2 text-sm focus-visible:outline-2 " +
-  "focus-visible:outline-cielo disabled:opacity-60";
+  "focus-visible:outline-cielo disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed " +
+  "aria-disabled:opacity-60";
 
 export function initials(text: string): string {
   const words = text.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean);
