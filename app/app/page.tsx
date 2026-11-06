@@ -7,16 +7,19 @@ import {
   ArrowRight, BellRing, CalendarClock, ClipboardCheck, Download, FileText, Handshake, Plus, ShieldCheck, UserPlus, Users,
 } from "lucide-react";
 
+import { useActions } from "@/components/app/ActionsState";
 import AnalysisCard from "@/components/app/AnalysisCard";
-import { useApp } from "@/components/app/AppContext";
+import { useApp, useFailure } from "@/components/app/AppContext";
 import { useSample } from "@/components/app/SampleState";
 import { useAnalyses } from "@/components/app/useAnalyses";
 import {
-  Badge, Card, Dialog, EmptyState, PageHeader, Sparkline, StatCard, buttonClass, formatDate, usePreview,
+  Badge, Card, Dialog, EmptyState, PageHeader, Sparkline, StatCard, buttonClass, formatDate, usePreview, useToast,
 } from "@/components/app/ui";
+import { useCan } from "@/lib/app/access";
+import { updateAction } from "@/lib/app/client";
 import { ALERT_CATEGORY } from "@/lib/app/mock/alerts";
 import { SAMPLE_BENCHMARK, SAMPLE_SCORE_HISTORY } from "@/lib/app/mock/records";
-import { SAMPLE_TEAM, teammate } from "@/lib/app/mock/team";
+import { SAMPLE_TEAM } from "@/lib/app/mock/team";
 
 const CALENDLY = "https://calendly.com/arcacover/discovery";
 
@@ -25,14 +28,29 @@ function Overview() {
   const paid = useSearchParams().get("paid") === "1";
   // The API decides who gets in: an unpaid organization answers 402 here and the page moves on to billing.
   const { analyses, error } = useAnalyses();
-  const { actions, alerts, openActions, unreadAlerts, dispatch } = useSample();
+  const { alerts, unreadAlerts } = useSample();
+  // The real plan (DN-11 §6.4). Until the per-role Overview of §6.3 lands, every role sees the same cards here.
+  const { items, openCount, error: planError, refresh } = useActions();
+  const canMark = useCan("actions.update");
+  const fail = useFailure();
+  const notify = useToast();
   const [broker, setBroker] = useState(false);
   const preview = usePreview();
 
   const latest = analyses?.[0] ?? null;
-  const nextActions = actions.filter(item => item.status !== "done").slice(0, 3);
+  const nextActions = (items ?? []).filter(item => item.status !== "done").slice(0, 3);
   const recentAlerts = alerts.slice(0, 3);
-  const done = actions.filter(item => item.status === "done").length;
+  const done = (items ?? []).filter(item => item.status === "done").length;
+
+  async function markDone(key: string) {
+    try {
+      await updateAction(org.id, key, { status: "done" });
+    } catch (cause) {
+      const message = fail(cause);
+      if (message) notify(message);
+    }
+    refresh();
+  }
 
   return (
     <>
@@ -60,7 +78,14 @@ function Overview() {
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={ClipboardCheck} label="Open actions" value={openActions} hint={`${done} done`} href="/app/action-plan" />
+        <StatCard
+          icon={ClipboardCheck}
+          sample={false}
+          label="Open actions"
+          value={openCount ?? "—"}
+          hint={`${done} done`}
+          href="/app/action-plan"
+        />
         <StatCard icon={BellRing} label="Unread alerts" value={unreadAlerts} hint="From monitoring" href="/app/monitoring" />
         <StatCard icon={Users} label="Team members" value={SAMPLE_TEAM.length} hint="With access to this workspace" href="/app/members" />
         <StatCard
@@ -168,7 +193,6 @@ function Overview() {
         </Card>
         <Card
           title="Next actions"
-          sample
           actions={
             <Link href="/app/action-plan" className="text-sm font-semibold underline-offset-4 hover:underline">
               View all
@@ -177,23 +201,35 @@ function Overview() {
         >
           <ul aria-label="Next actions" className="space-y-3">
             {nextActions.map(item => (
-              <li key={item.id} className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  aria-label={`Mark “${item.title}” as done`}
-                  onChange={() => dispatch({ type: "action.status", id: item.id, status: "done" })}
-                  className="mt-1 h-4 w-4 accent-marino"
-                />
+              <li key={item.key} className="flex items-start gap-3">
+                {canMark && (
+                  <input
+                    type="checkbox"
+                    checked={false}
+                    aria-label={`Mark “${item.title}” as done`}
+                    onChange={() => void markDone(item.key)}
+                    className="mt-1 h-4 w-4 accent-marino"
+                  />
+                )}
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">{item.title}</p>
                   <p className="text-xs text-marino/60">
-                    +{item.points} pts · {teammate(item.assignee)?.name ?? "Unassigned"}
-                    {item.due && ` · due ${formatDate(item.due)}`}
+                    {item.pointsGain !== null && `+${item.pointsGain} demo pts · `}
+                    {item.assignee?.email ?? "Unassigned"}
+                    {item.dueDate && ` · due ${formatDate(item.dueDate)}`}
                   </p>
                 </div>
               </li>
             ))}
-            {nextActions.length === 0 && <li className="text-sm text-marino/70">Every action is done.</li>}
+            {items === null ? (
+              <li className="text-sm text-marino/70">
+                {planError ? "The action plan could not be loaded." : "Loading the action plan…"}
+              </li>
+            ) : (
+              nextActions.length === 0 && (
+                <li className="text-sm text-marino/70">{items.length ? "Every action is done." : "No actions yet."}</li>
+              )
+            )}
           </ul>
         </Card>
       </div>

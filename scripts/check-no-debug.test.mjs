@@ -45,15 +45,41 @@ describe('findDebugLeaks', () => {
     expect(findDebugLeaks(dir)).toEqual([map]);
   });
 
-  it('skips, in source maps only, the two names the guarded bridge keeps in its original source', () => {
+  it('skips, in source maps only, the names the guarded bridge keeps in its original source', () => {
     mkdirSync(join(dir, 'server', 'chunks'), { recursive: true });
     writeFileSync(join(dir, 'server', 'chunks', 'client.js'), 'function headers(){return{}}');
     writeFileSync(
       join(dir, 'server', 'chunks', 'client.js.map'),
-      JSON.stringify({ sourcesContent: ['window.__arcaDebug?.publish(s, d); return { "X-Arca-Debug-Scenario": s };'] }),
+      JSON.stringify({ sourcesContent: [
+        'window.__arcaDebug?.publish(s, d); return { "X-Arca-Debug-Scenario": s };',
+        'return sessionStorage.getItem("arca.debug.showForbidden") === "1";',
+      ] }),
     );
 
     expect(findDebugLeaks(dir)).toEqual([]);
+  });
+
+  // DN-11 §6.4: the switch's storage key is the bridge's, so it flags only code that ships; the panel's role tools and the
+  // seeded users' domain are debug-only, so they flag a source map too.
+  it('reports a shipped chunk that still reads the switch of forbidden controls', () => {
+    const chunk = join(dir, 'static', 'chunks', 'app.js');
+    writeFileSync(chunk, 'function s(){return sessionStorage.getItem("arca.debug.showForbidden")==="1"}');
+
+    expect(findDebugLeaks(dir)).toEqual([chunk]);
+  });
+
+  it.each([
+    ['the switch label', '<label>Show forbidden actions</label>'],
+    ['the seed button', '<button>Seed demo organization</button>'],
+    ['a seeded user', 'signIn("owner@demo.arca.example")'],
+  ])('reports %s in a shipped chunk and in a source map', (_name, source) => {
+    const chunk = join(dir, 'static', 'chunks', 'panel.js');
+    const map = join(dir, 'server', 'chunks', 'ssr', 'panel.js.map');
+    mkdirSync(join(dir, 'server', 'chunks', 'ssr'), { recursive: true });
+    writeFileSync(chunk, source);
+    writeFileSync(map, JSON.stringify({ sourcesContent: [source] }));
+
+    expect(findDebugLeaks(dir).sort()).toEqual([chunk, map].sort());
   });
 });
 

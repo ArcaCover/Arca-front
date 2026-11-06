@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, ShieldHalf, X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import type { MeResponse, OrgView } from "@arca/contracts";
 
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
+import { useActions } from "@/components/app/ActionsState";
 import { useSample } from "@/components/app/SampleState";
 import { Avatar } from "@/components/app/ui";
-import { HELP_ITEM, NAV_GROUPS, isCurrent, type NavItem } from "./nav";
+import { navItems, useForbiddenShown } from "@/lib/app/access";
+import { isCurrent, type NavItem } from "./nav";
 
 const STATUS: Record<OrgView["billingStatus"], { label: string; tone: string }> = {
   active: { label: "Plan active", tone: "bg-cielo" },
@@ -19,7 +21,8 @@ const STATUS: Record<OrgView["billingStatus"], { label: string; tone: string }> 
 
 /**
  * The /app navigation. One element for every width (spec 2026-10-29 §7): fixed on the left from lg up, and a panel
- * that slides in below that. `top` leaves room for the debug strip when there is one.
+ * that slides in below that. `top` leaves room for the debug strip when there is one. It lists what the role opens
+ * (lib/app/access.ts).
  */
 export default function Sidebar({
   me, org, pathname, open, onClose, onSignOut, top,
@@ -32,13 +35,20 @@ export default function Sidebar({
   onSignOut: () => void;
   top: string;
 }) {
-  const { openActions, unreadAlerts } = useSample();
-  const counters = { actions: openActions, alerts: unreadAlerts };
+  const { openCount } = useActions();
+  const { unreadAlerts } = useSample();
+  const forbiddenShown = useForbiddenShown();
+  const { groups, footer } = navItems(org.role, { platformAdmin: me.platformAdmin, forbiddenShown });
+  // The plan's count is real, the alerts' a sample, and the pill says which.
+  const counters = {
+    actions: { count: openCount ?? 0, label: "open actions" },
+    alerts: { count: unreadAlerts, label: "sample items" },
+  };
   const status = STATUS[org.billingStatus];
 
   const link = (item: NavItem) => {
     const current = isCurrent(item.href, pathname);
-    const count = item.counter ? counters[item.counter] : 0;
+    const counter = item.counter ? counters[item.counter] : null;
     return (
       <li key={item.href}>
         <Link
@@ -49,9 +59,12 @@ export default function Sidebar({
         >
           <item.icon aria-hidden className="h-4 w-4 shrink-0" />
           <span className="flex-1">{item.label}</span>
-          {count > 0 && (
-            <span className="rounded-full bg-oro px-1.5 text-[11px] font-bold text-marino" aria-label={`${count} sample items`}>
-              {count}
+          {counter && counter.count > 0 && (
+            <span
+              className="rounded-full bg-oro px-1.5 text-[11px] font-bold text-marino"
+              aria-label={`${counter.count} ${counter.label}`}
+            >
+              {counter.count}
             </span>
           )}
         </Link>
@@ -78,17 +91,13 @@ export default function Sidebar({
           </button>
         </div>
         <nav aria-label="App" className="flex-1 overflow-y-auto px-3 py-3">
-          {NAV_GROUPS.map(group => (
+          {groups.map(group => (
             <div key={group.label} className="mb-5">
               <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-marino/45">{group.label}</p>
               <ul className="space-y-0.5">{group.items.map(link)}</ul>
             </div>
           ))}
-          <ul className="space-y-0.5 border-t border-marino/10 pt-4">
-            {link(HELP_ITEM)}
-            {me.platformAdmin &&
-              link({ href: "/app/admin", label: "Platform admin", icon: ShieldHalf })}
-          </ul>
+          <ul className="space-y-0.5 border-t border-marino/10 pt-4">{footer.map(link)}</ul>
         </nav>
         <div className="space-y-3 border-t border-marino/10 p-4">
           <Link href="/app/billing" onClick={onClose} className="flex items-center gap-2 rounded-2xl bg-bruma/60 px-3 py-2 text-xs">

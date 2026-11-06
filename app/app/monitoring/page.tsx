@@ -6,7 +6,7 @@ import { BellOff, CalendarClock, RefreshCw } from "lucide-react";
 import { useSample } from "@/components/app/SampleState";
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import {
-  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, SampleBadge, buttonClass, formatDate, usePreview, useToast, type TabItem,
+  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, SampleBadge, buttonClass, formatDate, usePreview, type TabItem,
 } from "@/components/app/ui";
 import { ALERT_CATEGORY, ALERT_SEVERITY, type AlertCategory, type AlertSeverity } from "@/lib/app/mock/alerts";
 import { NEXT_RESCAN } from "@/lib/app/mock/records";
@@ -17,11 +17,10 @@ type Filter = "all" | AlertCategory;
 const SEVERITY_TONE: Record<AlertSeverity, "danger" | "warning" | "neutral"> = { high: "danger", medium: "warning", info: "neutral" };
 
 function Monitoring() {
-  const { alerts, actions, unreadAlerts, dispatch } = useSample();
+  const { alerts, unreadAlerts, dispatch } = useSample();
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const preview = usePreview();
-  const notify = useToast();
 
   const pills: TabItem<Filter>[] = [
     { key: "all", label: "All", count: alerts.length },
@@ -32,7 +31,6 @@ function Monitoring() {
   const visible = filter === "all" ? alerts : alerts.filter(alert => alert.category === filter);
   // Read from the live list, so the panel follows Mark as read and closes itself once the alert is dismissed.
   const selected = alerts.find(alert => alert.id === openId) ?? null;
-  const planned = selected ? actions.some(item => item.id === `act_${selected.id}`) : false;
   const close = () => setOpenId(null);
 
   return (
@@ -141,17 +139,17 @@ function Monitoring() {
               >
                 Dismiss
               </button>
+              {/* The action plan is real now and an alert is a sample, so nothing is added to the plan from here yet. */}
               <button
                 type="button"
-                disabled={planned}
                 onClick={() => {
-                  dispatch({ type: "action.from_alert", alert: selected });
-                  notify("Added to the action plan preview.", "Find it under To do. Like the rest of the preview, it resets on reload.");
+                  dispatch({ type: "alert.read", id: selected.id });
+                  preview("Alerts are sample data, so they do not add actions to your plan yet.");
                   close();
                 }}
                 className={buttonClass.primary}
               >
-                {planned ? "Already in the action plan" : "Create action"}
+                Create action
               </button>
             </>
           )

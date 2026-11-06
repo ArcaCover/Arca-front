@@ -2,10 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { CalendarDays, FolderOpen, Laptop, Scale, Smartphone } from "lucide-react";
-import { can } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Badge, Card, PageHeader, SampleBadge, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
+import { useCan } from "@/lib/app/access";
 import { requestDeletion } from "@/lib/app/client";
 import { SAMPLE_SESSIONS } from "@/lib/app/mock/records";
 
@@ -53,11 +53,8 @@ export default function SettingsPage() {
   });
   const [digest, setDigest] = useState("weekly");
 
-  // DN-10 §5: the button follows the role, except in the debug modes, where it stays active so the demo shows the back's 403.
-  const canRequest =
-    process.env.NEXT_PUBLIC_ARCA_MODE === "mock" ||
-    process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug" ||
-    can(org.role, "org.request_deletion");
+  // The button follows the role in every mode; only the debug switch brings it back, to show the back's 403 (DN-11 D3).
+  const canRequest = useCan("org.request_deletion");
   // One request at a time: a second one would only meet the back's 409, so the form closes until ARCA reviews it.
   const pending = requested || org.deletionPending;
 

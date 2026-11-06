@@ -3,12 +3,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Check, Copy, Minus, Search, UserPlus } from "lucide-react";
 import {
-  PERMISSIONS, ROLES, ROLE_PERMISSIONS, can, canManageMember, type InvitationView, type InviteRequest, type MemberView,
-  type Permission, type Role,
+  PERMISSIONS, ROLES, ROLE_PERMISSIONS, type InvitationView, type InviteRequest, type MemberView, type Permission, type Role,
 } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Avatar, Badge, Card, PageHeader, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import { useAccess } from "@/lib/app/access";
 import { invite, listMembers, removeMember, revokeInvitation, setMemberRole } from "@/lib/app/client";
 
 type People = { members: MemberView[]; invitations: InvitationView[] };
@@ -20,7 +20,11 @@ const ROLE_LABEL: Record<Role, string> = { owner: "Owner", admin: "Admin", membe
 // A Record over Permission, so a permission added to the contract fails the typecheck until it gets a name here.
 const PERMISSION_LABEL: Record<Permission, string> = {
   "org.read": "View the organization and its analyses",
+  "org.update": "Edit the organization's details",
   "analysis.create": "Save analyses to the organization",
+  "actions.update": "Change the status of actions",
+  "actions.assign": "Assign actions and add the organization's own",
+  "activity.read": "See the organization's activity",
   "members.invite": "Invite people",
   "members.remove": "Remove members",
   "members.set_role": "Change roles",
@@ -58,11 +62,10 @@ export default function MembersPage() {
     };
   }, [org.id, version, fail]);
 
-  // The buttons follow the contract's permission table (DN-10 §4.3) and the rule that an admin never acts on an owner.
-  // In the debug modes they all stay active, so the demo shows the back's 403 (DN-10 §5).
-  const debug = process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
-  const allowed = (permission: Permission, target?: Role, nextRole?: Role) =>
-    debug || (can(org.role, permission) && (target === undefined || canManageMember(org.role, target, nextRole)));
+  // The buttons follow the contract's permission table (DN-10 §4.3) and the rule that an admin never acts on an owner, in
+  // every mode; only the debug switch brings them back, to show the back's 403 (DN-11 D3).
+  const access = useAccess();
+  const allowed = (permission: Permission, target?: Role, nextRole?: Role) => access.can(permission, { target, nextRole });
 
   async function act(action: () => Promise<unknown>) {
     setError(null);

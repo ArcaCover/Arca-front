@@ -2,10 +2,11 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { CreditCard, Download } from "lucide-react";
-import { can, type BillingStatus, type PlanView } from "@arca/contracts";
+import type { BillingStatus, PlanView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Badge, Card, PageHeader, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
+import { useCan } from "@/lib/app/access";
 import { checkout, getPlans, portal } from "@/lib/app/client";
 import { SAMPLE_INVOICES } from "@/lib/app/mock/records";
 import { formatPrice } from "@/lib/app/price";
@@ -43,11 +44,8 @@ export default function BillingPage() {
     };
   }, [fail, org.paidAccess]);
 
-  // DN-10 §5: the button follows the role, except in the debug modes, where it stays active so the demo shows the back's 403.
-  const canPay =
-    process.env.NEXT_PUBLIC_ARCA_MODE === "mock" ||
-    process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug" ||
-    can(org.role, "billing.manage");
+  // The button follows the role in every mode; only the debug switch brings it back, to show the back's 403 (DN-11 D3).
+  const canPay = useCan("billing.manage");
 
   async function leaveFor(page: () => Promise<{ url: string }>) {
     setBusy(true);

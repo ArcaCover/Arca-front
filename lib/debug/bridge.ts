@@ -74,3 +74,39 @@ export async function debugPay(sessionId: string): Promise<boolean | null> {
   const { mockPay } = await import("./mock-billing");
   return mockPay(sessionId);
 }
+
+// DN-11 §6.4: the debug panel's switch that shows again what a role may not do, so the demo can reach the back's 403. It
+// exists in mock only. The storage key, which is also the change event's name, is written out inside these three
+// functions and nowhere else: past the guard it folds away in a production build, and the leak check flags it anywhere
+// else. useCan in lib/app/access.ts reads it through useSyncExternalStore and never touches storage itself.
+
+/** Whether the switch is on in this tab. Always false outside mock, whatever storage holds. */
+export function showForbidden(): boolean {
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock") return false;
+  try {
+    return sessionStorage.getItem("arca.debug.showForbidden") === "1";
+  } catch {
+    // No storage on the server, and a blocked one throws: the switch then reads as off.
+    return false;
+  }
+}
+
+/** Calls `onChange` whenever the panel flips the switch. Outside mock nothing ever changes, so nothing subscribes. */
+export function subscribeShowForbidden(onChange: () => void): () => void {
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock") return () => {};
+  window.addEventListener("arca.debug.showForbidden", onChange);
+  return () => window.removeEventListener("arca.debug.showForbidden", onChange);
+}
+
+/** What the panel calls to flip the switch: it writes the tab's storage and tells every subscriber. Does nothing outside mock. */
+export function setShowForbidden(on: boolean): void {
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock") return;
+  try {
+    if (on) sessionStorage.setItem("arca.debug.showForbidden", "1");
+    else sessionStorage.removeItem("arca.debug.showForbidden");
+  } catch {
+    // Blocked storage: showForbidden() cannot read it either, so the switch stays off and nobody needs telling.
+    return;
+  }
+  window.dispatchEvent(new Event("arca.debug.showForbidden"));
+}

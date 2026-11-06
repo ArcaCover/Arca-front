@@ -1,8 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { Lock } from "lucide-react";
+
 import { useApp } from "@/components/app/AppContext";
-import { LockedState } from "@/components/app/ui";
+import { EmptyState, LockedState, buttonClass } from "@/components/app/ui";
 
 /**
  * The organization's standing notices, above every private page. Settings states the deletion itself next to its form,
@@ -33,4 +36,24 @@ export function OrgNotices({ pathname }: { pathname: string }) {
 export function SampleGate({ feature, children }: { feature: string; children: ReactNode }) {
   const { org } = useApp();
   return org.paidAccess ? <>{children}</> : <LockedState feature={feature} />;
+}
+
+/**
+ * What a page the role does not open shows instead (DN-11 §6.1). The layout decides by pathname, before the page mounts,
+ * so the page asks the API nothing.
+ */
+export function RoleGate() {
+  const { org } = useApp();
+  return (
+    <EmptyState
+      icon={Lock}
+      title="Your role can't open this page"
+      description={`Your role in ${org.name} doesn't include it. An owner or admin can open it.`}
+      action={
+        <Link href="/app" className={buttonClass.secondary}>
+          Back to Overview
+        </Link>
+      }
+    />
+  );
 }

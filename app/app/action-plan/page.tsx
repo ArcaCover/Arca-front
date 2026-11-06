@@ -4,13 +4,12 @@ import { useMemo, useState, type FormEvent } from "react";
 import { CalendarDays, CheckCircle2, ClipboardCheck, Plus, Sparkles } from "lucide-react";
 import type { AnalysisView } from "@arca/contracts";
 
-import { useSample } from "@/components/app/SampleState";
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import { useAnalyses } from "@/components/app/useAnalyses";
 import {
   Badge, Card, Dialog, PageHeader, Progress, SampleBadge, StatCard, buttonClass, formatDate, inputClass, usePreview,
 } from "@/components/app/ui";
-import { ACTION_STATUSES, type ActionStatus, type SampleAction } from "@/lib/app/mock/actions";
+import { ACTION_STATUSES, SAMPLE_ACTIONS, type ActionStatus, type SampleAction } from "@/lib/app/mock/actions";
 import { SAMPLE_TEAM } from "@/lib/app/mock/team";
 
 type Local = Record<string, { status: ActionStatus; assignee: string | null }>;
@@ -43,9 +42,10 @@ function fromAssessment(analyses: AnalysisView[] | null): SampleAction[] {
 }
 
 function ActionPlan() {
-  const { actions, dispatch } = useSample();
+  // Until this page reads the real plan (DN-11 §6.4), its sample actions and the assessment's statuses live here, as long
+  // as the page does. The shared sample state keeps only the alerts now.
+  const [actions, setActions] = useState(SAMPLE_ACTIONS);
   const { analyses, error } = useAnalyses();
-  // SampleState only holds the preview's own actions, so the assessment's statuses live here, as long as the page does.
   const [local, setLocal] = useState<Local>({});
   const [domain, setDomain] = useState(ALL_DOMAINS);
   const [assignee, setAssignee] = useState(ANYONE);
@@ -69,8 +69,7 @@ function ActionPlan() {
 
   function update(item: SampleAction, change: { status?: ActionStatus; assignee?: string | null }) {
     if (item.sample) {
-      if (change.status) dispatch({ type: "action.status", id: item.id, status: change.status });
-      if (change.assignee !== undefined) dispatch({ type: "action.assignee", id: item.id, assignee: change.assignee });
+      setActions(current => current.map(action => (action.id === item.id ? { ...action, ...change } : action)));
       return;
     }
     setLocal(current => ({

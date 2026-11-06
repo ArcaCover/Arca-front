@@ -1,13 +1,13 @@
 import {
   Activity, BellRing, ClipboardCheck, CreditCard, FileText, FolderOpen, LayoutDashboard, LifeBuoy, Settings, ShieldCheck,
-  Users,
+  ShieldHalf, Users,
 } from "lucide-react";
 
 export type NavItem = {
   href: string;
   label: string;
   icon: typeof Activity;
-  /** Which sample counter shows next to it. */
+  /** Which counter shows next to it: the plan's open actions (real) or the unread alerts (sample). */
   counter?: "actions" | "alerts";
 };
 
@@ -35,6 +35,8 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
 ];
 
 export const HELP_ITEM: NavItem = { href: "/app/help", label: "Help & support", icon: LifeBuoy };
+
+export const ADMIN_ITEM: NavItem = { href: "/app/admin", label: "Platform admin", icon: ShieldHalf };
 
 /** Overview only on /app itself; every other item also on the pages below it (an analysis under Analyses). */
 export function isCurrent(href: string, pathname: string): boolean {

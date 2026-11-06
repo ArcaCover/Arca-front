@@ -5,6 +5,9 @@ import { fixtureResult } from "@/lib/api/fixture";
 
 import {
   acceptInvitation,
+  adminGetMetrics,
+  adminGetOrganization,
+  adminListAudit,
   adminListDeletionRequests,
   adminListOrganizations,
   adminListPlans,
@@ -12,19 +15,25 @@ import {
   adminUpdatePlan,
   attachAnalysis,
   checkout,
+  createAction,
   createClaim,
   createOrg,
+  deleteAction,
+  getActionPlan,
   getMe,
   getOrg,
   getPlans,
   invite,
+  listActivity,
   listAnalyses,
   listMembers,
   portal,
   removeMember,
+  renameOrg,
   requestDeletion,
   revokeInvitation,
   setMemberRole,
+  updateAction,
 } from "./client";
 import { saveAppSession } from "./session";
 
@@ -41,6 +50,41 @@ const deletion = {
   id: "del_1", orgId: "org_1", reason: "Closing the firm", status: "pending", requestedAt: NOW, reviewedAt: null, reviewNote: null,
 };
 const analysis = { scanId: "sc_fixture", domain: "smithlaw.com", scanStatus: "COMPLETED", claimedAt: NOW, layer1: fixtureResult(), assessment: null };
+// DN-11: an action of the assessment, whose key holds dots and a colon, and one of the organization's own.
+const assessmentAction = {
+  key: "a.sc_fixture.improve:D1.1", source: "assessment", title: "Document the policy", detail: "Write it down.",
+  domain: "governance", pointsGain: 5, status: "in_progress", assignee: { userId: "u_2", email: "bo@smithlaw.com" },
+  dueDate: "2026-11-20", updatedAt: NOW,
+};
+const customAction = {
+  key: "c.0b6f3a8e-5d2c-4f1a-9e7b-1c2d3e4f5a6b", source: "custom", title: "Name an incident lead", detail: null, domain: null,
+  pointsGain: null, status: "todo", assignee: null, dueDate: null, updatedAt: NOW,
+};
+const actionPlan = {
+  source: { scanId: "sc_fixture", domain: "smithlaw.com", claimedAt: NOW }, items: [assessmentAction, customAction],
+};
+const activity = {
+  events: [{
+    id: "ev_1", at: NOW, actor: { kind: "member", email: "bo@smithlaw.com" }, action: "action.updated",
+    targetLabel: "Document the policy", change: { from: "todo", to: "in_progress" },
+  }],
+  nextBefore: 41,
+};
+const audit = {
+  events: [{
+    id: "ev_2", at: NOW, orgId: "org_1", orgName: "Smith Law", actorKind: "platform", actorEmail: "ops@arca.example",
+    action: "deletion.rejected", targetLabel: "Smith Law",
+  }],
+  nextBefore: null,
+};
+const orgDetail = {
+  id: "org_1", name: "Smith Law", domain: "smithlaw.com", billingStatus: "active", deleted: false, createdAt: NOW,
+  planCode: "monthly", analysisCount: 1, pendingDeletion: null, members: [{ email: "bo@smithlaw.com", role: "member", joinedAt: NOW }],
+};
+const metrics = {
+  organizations: { pending_payment: 1, active: 2, past_due: 0, canceled: 0, deleted: 1 }, members: 5, analyses: 3,
+  pendingDeletionRequests: 0, actions: { todo: 4, in_progress: 1, done: 2 },
+};
 
 const fetchMock = vi.fn<typeof fetch>();
 const sentRequest = (call = 0) => {
@@ -106,6 +150,26 @@ describe("one function per route", () => {
     { name: "adminListPlans", call: () => adminListPlans(), method: "GET", path: "/admin/plans", reply: [plan] },
     { name: "adminUpdatePlan", call: () => adminUpdatePlan("monthly", { amountCents: 59900 }), method: "PUT", path: "/admin/plans/monthly",
       body: { amountCents: 59900 }, reply: { ...plan, amountCents: 59900 } },
+    // DN-11 section 4.9.
+    { name: "renameOrg", call: () => renameOrg("org_1", "Smith & Co"), method: "PATCH", path: "/orgs/org_1",
+      body: { name: "Smith & Co" }, reply: { ...org, name: "Smith & Co" } },
+    { name: "getActionPlan", call: () => getActionPlan("org_1"), method: "GET", path: "/orgs/org_1/actions", reply: actionPlan },
+    { name: "createAction", call: () => createAction("org_1", { title: "Name an incident lead" }), method: "POST",
+      path: "/orgs/org_1/actions", body: { title: "Name an incident lead" }, status: 201, reply: customAction },
+    { name: "updateAction (status)", call: () => updateAction("org_1", assessmentAction.key, { status: "in_progress" }),
+      method: "PATCH", path: "/orgs/org_1/actions/a.sc_fixture.improve%3AD1.1", body: { status: "in_progress" }, reply: assessmentAction },
+    { name: "updateAction (clears the assignee and the due date)",
+      call: () => updateAction("org_1", customAction.key, { assigneeUserId: null, dueDate: null }), method: "PATCH",
+      path: `/orgs/org_1/actions/${customAction.key}`, body: { assigneeUserId: null, dueDate: null }, reply: customAction },
+    { name: "listActivity (first page)", call: () => listActivity("org_1"), method: "GET", path: "/orgs/org_1/activity", reply: activity },
+    { name: "listActivity (an older page)", call: () => listActivity("org_1", { before: 41, limit: 50 }), method: "GET",
+      path: "/orgs/org_1/activity?before=41&limit=50", reply: { ...activity, nextBefore: null } },
+    { name: "adminGetOrganization", call: () => adminGetOrganization("org_1"), method: "GET", path: "/admin/organizations/org_1",
+      reply: orgDetail },
+    { name: "adminListAudit (everything)", call: () => adminListAudit(), method: "GET", path: "/admin/audit", reply: audit },
+    { name: "adminListAudit (one organization, older)", call: () => adminListAudit({ orgId: "org_1", before: 7, limit: 100 }),
+      method: "GET", path: "/admin/audit?orgId=org_1&before=7&limit=100", reply: audit },
+    { name: "adminGetMetrics", call: () => adminGetMetrics(), method: "GET", path: "/admin/metrics", reply: metrics },
   ];
 
   it.each(routes)("$name sends the app session's Bearer to $method $path and parses the answer", async ({ call, method, path, body, status, reply }) => {
@@ -143,6 +207,25 @@ describe("one function per route", () => {
     await getOrg("org/1?x=y");
 
     expect(sentRequest().url).toBe("http://api.test/orgs/org%2F1%3Fx%3Dy");
+  });
+
+  it("deleteAction answers 204 with no body, and encodes the key", async () => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
+
+    await expect(deleteAction("org_1", customAction.key)).resolves.toBeUndefined();
+    await expect(deleteAction("org_1", "a.sc_1/x?y")).resolves.toBeUndefined();
+
+    expect(sentRequest(0)).toMatchObject({ url: `http://api.test/orgs/org_1/actions/${customAction.key}`, method: "DELETE" });
+    expect(sentRequest(0).headers.get("Authorization")).toBe("Bearer app-token");
+    expect(sentRequest(1).url).toBe("http://api.test/orgs/org_1/actions/a.sc_1%2Fx%3Fy");
+  });
+
+  it("encodes the audit's organization filter", async () => {
+    answer(audit);
+
+    await adminListAudit({ orgId: "org 1&x=y" });
+
+    expect(sentRequest().url).toBe("http://api.test/admin/audit?orgId=org+1%26x%3Dy");
   });
 });
 
@@ -245,6 +328,21 @@ describe("failures", () => {
 
     answer(null);
     await expect(listMembers("org_1")).rejects.toMatchObject({ code: "contract" });
+  });
+
+  // The contract keeps an action of an older plan, and anything but a member's email in the activity, out of the page.
+  it("answers a plan or an activity outside the contract as a contract error", async () => {
+    answer({ ...actionPlan, source: null });
+    await expect(getActionPlan("org_1")).rejects.toMatchObject({ code: "contract" });
+
+    answer({ ...activity, events: [{ ...activity.events[0], actor: { kind: "arca", email: "ops@arca.example" } }] });
+    await expect(listActivity("org_1")).rejects.toMatchObject({ code: "contract" });
+  });
+
+  it("turns the action writes' 429 into rate_limited", async () => {
+    answer({ error: "rate_limited", message: "Too many changes" }, 429);
+
+    await expect(updateAction("org_1", customAction.key, { status: "done" })).rejects.toMatchObject({ code: "rate_limited" });
   });
 
   it("answers an unreachable API as a network error", async () => {

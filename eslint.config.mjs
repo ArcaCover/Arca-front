@@ -7,7 +7,11 @@ import tseslint from "typescript-eslint";
 // whose bodies fold to nothing in a production build. Anything else from the debug folders, or the debug contract,
 // would ship in the production bundle, and the build's leak check only knows a handful of strings.
 const DEBUG_ONLY = "Debug-only code: outside components/debug and lib/debug, import only DebugMount and lib/debug/bridge (DN-09 §6.1).";
-const debugBoundary = (...relative) => [
+// From inside components/ or lib/, at any depth, a relative path reaches a debug folder without naming its parent:
+// `./debug/...` from components/Navbar.tsx, `../debug/...` from lib/app/access.ts (DN-11 §6.4). No other folder is
+// called debug, so such a path is refused everywhere.
+const RELATIVE_DEBUG = "^(\\.\\.?/)+debug/(?!(DebugMount|bridge)$)";
+const DEBUG_BOUNDARY = [
   "error",
   {
     paths: [
@@ -20,19 +24,20 @@ const debugBoundary = (...relative) => [
           "@/lib/debug/*", "!@/lib/debug/bridge",
           "**/components/debug/*", "!**/components/debug/DebugMount",
           "**/lib/debug/*", "!**/lib/debug/bridge",
-          ...relative,
         ],
         message: DEBUG_ONLY,
       },
+      { regex: RELATIVE_DEBUG, caseSensitive: true, message: DEBUG_ONLY },
     ],
   },
 ];
-// no-restricted-imports does not see import(). esquery regexes cannot hold a "/", hence \x2F.
+// no-restricted-imports does not see import(), so the same paths are refused there too. esquery regexes cannot hold a
+// "/", hence \x2F.
 const DEBUG_DYNAMIC_IMPORT = [
   "error",
   {
     selector:
-      "ImportExpression[source.value=/^@arca\\x2Fcontracts\\x2Fdebug$|(^|\\x2F)(components|lib)\\x2Fdebug\\x2F(?!(DebugMount|bridge)$)/]",
+      "ImportExpression[source.value=/^@arca\\x2Fcontracts\\x2Fdebug$|(^|\\x2F)(components|lib)\\x2Fdebug\\x2F(?!(DebugMount|bridge)$)|^(\\.\\.?\\x2F)+debug\\x2F(?!(DebugMount|bridge)$)/]",
     message: DEBUG_ONLY,
   },
 ];
@@ -67,11 +72,6 @@ export default tseslint.config(
   },
   {
     ignores: ["components/debug/**", "lib/debug/**"],
-    rules: { "no-restricted-imports": debugBoundary(), "no-restricted-syntax": DEBUG_DYNAMIC_IMPORT },
-  },
-  // Files directly in components/ or lib/ can reach the debug folders as `./debug/...`.
-  {
-    files: ["components/*", "lib/*"],
-    rules: { "no-restricted-imports": debugBoundary("./debug/*", "!./debug/DebugMount", "!./debug/bridge") },
+    rules: { "no-restricted-imports": DEBUG_BOUNDARY, "no-restricted-syntax": DEBUG_DYNAMIC_IMPORT },
   },
 );
