@@ -5,7 +5,8 @@ import { Download, FileText, Upload, X } from "lucide-react";
 
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import { useAnalyses } from "@/components/app/useAnalyses";
-import { Badge, Card, EmptyState, PageHeader, buttonClass, formatDate, usePreview } from "@/components/app/ui";
+import { Badge, Card, EmptyState, PageHeader, ReadOnlyNotice, buttonClass, formatDate, usePreview } from "@/components/app/ui";
+import { useCan } from "@/lib/app/access";
 import { SAMPLE_TEMPLATES } from "@/lib/app/mock/records";
 
 type Picked = { key: number; name: string; size: number };
@@ -20,9 +21,13 @@ function Documents() {
   // Real analyses: an unpaid organization never gets here (SampleGate), so the 402 path stays the API's.
   const { analyses, error } = useAnalyses();
   const preview = usePreview();
+  // Evidence speaks for the organization, so adding it follows org.update (DN-11 §6.2); every role downloads. Only the
+  // debug switch brings the upload back to a role without it.
+  const canUpload = useCan("org.update");
 
   return (
     <>
+      {!canUpload && <ReadOnlyNotice>Ask an owner or admin to add evidence files.</ReadOnlyNotice>}
       <Card
         title="Reports"
         description="The PDF report of each saved analysis. The report is generated with the scan's own access token, which this workspace does not hold yet."
@@ -92,7 +97,7 @@ function Documents() {
         </ul>
       </Card>
 
-      <EvidenceZone />
+      {canUpload && <EvidenceZone />}
     </>
   );
 }

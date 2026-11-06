@@ -1,4 +1,10 @@
 import {
+  ActionItemView,
+  ActionPlanResponse,
+  ActivityPage,
+  AdminAuditPage,
+  AdminMetricsView,
+  AdminOrgDetailView,
   AdminOrgView,
   AnalysisView,
   ClaimResponse,
@@ -9,8 +15,10 @@ import {
   OrgView,
   PlanView,
   UrlResponse,
+  type CreateActionRequest,
   type InviteRequest,
   type SetRoleRequest,
+  type UpdateActionRequest,
   type UpdatePlanRequest,
 } from "@arca/contracts";
 
@@ -18,8 +26,9 @@ import { ApiError, apiFailure, apiParse, apiSend } from "@/lib/api/client";
 
 import { loadAppSession } from "./session";
 
-// One function per route of the private webapp's API (DN-10 section 4.7). The back is the one that denies: a 402, 403 or
-// 410 reaches the page as an ApiError to react to, never something this client decides on its own.
+// One function per route of the private webapp's API (DN-10 section 4.7, DN-11 section 4.9). The back is the one that
+// denies: a 402, 403, 410 or 429 reaches the page as an ApiError to react to, never something this client decides on its
+// own. The mock-only seed of DN-11 is not here: its route is debug code, in lib/debug/mock-seed.ts.
 
 type Init = { method?: string; body?: unknown };
 
@@ -58,6 +67,14 @@ const MembersResponse = {
 
 const org = (id: string) => `/orgs/${encodeURIComponent(id)}`;
 
+// The query of a paged list, with only the values given.
+function query(values: Record<string, string | number | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(values)) if (value !== undefined) params.set(name, String(value));
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+
 /** Public: the plans are shown to a visitor who has not signed in yet. */
 export const getPlans = () => json(PlanView.array(), "/plans", undefined, false);
 
@@ -71,6 +88,9 @@ export const createOrg = (name: string, claimId: string) =>
   json(OrgView, "/orgs", { method: "POST", body: { name, claimId } });
 
 export const getOrg = (id: string) => json(OrgView, org(id));
+
+/** Takes org.update and no payment, so a name can be fixed before the first one (DN-11 section 4.4). */
+export const renameOrg = (id: string, name: string) => json(OrgView, org(id), { method: "PATCH", body: { name } });
 
 export const listAnalyses = (orgId: string) => json(AnalysisView.array(), `${org(orgId)}/analyses`);
 
@@ -104,7 +124,38 @@ export const portal = (orgId: string) => json(UrlResponse, `${org(orgId)}/billin
 export const requestDeletion = (orgId: string, reason: string) =>
   json(DeletionRequestView, `${org(orgId)}/deletion-request`, { method: "POST", body: { reason } });
 
+// The action plan (DN-11 section 4.2). An action's key holds dots and colons, so it is encoded like any other path part.
+const action = (orgId: string, key: string) => `${org(orgId)}/actions/${encodeURIComponent(key)}`;
+
+export const getActionPlan = (orgId: string) => json(ActionPlanResponse, `${org(orgId)}/actions`);
+
+/** Adds one of the organization's own actions (actions.assign). */
+export const createAction = (orgId: string, item: CreateActionRequest) =>
+  json(ActionItemView, `${org(orgId)}/actions`, { method: "POST", body: item });
+
+/** A status alone takes actions.update; an assignee or a due date, even null to clear it, takes actions.assign. */
+export const updateAction = (orgId: string, key: string, change: UpdateActionRequest) =>
+  json(ActionItemView, action(orgId, key), { method: "PATCH", body: change });
+
+/** Only the organization's own actions can be deleted; the back refuses an assessment's with a 400 (D13). */
+export async function deleteAction(orgId: string, key: string): Promise<void> {
+  await request(action(orgId, key), { method: "DELETE" });
+}
+
+/** Newest first. `before` is the `nextBefore` of the previous page (DN-11 section 4.3). Takes activity.read and no payment. */
+export const listActivity = (orgId: string, page: { before?: number; limit?: number } = {}) =>
+  json(ActivityPage, `${org(orgId)}/activity${query(page)}`);
+
 export const adminListOrganizations = () => json(AdminOrgView.array(), "/admin/organizations");
+
+export const adminGetOrganization = (id: string) =>
+  json(AdminOrgDetailView, `/admin/organizations/${encodeURIComponent(id)}`);
+
+/** ARCA's audit across organizations, newest first; `orgId` narrows it to one (DN-11 section 4.5). */
+export const adminListAudit = (filter: { orgId?: string; before?: number; limit?: number } = {}) =>
+  json(AdminAuditPage, `/admin/audit${query(filter)}`);
+
+export const adminGetMetrics = () => json(AdminMetricsView, "/admin/metrics");
 
 export const adminListDeletionRequests = () => json(DeletionRequestView.array(), "/admin/deletion-requests");
 

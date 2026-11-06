@@ -415,14 +415,15 @@ describe("score-to-assessment navigation", () => {
     vi.mocked(startAssessment).mockReturnValueOnce(startA.promise).mockReturnValueOnce(startB.promise);
     const mounted = render(<ScorePage />);
     await screen.findByRole("button", { name: "Refine your score" });
-    expect(startAssessment).toHaveBeenCalledWith("sc_demo", "synthetic-test-capability");
+    // RefineCta starts the preload from an effect, which can run after the button is found.
+    await waitFor(() => expect(startAssessment).toHaveBeenCalledWith("sc_demo", "synthetic-test-capability"));
     navigation.query = "scan=sc_other";
     mounted.rerender(<ScorePage />);
     expect(screen.queryByRole("button", { name: "Refine your score" })).toBeNull();
     expect(screen.getByLabelText("Loading your results")).toBeTruthy();
     await act(async () => pollB.resolve({ scanId: "sc_other", status: "COMPLETED", cached: false, result: fixtureResult({ scanId: "sc_other" }) }));
     await screen.findByRole("button", { name: "Refine your score" });
-    expect(startAssessment).toHaveBeenCalledWith("sc_other", "synthetic-other-capability");
+    await waitFor(() => expect(startAssessment).toHaveBeenCalledWith("sc_other", "synthetic-other-capability"));
     await userEvent.click(button("Refine your score"));
     await act(async () => startA.resolve({ assessmentId: "as_first", status: "READY" }));
     expect(navigation.router.push).not.toHaveBeenCalled();

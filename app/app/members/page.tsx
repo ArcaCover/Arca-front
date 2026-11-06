@@ -3,30 +3,23 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Check, Copy, Minus, Search, UserPlus } from "lucide-react";
 import {
-  PERMISSIONS, ROLES, ROLE_PERMISSIONS, can, canManageMember, type InvitationView, type InviteRequest, type MemberView,
-  type Permission, type Role,
+  PERMISSIONS, ROLES, ROLE_PERMISSIONS, type InvitationView, type InviteRequest, type MemberView, type Permission, type Role,
 } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
-import { Avatar, Badge, Card, PageHeader, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import { Avatar, Badge, Card, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import { useAccess } from "@/lib/app/access";
 import { invite, listMembers, removeMember, revokeInvitation, setMemberRole } from "@/lib/app/client";
+import { PERMISSION_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
 type People = { members: MemberView[]; invitations: InvitationView[] };
 type InvitableRole = InviteRequest["role"];
 const INVITABLE: InvitableRole[] = ["admin", "member", "viewer"];
 
-const ROLE_LABEL: Record<Role, string> = { owner: "Owner", admin: "Admin", member: "Member", viewer: "Viewer" };
-
-// A Record over Permission, so a permission added to the contract fails the typecheck until it gets a name here.
-const PERMISSION_LABEL: Record<Permission, string> = {
-  "org.read": "View the organization and its analyses",
-  "analysis.create": "Save analyses to the organization",
-  "members.invite": "Invite people",
-  "members.remove": "Remove members",
-  "members.set_role": "Change roles",
-  "billing.manage": "Manage billing",
-  "org.transfer_ownership": "Transfer ownership",
-  "org.request_deletion": "Request deletion",
+// A row of the permission table stands alone, so its words start with a capital.
+const permissionRow = (permission: Permission) => {
+  const words = PERMISSION_LABEL[permission];
+  return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
 // The invite link carries the invitation's secret, so the page shows only its start and copies the rest.
@@ -58,11 +51,13 @@ export default function MembersPage() {
     };
   }, [org.id, version, fail]);
 
-  // The buttons follow the contract's permission table (DN-10 §4.3) and the rule that an admin never acts on an owner.
-  // In the debug modes they all stay active, so the demo shows the back's 403 (DN-10 §5).
-  const debug = process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
-  const allowed = (permission: Permission, target?: Role, nextRole?: Role) =>
-    debug || (can(org.role, permission) && (target === undefined || canManageMember(org.role, target, nextRole)));
+  // The controls follow the contract's permission table and the rule that an admin never acts on an owner, in every mode:
+  // what the role may not do is not shown at all. Only the debug switch brings it back, to show the back's 403 (DN-11 D3).
+  const access = useAccess();
+  const allowed = (permission: Permission, target?: Role, nextRole?: Role) => access.can(permission, { target, nextRole });
+  const canInvite = allowed("members.invite");
+  // Nothing on this page is the role's to change: it says once who can, instead of showing controls that would only fail.
+  const readOnly = !canInvite && !allowed("members.set_role") && !allowed("members.remove");
 
   async function act(action: () => Promise<unknown>) {
     setError(null);
@@ -104,12 +99,15 @@ export default function MembersPage() {
         title="Members"
         description="Who has access to this workspace, what each role can do, and the invitations still open."
         actions={
-          <button type="button" disabled className={buttonClass.secondary}>
-            Transfer ownership
-            <Badge>Coming soon</Badge>
-          </button>
+          access.can("org.transfer_ownership") && (
+            <button type="button" disabled className={buttonClass.secondary}>
+              Transfer ownership
+              <Badge>Coming soon</Badge>
+            </button>
+          )
         }
       />
+      {readOnly && <ReadOnlyNotice>Ask an owner or admin to invite people or change roles.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
           {error}
@@ -117,7 +115,7 @@ export default function MembersPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className={`space-y-6 ${canInvite ? "lg:col-span-2" : "lg:col-span-3"}`}>
           {people === null ? (
             !error && (
               <p role="status" className="rounded-3xl border border-marino/10 bg-white p-6 text-sm text-marino/70">
@@ -154,28 +152,35 @@ export default function MembersPage() {
                         </p>
                         <p className="text-xs text-marino/60">Joined {formatDate(member.joinedAt)}</p>
                       </div>
-                      <select
-                        aria-label={`Role for ${member.email}`}
-                        value={member.role}
-                        disabled={!allowed("members.set_role", member.role)}
-                        onChange={event => act(() => setMemberRole(org.id, member.userId, event.target.value as Role))}
-                        className="rounded-full border border-marino/20 bg-white px-3 py-1.5 disabled:opacity-60"
-                      >
-                        {ROLES.map(option => (
-                          <option key={option} value={option} disabled={!allowed("members.set_role", member.role, option)}>
-                            {ROLE_LABEL[option]}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${member.email}`}
-                        disabled={!allowed("members.remove", member.role)}
-                        onClick={() => act(() => removeMember(org.id, member.userId))}
-                        className={buttonClass.secondary}
-                      >
-                        Remove
-                      </button>
+                      {allowed("members.set_role", member.role) ? (
+                        <select
+                          aria-label={`Role for ${member.email}`}
+                          value={member.role}
+                          onChange={event => act(() => setMemberRole(org.id, member.userId, event.target.value as Role))}
+                          className="rounded-full border border-marino/20 bg-white px-3 py-1.5"
+                        >
+                          {/* Only the roles this user may hand out, plus the member's own so the select can show it. */}
+                          {ROLES.filter(option => option === member.role || allowed("members.set_role", member.role, option)).map(
+                            option => (
+                              <option key={option} value={option}>
+                                {ROLE_LABEL[option]}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      ) : (
+                        <Badge>{ROLE_LABEL[member.role]}</Badge>
+                      )}
+                      {allowed("members.remove", member.role) && (
+                        <button
+                          type="button"
+                          aria-label={`Remove ${member.email}`}
+                          onClick={() => act(() => removeMember(org.id, member.userId))}
+                          className={buttonClass.secondary}
+                        >
+                          Remove
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -197,15 +202,16 @@ export default function MembersPage() {
                         <p className="text-xs text-marino/60">Expires {formatDate(invitation.expiresAt)}</p>
                       </div>
                       <Badge>{ROLE_LABEL[invitation.role]}</Badge>
-                      <button
-                        type="button"
-                        aria-label={`Revoke invitation for ${invitation.email}`}
-                        disabled={!allowed("members.invite")}
-                        onClick={() => act(() => revokeInvitation(org.id, invitation.id))}
-                        className={buttonClass.secondary}
-                      >
-                        Revoke
-                      </button>
+                      {canInvite && (
+                        <button
+                          type="button"
+                          aria-label={`Revoke invitation for ${invitation.email}`}
+                          onClick={() => act(() => revokeInvitation(org.id, invitation.id))}
+                          className={buttonClass.secondary}
+                        >
+                          Revoke
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -214,48 +220,50 @@ export default function MembersPage() {
           )}
         </div>
 
-        <Card title="Invite someone" description="They get a link to join with their own email." className="self-start">
-          <form onSubmit={send} className="space-y-3 text-sm">
-            <label className="block">
-              Email to invite
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={event => setEmail(event.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="block">
-              Role
-              <select value={role} onChange={event => setRole(event.target.value as InvitableRole)} className={inputClass}>
-                {INVITABLE.map(option => (
-                  <option key={option} value={option}>
-                    {ROLE_LABEL[option]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button type="submit" disabled={!allowed("members.invite")} className={`${buttonClass.primary} w-full`}>
-              <UserPlus aria-hidden className="h-4 w-4" />
-              Send invitation
-            </button>
-          </form>
-          {link && (
-            <div className="mt-4 space-y-2 rounded-2xl bg-bruma p-4 text-sm">
-              <p className="break-all">Invitation created. Link: {masked(link)}</p>
-              <button type="button" onClick={() => copy(link)} className={buttonClass.secondary}>
-                <Copy aria-hidden className="h-3.5 w-3.5" />
-                Copy invite link
+        {canInvite && (
+          <Card title="Invite someone" description="They get a link to join with their own email." className="self-start">
+            <form onSubmit={send} className="space-y-3 text-sm">
+              <label className="block">
+                Email to invite
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="block">
+                Role
+                <select value={role} onChange={event => setRole(event.target.value as InvitableRole)} className={inputClass}>
+                  {INVITABLE.map(option => (
+                    <option key={option} value={option}>
+                      {ROLE_LABEL[option]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" className={`${buttonClass.primary} w-full`}>
+                <UserPlus aria-hidden className="h-4 w-4" />
+                Send invitation
               </button>
-              {copied && (
-                <p role="status" className="text-marino/70">
-                  {copied}
-                </p>
-              )}
-            </div>
-          )}
-        </Card>
+            </form>
+            {link && (
+              <div className="mt-4 space-y-2 rounded-2xl bg-bruma p-4 text-sm">
+                <p className="break-all">Invitation created. Link: {masked(link)}</p>
+                <button type="button" onClick={() => copy(link)} className={buttonClass.secondary}>
+                  <Copy aria-hidden className="h-3.5 w-3.5" />
+                  Copy invite link
+                </button>
+                {copied && (
+                  <p role="status" className="text-marino/70">
+                    {copied}
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       <Card
@@ -281,7 +289,7 @@ export default function MembersPage() {
               {PERMISSIONS.map(permission => (
                 <tr key={permission}>
                   <th scope="row" className="py-2.5 pr-4 font-normal">
-                    {PERMISSION_LABEL[permission]}
+                    {permissionRow(permission)}
                   </th>
                   {ROLES.map(option => (
                     <td key={option} className="px-3 py-2.5 text-center">

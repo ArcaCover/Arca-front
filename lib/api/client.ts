@@ -115,11 +115,12 @@ export async function apiFailure(response: Response): Promise<ApiError> {
   );
 }
 
-export async function apiSend(path: string, init: RequestInit): Promise<Response> {
+/** `timeoutMs` is for the rare route that is slow by design, such as the mock seed, which runs a whole scan. */
+export async function apiSend(path: string, init: RequestInit, timeoutMs = 15000): Promise<Response> {
   try {
     return await fetch(`${baseUrl()}${path}`, {
       ...init,
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (cause) {
     if (cause instanceof ApiError) throw cause;

@@ -1,0 +1,788 @@
+// @vitest-environment jsdom
+import type { AnchorHTMLAttributes, ReactElement } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type {
+  ActivityEventView, AdminAuditEventView, AdminMetricsView, AdminOrgDetailView, MeResponse, OrgView, Role,
+} from "@arca/contracts";
+
+import { ACTION_LABELS, describeAction, describeChange } from "@/app/app/activity/events";
+import ActivityPage from "@/app/app/activity/page";
+import AdminPage from "@/app/app/admin/page";
+import AppLayout from "@/app/app/layout";
+import { ApiError } from "@/lib/api/client";
+import { ACTION_STATUS_LABEL } from "@/lib/app/labels";
+import {
+  adminGetMetrics, adminGetOrganization, adminListAudit, adminListDeletionRequests, adminListOrganizations, adminListPlans,
+  getActionPlan, getMe, listActivity, listAnalyses,
+} from "@/lib/app/client";
+import { saveAppSession } from "@/lib/app/session";
+
+// DN-11 §6.4 for the organization's activity and ARCA's panel, each role through the /app layout: the activity is real and
+// only for activity.read, and /app/admin keeps DN-10's Operations as its default tab next to the new read-only ones.
+
+const navigation = vi.hoisted(() => ({ pathname: "/app", router: { replace: vi.fn(), push: vi.fn() } }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigation.router,
+  usePathname: () => navigation.pathname,
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+vi.mock("next/link", () => ({ default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} /> }));
+vi.mock("@/lib/app/client");
+
+const SWITCH_KEY = "arca.debug.showForbidden";
+
+const org = (overrides: Partial<OrgView> = {}): OrgView => ({
+  id: "org_1", name: "Smith Law", domain: "smithlaw.com", billingStatus: "active", role: "owner",
+  deletionPending: false, paidAccess: true, ...overrides,
+});
+
+function signedIn(organizations: OrgView[], platformAdmin = false) {
+  saveAppSession({ token: "app-token", email: "me@smithlaw.com", expiresAt: new Date(Date.now() + 3_600_000).toISOString() });
+  const me: MeResponse = { user: { id: "u_me", email: "me@smithlaw.com" }, organizations, platformAdmin };
+  vi.mocked(getMe).mockResolvedValue(me);
+}
+
+function inApp(pathname: string, page: ReactElement) {
+  navigation.pathname = pathname;
+  return render(<AppLayout>{page}</AppLayout>);
+}
+
+const event = (overrides: Partial<ActivityEventView> & Pick<ActivityEventView, "id" | "action">): ActivityEventView => ({
+  at: "2026-10-13T10:00:00.000Z", actor: { kind: "member", email: "owner@smithlaw.com" }, targetLabel: null, change: null,
+  ...overrides,
+});
+
+const EVENTS: ActivityEventView[] = [
+  event({
+    id: "e5", action: "member.role_changed", targetLabel: "member@smithlaw.com", change: { from: "member", to: "admin" },
+  }),
+  event({
+    id: "e4", action: "action.updated", actor: { kind: "member", email: "member@smithlaw.com" },
+    targetLabel: "Write the AI policy", change: { from: "todo", to: "done" },
+  }),
+  event({ id: "e3", action: "org.deletion_rejected", actor: { kind: "arca", email: null }, at: "2026-10-12T09:30:00.000Z" }),
+  event({ id: "e2", action: "billing.event_applied", actor: { kind: "system", email: null }, at: "2026-10-12T09:00:00.000Z" }),
+  event({
+    id: "e1", action: "org.created", targetLabel: "Smith Law", change: { from: null, to: "Smith Law" },
+    at: "2026-10-11T08:00:00.000Z",
+  }),
+];
+
+// What a read the back refused says instead of Try again: asking the same thing again gets the same answer.
+const REFUSED_WHY = {
+  unauthorized: "Your session has ended, so trying again would get the same answer.",
+  forbidden: "Your access does not include this, so trying again would get the same answer.",
+  not_found: "It cannot be found, so trying again would get the same answer.",
+  gone: "It was deleted, so trying again would get the same answer.",
+};
+
+const button = (name: string | RegExp) => screen.getByRole<HTMLButtonElement>("button", { name });
+const select = (name: string) => screen.getByRole<HTMLSelectElement>("combobox", { name });
+// The actor's name is the one span of its sentence; the person filter repeats it in an option.
+const actor = (name: string) => screen.getByText(name, { selector: "span" });
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", undefined);
+  navigation.pathname = "/app";
+  vi.mocked(listAnalyses).mockResolvedValue([]);
+  vi.mocked(getActionPlan).mockResolvedValue({ source: null, items: [] });
+  vi.mocked(listActivity).mockResolvedValue({ events: EVENTS, nextBefore: null });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+});
+
+describe("the activity's words", () => {
+  const SYSTEM = { member: false, email: null };
+
+  it("says a member joined on their own, and names who was added when someone else made the join", () => {
+    expect(describeAction("member.joined", "new@smithlaw.com", { member: true, email: "new@smithlaw.com" }).text).toBe(
+      "joined the organization",
+    );
+    // The demo seed adds its members as the system (DN-11 §4.3).
+    expect(describeAction("member.joined", "viewer@smithlaw.com", SYSTEM).text).toBe("added viewer@smithlaw.com to the organization");
+    expect(describeAction("member.joined", "viewer@smithlaw.com", { member: true, email: "owner@smithlaw.com" }).text).toBe(
+      "added viewer@smithlaw.com to the organization",
+    );
+    expect(describeAction("member.joined", null, SYSTEM).text).toBe("added a member to the organization");
+    // A member whose profile is gone has no email left, as the one who acted nor as the one who joined.
+    expect(describeAction("member.joined", null, { member: true, email: null }).text).toBe("joined the organization");
+  });
+
+  it("puts a generic noun where the back could not name the target, so no sentence trails off", () => {
+    expect(describeAction("member.role_changed", "member@smithlaw.com", SYSTEM).text).toBe("changed the role of member@smithlaw.com");
+    expect(describeAction("member.role_changed", null, SYSTEM).text).toBe("changed a member's role");
+    expect(describeAction("analysis.claimed", null, SYSTEM).text).toBe("saved an analysis");
+    expect(describeAction("invitation.revoked", null, SYSTEM).text).toBe("closed an invitation");
+    for (const action of Object.keys(ACTION_LABELS)) {
+      expect(describeAction(action, null, SYSTEM).text).not.toMatch(/\b(of|for|the action|the plan|invited|removed)$|“/);
+    }
+  });
+
+  it("names the plan that changed inside the sentence, and quotes an action's title as the rest of /app does", () => {
+    const STAFF = { member: false, email: "ops@arca.example" };
+    expect(describeAction("plan.updated", "monthly", STAFF).text).toBe("changed the monthly plan");
+    expect(describeAction("plan.updated", null, STAFF).text).toBe("changed a plan");
+    const title = "Write the AI policy";
+    expect(describeAction("action.created", title, SYSTEM).text).toBe("added the action “Write the AI policy”");
+    expect(describeAction("action.updated", title, SYSTEM).text).toBe("updated the action “Write the AI policy”");
+    expect(describeAction("action.deleted", title, SYSTEM).text).toBe("deleted the action “Write the AI policy”");
+    expect(describeAction("action.deleted", null, SYSTEM).text).toBe("deleted an action");
+    // Only titles are quoted: an email or a name stays as it is.
+    expect(describeAction("member.removed", "admin@smithlaw.com", SYSTEM).text).toBe("removed admin@smithlaw.com");
+  });
+
+  it("words an action's status as the Action plan does", () => {
+    expect(describeChange("action.updated", { from: "todo", to: "in_progress" })).toBe(
+      `Status: ${ACTION_STATUS_LABEL.todo} → ${ACTION_STATUS_LABEL.in_progress}`,
+    );
+    expect(describeChange("action.updated", { from: "in_progress", to: "done" })).toBe("Status: In progress → Done");
+  });
+
+  it("shows the role a removed member had, not a change to none", () => {
+    expect(describeChange("member.removed", { from: "admin", to: null })).toBe("Role: Admin");
+    expect(describeChange("member.role_changed", { from: "member", to: "admin" })).toBe("Role: Member → Admin");
+    // A due date that was cleared still says so.
+    expect(describeChange("action.updated", { from: "2026-11-01", to: null })).toBe("Due date: Nov 1, 2026 → none");
+  });
+});
+
+describe("the organization's activity", () => {
+  it.each<Role>(["owner", "admin"])("shows an %s the real log, without a sample label", async role => {
+    signedIn([org({ role })]);
+    inApp("/app/activity", <ActivityPage />);
+    await screen.findByRole("heading", { name: "Activity", level: 1 });
+    expect(await screen.findByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(listActivity).toHaveBeenCalledExactlyOnceWith("org_1");
+    expect(screen.queryByText("Sample data")).toBeNull();
+    expect(button(/Export CSV/).disabled).toBe(true);
+  });
+
+  it.each<Role>(["member", "viewer"])("never mounts for a %s, and asks the API nothing", async role => {
+    signedIn([org({ role })]);
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByRole("heading", { name: "Your role can't open this page" })).toBeTruthy();
+    // The gate keeps the page's title as its h1, so the page's own description is what proves it never mounted.
+    expect(screen.queryByText(/Who did what in your organization/)).toBeNull();
+    expect(listActivity).not.toHaveBeenCalled();
+  });
+
+  it("opens for an owner whose organization has not paid, since the activity takes no payment", async () => {
+    signedIn([org({ billingStatus: "pending_payment", paidAccess: false })]);
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(screen.queryByText(/Choose a plan to unlock/)).toBeNull();
+    expect(navigation.router.replace).not.toHaveBeenCalled();
+  });
+
+  it("names members by email and ARCA staff and the system by kind only, with each change in words", async () => {
+    signedIn([org()]);
+    inApp("/app/activity", <ActivityPage />);
+    await screen.findByText("changed the role of member@smithlaw.com");
+    expect(screen.getByText("Role: Member → Admin")).toBeTruthy();
+    expect(screen.getByText("updated the action “Write the AI policy”")).toBeTruthy();
+    expect(screen.getByText("Status: To do → Done")).toBeTruthy();
+    expect(actor("ARCA staff")).toBeTruthy();
+    expect(screen.getByText("turned down the deletion of the organization")).toBeTruthy();
+    expect(actor("System")).toBeTruthy();
+    expect(screen.getByText("recorded a billing update")).toBeTruthy();
+    // A value that was not there before shows alone.
+    expect(screen.getByText("Name: Smith Law")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Oct 12, 2026" })).toBeTruthy();
+    expect(screen.getAllByText("10:00 AM UTC")).toHaveLength(2);
+    expect(screen.getByRole("main").textContent).not.toMatch(/arca\.example/);
+  });
+
+  it("filters by person and by event type", async () => {
+    signedIn([org()]);
+    inApp("/app/activity", <ActivityPage />);
+    await screen.findByText("changed the role of member@smithlaw.com");
+    const user = userEvent.setup();
+
+    const people = [...select("Filter by person").options].map(option => option.textContent);
+    expect(people).toEqual(["Everyone", "owner@smithlaw.com", "member@smithlaw.com", "ARCA staff", "System"]);
+
+    await user.click(button(/^Organization/));
+    expect(screen.getByText("created the organization")).toBeTruthy();
+    expect(screen.queryByText("changed the role of member@smithlaw.com")).toBeNull();
+
+    await user.click(button(/^All/));
+    await user.selectOptions(select("Filter by person"), "member@smithlaw.com");
+    expect(screen.getByText("updated the action “Write the AI policy”")).toBeTruthy();
+    expect(screen.queryByText("created the organization")).toBeNull();
+    // The pills count what the person filter leaves.
+    expect(button(/^Action plan/).textContent).toBe("Action plan1");
+    expect(button(/^Members/).textContent).toBe("Members0");
+
+    await user.click(button(/^Members/));
+    expect(screen.getByText("No activity matches these filters.")).toBeTruthy();
+  });
+
+  it("loads older events with nextBefore, until there are none", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity)
+      .mockResolvedValueOnce({ events: EVENTS.slice(0, 2), nextBefore: 3 })
+      .mockResolvedValueOnce({ events: EVENTS.slice(2), nextBefore: null });
+    inApp("/app/activity", <ActivityPage />);
+    await screen.findByText("changed the role of member@smithlaw.com");
+    expect(screen.queryByText("created the organization")).toBeNull();
+    expect(screen.getByText("The filters apply to the events loaded so far.")).toBeTruthy();
+
+    await userEvent.click(button("Load more"));
+    expect(await screen.findByText("created the organization")).toBeTruthy();
+    expect(screen.getByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(listActivity).toHaveBeenLastCalledWith("org_1", { before: 3 });
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(screen.getByText("That is the whole log.")).toBeTruthy();
+  });
+
+  it("keeps what it loaded and says why when a later page fails", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity)
+      .mockResolvedValueOnce({ events: EVENTS.slice(0, 2), nextBefore: 3 })
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."));
+    inApp("/app/activity", <ActivityPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+    expect(screen.getByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(button("Load more").disabled).toBe(false);
+  });
+
+  it.each<[ApiError, string]>([
+    [new ApiError("forbidden", "Your role does not allow this"), REFUSED_WHY.forbidden],
+    [new ApiError("gone", "This organization was deleted"), REFUSED_WHY.gone],
+  ])("keeps what it loaded, says why and drops Load more when a later page is refused: %s", async (refusal, why) => {
+    signedIn([org()]);
+    vi.mocked(listActivity)
+      .mockResolvedValueOnce({ events: EVENTS.slice(0, 2), nextBefore: 3 })
+      .mockRejectedValueOnce(refusal);
+    inApp("/app/activity", <ActivityPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal.message);
+    expect(screen.getByText(why)).toBeTruthy();
+    expect(screen.getByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    // Not the whole log: the rest was refused, not missing.
+    expect(screen.queryByText("That is the whole log.")).toBeNull();
+    expect(listActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it("names who the system added, and the role a removed member had", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity).mockResolvedValue({
+      events: [
+        event({
+          id: "e8", action: "member.joined", actor: { kind: "system", email: null }, targetLabel: "viewer@smithlaw.com",
+          change: { from: null, to: "viewer" },
+        }),
+        event({
+          id: "e7", action: "member.joined", actor: { kind: "member", email: "member@smithlaw.com" },
+          targetLabel: "member@smithlaw.com", change: { from: null, to: "member" },
+        }),
+        event({ id: "e6", action: "member.removed", targetLabel: "admin@smithlaw.com", change: { from: "admin", to: null } }),
+      ],
+      nextBefore: null,
+    });
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByText("added viewer@smithlaw.com to the organization")).toBeTruthy();
+    expect(actor("System")).toBeTruthy();
+    expect(screen.getByText("Role: Viewer")).toBeTruthy();
+    expect(screen.queryByText("joined the organization", { selector: "p" })?.textContent).toBe("member@smithlaw.com joined the organization");
+    expect(screen.getByText("removed admin@smithlaw.com")).toBeTruthy();
+    expect(screen.getByText("Role: Admin")).toBeTruthy();
+    expect(screen.queryByText(/→ none/)).toBeNull();
+  });
+
+  it("offers to try again when the first page cannot load", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce({ events: EVENTS, nextBefore: null });
+    inApp("/app/activity", <ActivityPage />);
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(listActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it.each<[ApiError, string]>([
+    [new ApiError("not_found", "Organization not found"), REFUSED_WHY.not_found],
+    [new ApiError("gone", "This organization was deleted"), REFUSED_WHY.gone],
+    [new ApiError("forbidden", "Your role does not allow this"), REFUSED_WHY.forbidden],
+  ])("says why instead of offering to try again when the first page is refused: %s", async (refusal, why) => {
+    signedIn([org()]);
+    vi.mocked(listActivity).mockRejectedValue(refusal);
+    inApp("/app/activity", <ActivityPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal.message);
+    expect(screen.getByText(why)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(listActivity).toHaveBeenCalledOnce();
+  });
+
+  it("shows an action the front has no words for under its own name", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity).mockResolvedValue({ events: [event({ id: "e9", action: "something.new" })], nextBefore: null });
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByText("recorded “something.new”")).toBeTruthy();
+    expect(button(/^Other/).textContent).toBe("Other1");
+  });
+
+  it("says so when there is nothing yet", async () => {
+    signedIn([org()]);
+    vi.mocked(listActivity).mockResolvedValue({ events: [], nextBefore: null });
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByText("No activity yet.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("in mock with the switch on, mounts for a viewer and shows the back's 403", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    sessionStorage.setItem(SWITCH_KEY, "1");
+    signedIn([org({ role: "viewer" })]);
+    vi.mocked(listActivity).mockRejectedValue(new ApiError("forbidden", "Your role does not allow this"));
+    inApp("/app/activity", <ActivityPage />);
+    expect((await screen.findByRole("alert")).textContent).toContain("Your role does not allow this");
+    expect(screen.getByText(REFUSED_WHY.forbidden)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(listActivity).toHaveBeenCalledExactlyOnceWith("org_1");
+    expect(navigation.router.replace).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, "production"])("with the switch's key set and the mode %s, still never mounts for a member", async mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+    sessionStorage.setItem(SWITCH_KEY, "1");
+    signedIn([org({ role: "member" })]);
+    inApp("/app/activity", <ActivityPage />);
+    expect(await screen.findByRole("heading", { name: "Your role can't open this page" })).toBeTruthy();
+    expect(listActivity).not.toHaveBeenCalled();
+  });
+});
+
+describe("the platform admin page", () => {
+  const monthly = { code: "monthly", name: "Monthly (example price)", amountCents: 49_900, currency: "usd", interval: "month" as const };
+  const pending = {
+    id: "del_1", orgId: "org_2", reason: "Closing the firm", status: "pending" as const,
+    requestedAt: "2026-10-25T12:00:00.000Z", reviewedAt: null, reviewNote: null,
+  };
+  const ORGS = [
+    { id: "org_1", name: "Smith Law", billingStatus: "active" as const, deleted: false, members: 2 },
+    { id: "org_2", name: "Jones Legal", billingStatus: "pending_payment" as const, deleted: false, members: 1 },
+  ];
+  const DETAIL: AdminOrgDetailView = {
+    id: "org_2", name: "Jones Legal", domain: "joneslegal.com", billingStatus: "pending_payment", deleted: false,
+    createdAt: "2026-10-20T10:00:00.000Z", planCode: null, analysisCount: 1, pendingDeletion: pending,
+    members: [{ email: "owner@joneslegal.com", role: "owner", joinedAt: "2026-10-20T10:00:00.000Z" }],
+  };
+  const audit = (overrides: Partial<AdminAuditEventView> & Pick<AdminAuditEventView, "id" | "action">): AdminAuditEventView => ({
+    at: "2026-10-13T10:00:00.000Z", orgId: "org_1", orgName: "Smith Law", actorKind: "member", actorEmail: "owner@smithlaw.com",
+    targetLabel: null, ...overrides,
+  });
+  const METRICS: AdminMetricsView = {
+    organizations: { pending_payment: 1, active: 2, past_due: 0, canceled: 0, deleted: 3 },
+    members: 4, analyses: 5, pendingDeletionRequests: 1, actions: { todo: 6, in_progress: 7, done: 8 },
+  };
+  const REFUSAL = new ApiError("forbidden", "Only ARCA platform admins can do this");
+
+  /** An ARCA person: a platform admin who belongs to no organization. */
+  const staff = () => signedIn([], true);
+  const tab = (name: string) => screen.getByRole("tab", { name });
+  const openTab = async (name: string) => userEvent.click(await screen.findByRole("tab", { name }));
+
+  beforeEach(() => {
+    vi.mocked(adminListPlans).mockResolvedValue([monthly]);
+    vi.mocked(adminListDeletionRequests).mockResolvedValue([pending]);
+    vi.mocked(adminListOrganizations).mockResolvedValue(ORGS);
+    vi.mocked(adminGetOrganization).mockResolvedValue(DETAIL);
+    vi.mocked(adminListAudit).mockResolvedValue({ events: [], nextBefore: null });
+    vi.mocked(adminGetMetrics).mockResolvedValue(METRICS);
+  });
+
+  it.each<Role>(["owner", "admin", "member", "viewer"])(
+    "shows Not available to an %s who is not a platform admin, and asks the admin API nothing",
+    async role => {
+      signedIn([org({ role })]);
+      inApp("/app/admin", <AdminPage />);
+      expect(await screen.findByText("Not available")).toBeTruthy();
+      expect(screen.queryByRole("tab")).toBeNull();
+      for (const call of [adminListPlans, adminListDeletionRequests, adminListOrganizations, adminListAudit, adminGetMetrics]) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it.each<[string, () => void]>([
+    ["without an organization", staff],
+    ["who is also a viewer of an organization", () => signedIn([org({ role: "viewer" })], true)],
+  ])("opens on Operations for a platform admin %s, as DN-10 left it", async (_who, sign) => {
+    sign();
+    inApp("/app/admin", <AdminPage />);
+    expect(await screen.findByRole("heading", { name: "Platform admin (proof of concept)" })).toBeTruthy();
+    expect(tab("Operations").getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByLabelText<HTMLInputElement>("Price of Monthly (example price) in USD").value).toBe("499.00");
+    expect(screen.getByText("Closing the firm")).toBeTruthy();
+    expect(button("Approve the deletion of Jones Legal")).toBeTruthy();
+    // The other tabs ask nothing until they are opened.
+    expect(adminListAudit).not.toHaveBeenCalled();
+    expect(adminGetMetrics).not.toHaveBeenCalled();
+    expect(adminGetOrganization).not.toHaveBeenCalled();
+  });
+
+  it("offers to try again when the panel cannot load, and opens it then", async () => {
+    staff();
+    vi.mocked(adminListPlans)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce([monthly]);
+    inApp("/app/admin", <AdminPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("heading", { name: "Platform admin (proof of concept)" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminListPlans).toHaveBeenCalledTimes(2);
+  });
+
+  it.each<[ApiError, string]>([
+    [new ApiError("forbidden", "Only ARCA platform admins can do this"), REFUSED_WHY.forbidden],
+    [new ApiError("unauthorized", "Sign in again"), REFUSED_WHY.unauthorized],
+  ])("says why instead of offering to try again when the panel is refused: %s", async (refusal, why) => {
+    staff();
+    vi.mocked(adminListDeletionRequests).mockRejectedValue(refusal);
+    inApp("/app/admin", <AdminPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal.message);
+    expect(screen.getByText(why)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
+  it("offers a platform admin whose session ended a way to sign in again, as the panel has no organization to leave", async () => {
+    staff();
+    vi.mocked(adminListDeletionRequests).mockRejectedValue(new ApiError("unauthorized", "Your session has expired"));
+    inApp("/app/admin", <AdminPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe("Your session has expired");
+    expect(screen.getByText(REFUSED_WHY.unauthorized)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sign in again" }).getAttribute("href")).toBe("/app/login");
+  });
+
+  it("offers to try again when an organization's detail cannot load", async () => {
+    staff();
+    vi.mocked(adminGetOrganization)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce(DETAIL);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Organizations");
+    await userEvent.click(await screen.findByRole("button", { name: "Open Jones Legal" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("We could not reach the server.");
+    expect(button("All organizations")).toBeTruthy();
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("heading", { name: "Jones Legal" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminGetOrganization).toHaveBeenCalledTimes(2);
+  });
+
+  it("says why instead of offering to try again when an organization's detail is not found", async () => {
+    staff();
+    vi.mocked(adminGetOrganization).mockRejectedValue(new ApiError("not_found", "Organization not found"));
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Organizations");
+    await userEvent.click(await screen.findByRole("button", { name: "Open Jones Legal" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Organization not found");
+    expect(screen.getByText(REFUSED_WHY.not_found)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    // The way back stays.
+    await userEvent.click(button("All organizations"));
+    expect(await screen.findByRole("list", { name: "Organizations" })).toBeTruthy();
+  });
+
+  it.each<[string, () => void]>([
+    ["Organizations", () => vi.mocked(adminListOrganizations).mockRejectedValue(REFUSAL)],
+    ["Audit", () => vi.mocked(adminListAudit).mockRejectedValue(REFUSAL)],
+    ["Metrics", () => vi.mocked(adminGetMetrics).mockRejectedValue(REFUSAL)],
+  ])("says why instead of offering to try again when the %s tab is refused", async (name, refuse) => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    // The panel's own read takes the first answer; the tab's is the one refused.
+    await screen.findByRole("tab", { name });
+    refuse();
+    await openTab(name);
+    expect((await screen.findByRole("alert")).textContent).toBe(REFUSAL.message);
+    expect(screen.getByText(REFUSED_WHY.forbidden)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    // Only an ended session is sent to sign in.
+    expect(screen.queryByRole("link", { name: "Sign in again" })).toBeNull();
+  });
+
+  it("lists the organizations and opens one in the same page, then goes back", async () => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Organizations");
+    const list = await screen.findByRole("list", { name: "Organizations" });
+    expect(within(list).getByText("Smith Law")).toBeTruthy();
+    expect(within(list).getByText("Pending payment")).toBeTruthy();
+
+    await userEvent.click(button("Open Jones Legal"));
+    expect(await screen.findByRole("heading", { name: "Jones Legal" })).toBeTruthy();
+    expect(adminGetOrganization).toHaveBeenCalledExactlyOnceWith("org_2");
+    expect(screen.getByText("joneslegal.com")).toBeTruthy();
+    expect(screen.getByText("No subscription")).toBeTruthy();
+    expect(screen.getByText("Pending since Oct 25, 2026: Closing the firm")).toBeTruthy();
+    expect(within(screen.getByRole("list", { name: "Members" })).getByText("owner@joneslegal.com")).toBeTruthy();
+    expect(navigation.router.push).not.toHaveBeenCalled();
+
+    await userEvent.click(button("All organizations"));
+    expect(await screen.findByRole("list", { name: "Organizations" })).toBeTruthy();
+  });
+
+  it("opens the audit of an organization from its detail", async () => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Organizations");
+    await userEvent.click(await screen.findByRole("button", { name: "Open Jones Legal" }));
+    await userEvent.click(await screen.findByRole("button", { name: "See its audit" }));
+    expect(tab("Audit").getAttribute("aria-selected")).toBe("true");
+    expect(select("Organization").value).toBe("org_2");
+    await waitFor(() => expect(adminListAudit).toHaveBeenCalledExactlyOnceWith({ orgId: "org_2" }));
+  });
+
+  it("reads the audit of every organization, names ARCA staff, narrows to one and loads more", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({
+        events: [
+          audit({
+            id: "a2", action: "plan.updated", orgId: null, orgName: null, actorKind: "platform", actorEmail: "ops@arca.example",
+            targetLabel: "monthly",
+          }),
+          audit({ id: "a1b", action: "action.created", actorEmail: "admin@smithlaw.com", targetLabel: "Train the team" }),
+          audit({ id: "a1", action: "billing.event_applied", actorKind: "system", actorEmail: null }),
+        ],
+        nextBefore: null,
+      })
+      .mockResolvedValueOnce({
+        events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })],
+        nextBefore: 7,
+      })
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: null });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+
+    const events = await screen.findByRole("list", { name: "Audit events" });
+    expect(adminListAudit).toHaveBeenLastCalledWith({});
+    expect(within(events).getByText("ops@arca.example")).toBeTruthy();
+    expect(within(events).getByText("changed the monthly plan")).toBeTruthy();
+    expect(within(events).getByText("added the action “Train the team”")).toBeTruthy();
+    expect(within(events).getByText("Platform")).toBeTruthy();
+    expect(within(events).getAllByText("System")).toHaveLength(2);
+    // Each row's badge is its kind of actor, in the words the organization's activity uses.
+    expect(within(events).getByText("ARCA staff")).toBeTruthy();
+    expect(within(events).getByText("Member")).toBeTruthy();
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    expect(await screen.findByText("removed member@smithlaw.com")).toBeTruthy();
+    expect(adminListAudit).toHaveBeenLastCalledWith({ orgId: "org_1" });
+    expect(screen.queryByText("ops@arca.example")).toBeNull();
+
+    await userEvent.click(button("Load more"));
+    expect(await screen.findByText("created the organization")).toBeTruthy();
+    expect(adminListAudit).toHaveBeenLastCalledWith({ orgId: "org_1", before: 7 });
+    expect(screen.getByText("removed member@smithlaw.com")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  });
+
+  it("says who the system added, where the audit has no change line to say it", async () => {
+    staff();
+    vi.mocked(adminListAudit).mockResolvedValue({
+      events: [
+        audit({ id: "a6", action: "member.joined", actorKind: "system", actorEmail: null, targetLabel: "viewer@smithlaw.com" }),
+        audit({ id: "a5", action: "member.joined", actorEmail: "new@smithlaw.com", targetLabel: "new@smithlaw.com" }),
+      ],
+      nextBefore: null,
+    });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    const events = await screen.findByRole("list", { name: "Audit events" });
+    expect(within(events).getByText("added viewer@smithlaw.com to the organization")).toBeTruthy();
+    expect(within(events).getByText("joined the organization").textContent).toBe("new@smithlaw.com joined the organization");
+  });
+
+  it("ties Load more to the list on screen: a page asked before the filter changed neither holds the button nor shows its error", async () => {
+    staff();
+    let refuse: (cause: unknown) => void = () => undefined;
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockImplementationOnce(() => new Promise((_resolve, reject) => (refuse = reject)))
+      .mockResolvedValueOnce({ events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })], nextBefore: 7 });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect(button("Loading…").disabled).toBe(true);
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    expect(await screen.findByText("removed member@smithlaw.com")).toBeTruthy();
+    expect(button("Load more").disabled).toBe(false);
+
+    await act(async () => refuse(new ApiError("network", "We could not reach the server.")));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(button("Load more").disabled).toBe(false);
+    expect(screen.queryByText("created the organization")).toBeNull();
+  });
+
+  it("does not append a page asked before the filter changed when it arrives", async () => {
+    staff();
+    let answer: (page: { events: AdminAuditEventView[]; nextBefore: number | null }) => void = () => undefined;
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockImplementationOnce(() => new Promise(resolve => (answer = resolve)))
+      .mockResolvedValueOnce({ events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })], nextBefore: 7 });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    expect(await screen.findByText("removed member@smithlaw.com")).toBeTruthy();
+
+    await act(async () => answer({ events: [audit({ id: "a2", action: "org.renamed" })], nextBefore: null }));
+    const events = screen.getByRole("list", { name: "Audit events" });
+    expect(within(events).getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.queryByText("renamed the organization")).toBeNull();
+    // The list on screen keeps its own next page.
+    expect(button("Load more").disabled).toBe(false);
+  });
+
+  it("from every organization to one and back, shows every organization's rows once, and only theirs", async () => {
+    staff();
+    let answerOne: (page: { events: AdminAuditEventView[]; nextBefore: number | null }) => void = () => undefined;
+    let answerMore: (page: { events: AdminAuditEventView[]; nextBefore: number | null }) => void = () => undefined;
+    const EVERY = { events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 };
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce(EVERY)
+      // Load more on the first list of every organization, answered last.
+      .mockImplementationOnce(() => new Promise(resolve => (answerMore = resolve)))
+      // The one organization's first page, answered after the filter went back.
+      .mockImplementationOnce(() => new Promise(resolve => (answerOne = resolve)))
+      .mockResolvedValueOnce(EVERY);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    await userEvent.selectOptions(select("Organization"), "");
+    expect(await screen.findByText("created the organization")).toBeTruthy();
+    expect(adminListAudit).toHaveBeenLastCalledWith({});
+
+    await act(async () =>
+      answerOne({ events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })], nextBefore: null }),
+    );
+    await act(async () => answerMore({ events: [audit({ id: "a2", action: "org.renamed" })], nextBefore: null }));
+    const events = screen.getByRole("list", { name: "Audit events" });
+    expect(within(events).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(events).getAllByText("created the organization")).toHaveLength(1);
+    expect(screen.queryByText("removed member@smithlaw.com")).toBeNull();
+    expect(screen.queryByText("renamed the organization")).toBeNull();
+    expect(button("Load more").disabled).toBe(false);
+  });
+
+  it("keeps the audit loaded, says why and drops Load more when a later page is refused", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockRejectedValueOnce(REFUSAL);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(REFUSAL.message);
+    expect(screen.getByText(REFUSED_WHY.forbidden)).toBeTruthy();
+    expect(screen.getByText("created the organization")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(adminListAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps Load more after a later page of the audit fails for a reason that may pass", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce({ events: [audit({ id: "a2", action: "org.renamed" })], nextBefore: null });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("We could not reach the server.");
+
+    await userEvent.click(button("Load more"));
+    expect(await screen.findByText("renamed the organization")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminListAudit).toHaveBeenLastCalledWith({ before: 5 });
+  });
+
+  it("offers to try again when the audit's first page cannot load", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: null });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByText("created the organization")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminListAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers to try again when the organizations cannot load", async () => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    // The panel's own read takes the first answer; the tab's is the one that fails.
+    await screen.findByRole("tab", { name: "Organizations" });
+    vi.mocked(adminListOrganizations)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce(ORGS);
+    await openTab("Organizations");
+    expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("list", { name: "Organizations" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("shows the counts, and only counts", async () => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Metrics");
+    const value = (group: string, label: string) =>
+      within(screen.getByRole("region", { name: group })).getByText(label).nextElementSibling?.textContent;
+    await screen.findByRole("region", { name: "Organizations" });
+    expect(value("Organizations", "Active")).toBe("2");
+    expect(value("Organizations", "Deleted")).toBe("3");
+    expect(value("Usage", "Members")).toBe("4");
+    expect(value("Usage", "Analyses")).toBe("5");
+    expect(value("Usage", "Pending deletion requests")).toBe("1");
+    expect(value("Actions", "In progress")).toBe("7");
+    expect(screen.getByRole("tabpanel").textContent).not.toMatch(/\$/);
+  });
+
+  it("shows the API's reason when a tab cannot load, and offers to try again", async () => {
+    staff();
+    vi.mocked(adminGetMetrics)
+      .mockRejectedValueOnce(new ApiError("internal_error", "The metrics could not be read"))
+      .mockResolvedValueOnce(METRICS);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Metrics");
+    expect((await screen.findByRole("alert")).textContent).toContain("The metrics could not be read");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("region", { name: "Organizations" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminGetMetrics).toHaveBeenCalledTimes(2);
+  });
+});

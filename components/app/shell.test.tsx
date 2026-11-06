@@ -91,25 +91,18 @@ describe("the /app shell", () => {
   });
 });
 
+// The action plan left the sample state for the real one (DN-11 §6.4); only the alerts are still a sample.
 describe("the sample state", () => {
-  it("moves an action and assigns it", () => {
-    const start = initialSample();
-    const id = start.actions[0].id;
-    const moved = sampleReducer(sampleReducer(start, { type: "action.status", id, status: "done" }), {
-      type: "action.assignee", id, assignee: null,
-    });
-    expect(moved.actions[0]).toMatchObject({ status: "done", assignee: null });
-    expect(start.actions[0].status).not.toBe("done");
+  it("holds the alerts only", () => {
+    expect(Object.keys(initialSample())).toEqual(["alerts"]);
   });
 
-  it("turns an alert into an action once, and reads it", () => {
+  it("reads one alert and leaves the rest", () => {
     const start = initialSample();
     const alert = start.alerts.find(item => !item.read)!;
-    const once = sampleReducer(start, { type: "action.from_alert", alert });
-    const twice = sampleReducer(once, { type: "action.from_alert", alert });
-    expect(twice.actions.length).toBe(start.actions.length + 1);
-    expect(twice.actions[0].title).toBe(alert.suggestedAction);
-    expect(twice.alerts.find(item => item.id === alert.id)?.read).toBe(true);
+    const read = sampleReducer(start, { type: "alert.read", id: alert.id });
+    expect(read.alerts.find(item => item.id === alert.id)?.read).toBe(true);
+    expect(read.alerts.filter(item => !item.read).length).toBe(start.alerts.filter(item => !item.read).length - 1);
   });
 
   it("dismisses an alert and reads them all", () => {

@@ -2,11 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { CalendarDays, FolderOpen, Laptop, Scale, Smartphone } from "lucide-react";
-import { can } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
-import { Badge, Card, PageHeader, SampleBadge, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
-import { requestDeletion } from "@/lib/app/client";
+import {
+  Badge, Card, PageHeader, ReadOnlyNotice, SampleBadge, buttonClass, formatDate, inputClass, usePreview,
+} from "@/components/app/ui";
+import { useAccess } from "@/lib/app/access";
+import { renameOrg, requestDeletion } from "@/lib/app/client";
+import { BILLING_STATUS_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 import { SAMPLE_SESSIONS } from "@/lib/app/mock/records";
 
 const SECTIONS = [
@@ -45,6 +48,19 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requested, setRequested] = useState(false);
+  const [name, setName] = useState(org.name);
+  const [renaming, setRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renamed, setRenamed] = useState(false);
+  // The name the last rename saved. Until /me answers again org.name is still the old one, and the same name sent twice
+  // would only audit a second rename. The next name /me shows after the rename answered forgets it, so it can be sent
+  // again once someone renames the organization elsewhere.
+  const [saved, setSaved] = useState<string | null>(null);
+  const [shownName, setShownName] = useState(org.name);
+  if (shownName !== org.name) {
+    setShownName(org.name);
+    setSaved(null);
+  }
 
   // Sample values for the local forms below: nothing here is read from or sent to the API.
   const [profile, setProfile] = useState({ state: "Florida", attorneys: "12", areas: ["Immigration", "Personal injury"] });
@@ -53,11 +69,14 @@ export default function SettingsPage() {
   });
   const [digest, setDigest] = useState("weekly");
 
-  // DN-10 §5: the button follows the role, except in the debug modes, where it stays active so the demo shows the back's 403.
-  const canRequest =
-    process.env.NEXT_PUBLIC_ARCA_MODE === "mock" ||
-    process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug" ||
-    can(org.role, "org.request_deletion");
+  // The organization's sections follow the role in every mode: what it may not change is not shown, and only the debug
+  // switch brings it back, to show the back's 403 (DN-11 D3). Notifications and security are personal, so everyone has them.
+  const access = useAccess();
+  const canEdit = access.can("org.update");
+  const canRequest = access.can("org.request_deletion");
+  const canTransfer = access.can("org.transfer_ownership");
+  const ownerOnly = !canRequest || !canTransfer;
+  const unchangedName = name.trim() === "" || name.trim() === org.name || name.trim() === saved;
   // One request at a time: a second one would only meet the back's 409, so the form closes until ARCA reviews it.
   const pending = requested || org.deletionPending;
 
@@ -77,6 +96,25 @@ export default function SettingsPage() {
     setBusy(false);
   }
 
+  // Real (DN-11 §4.4): org.update and no payment, so a name can be fixed before the first one.
+  async function rename(event: FormEvent) {
+    event.preventDefault();
+    setRenaming(true);
+    setRenameError(null);
+    setRenamed(false);
+    try {
+      const updated = await renameOrg(org.id, name.trim());
+      setName(updated.name);
+      setSaved(updated.name);
+      setRenamed(true);
+      // The top bar and the sidebar show the name from /me.
+      reload();
+    } catch (cause) {
+      setRenameError(fail(cause));
+    }
+    setRenaming(false);
+  }
+
   function toggleArea(area: string) {
     setProfile(current => ({
       ...current,
@@ -92,6 +130,13 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader eyebrow="Organization" title="Settings" description="Your organization's details, notifications, security and data." />
+      {(!canEdit || ownerOnly) && (
+        <ReadOnlyNotice>
+          {canEdit
+            ? "Only the owner can request the organization's deletion or transfer its ownership."
+            : "Ask an owner or admin to change the organization's details. Only the owner can request its deletion."}
+        </ReadOnlyNotice>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[11rem_1fr]">
         {/* One element for every width: a scrolling row on small screens, a sticky column on large ones. */}
@@ -119,59 +164,100 @@ export default function SettingsPage() {
                 <dt className="text-marino/70">Domain</dt>
                 <dd>{org.domain ?? "—"}</dd>
                 <dt className="text-marino/70">Your role</dt>
-                <dd>{org.role}</dd>
+                <dd>{ROLE_LABEL[org.role]}</dd>
                 <dt className="text-marino/70">Billing</dt>
-                <dd>{org.billingStatus.replace("_", " ")}</dd>
+                <dd>{BILLING_STATUS_LABEL[org.billingStatus]}</dd>
               </dl>
-            </Card>
-
-            <Card title="Firm profile" description="What shapes the comparisons and alerts the firm sees." sample>
-              <form onSubmit={saveProfile} className="space-y-4 text-sm">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    Primary state
-                    <select
-                      value={profile.state}
-                      onChange={event => setProfile({ ...profile, state: event.target.value })}
-                      className={inputClass}
-                    >
-                      {STATES.map(state => (
-                        <option key={state}>{state}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    Number of attorneys
+              {canEdit && (
+                <form onSubmit={rename} className="mt-5 flex flex-wrap items-end gap-3 border-t border-marino/10 pt-5 text-sm">
+                  <label className="block min-w-[14rem] flex-1">
+                    Organization name
                     <input
-                      type="number"
-                      min={1}
-                      max={500}
-                      value={profile.attorneys}
-                      onChange={event => setProfile({ ...profile, attorneys: event.target.value })}
+                      required
+                      maxLength={120}
+                      value={name}
+                      onChange={event => {
+                        setName(event.target.value);
+                        setRenamed(false);
+                      }}
                       className={inputClass}
                     />
                   </label>
-                </div>
-                <fieldset>
-                  <legend>Practice areas</legend>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                    {PRACTICE_AREAS.map(area => (
-                      <label key={area} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={profile.areas.includes(area)}
-                          onChange={() => toggleArea(area)}
-                          className="h-4 w-4 accent-marino"
-                        />
-                        {area}
-                      </label>
-                    ))}
+                  <button type="submit" disabled={renaming || unchangedName} className={buttonClass.secondary}>
+                    Rename
+                  </button>
+                </form>
+              )}
+              {renamed && (
+                <p role="status" className="mt-3 text-sm text-marino/70">
+                  Name saved.
+                </p>
+              )}
+              {renameError && (
+                <p role="alert" className="mt-3 text-sm text-rojo">
+                  {renameError}
+                </p>
+              )}
+            </Card>
+
+            <Card title="Firm profile" description="What shapes the comparisons and alerts the firm sees." sample>
+              {canEdit ? (
+                <form onSubmit={saveProfile} className="space-y-4 text-sm">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      Primary state
+                      <select
+                        value={profile.state}
+                        onChange={event => setProfile({ ...profile, state: event.target.value })}
+                        className={inputClass}
+                      >
+                        {STATES.map(state => (
+                          <option key={state}>{state}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      Number of attorneys
+                      <input
+                        type="number"
+                        min={1}
+                        max={500}
+                        value={profile.attorneys}
+                        onChange={event => setProfile({ ...profile, attorneys: event.target.value })}
+                        className={inputClass}
+                      />
+                    </label>
                   </div>
-                </fieldset>
-                <button type="submit" className={buttonClass.secondary}>
-                  Save
-                </button>
-              </form>
+                  <fieldset>
+                    <legend>Practice areas</legend>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                      {PRACTICE_AREAS.map(area => (
+                        <label key={area} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={profile.areas.includes(area)}
+                            onChange={() => toggleArea(area)}
+                            className="h-4 w-4 accent-marino"
+                          />
+                          {area}
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <button type="submit" className={buttonClass.secondary}>
+                    Save
+                  </button>
+                </form>
+              ) : (
+                <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+                  <dt className="text-marino/70">Primary state</dt>
+                  <dd>{profile.state}</dd>
+                  <dt className="text-marino/70">Number of attorneys</dt>
+                  <dd>{profile.attorneys}</dd>
+                  <dt className="text-marino/70">Practice areas</dt>
+                  <dd>{profile.areas.join(", ")}</dd>
+                </dl>
+              )}
             </Card>
           </div>
 
@@ -278,7 +364,7 @@ export default function SettingsPage() {
 
           <div id="data-privacy" className="scroll-mt-24">
             <Card title="Data & privacy" description="Closing the organization starts with a request that ARCA reviews.">
-              <h3 className="font-heading text-base font-semibold">Request deletion</h3>
+              <h3 className="font-heading text-base font-semibold">{canRequest ? "Request deletion" : "Deletion"}</h3>
               {pending ? (
                 <p role="status" className="mt-2 rounded-2xl bg-oro/20 p-4 text-sm">
                   A deletion request is pending review by ARCA. Nothing is deleted until then, and access continues meanwhile.
@@ -286,26 +372,34 @@ export default function SettingsPage() {
               ) : (
                 <p className="mt-2 text-sm text-marino/70">A person at ARCA reviews every request. Nothing is deleted before then.</p>
               )}
-              <form onSubmit={submit} className="mt-4 space-y-3">
-                <label className="block text-sm">
-                  Reason
-                  <textarea
-                    required
-                    maxLength={2000}
-                    disabled={pending}
-                    value={reason}
-                    onChange={event => setReason(event.target.value)}
-                    className={inputClass}
-                  />
-                </label>
-                <button type="submit" disabled={busy || pending || !canRequest} className={buttonClass.danger}>
-                  Request deletion
-                </button>
-              </form>
+              {canRequest && (
+                <form onSubmit={submit} className="mt-4 space-y-3">
+                  <label className="block text-sm">
+                    Reason
+                    <textarea
+                      required
+                      maxLength={2000}
+                      disabled={pending}
+                      value={reason}
+                      onChange={event => setReason(event.target.value)}
+                      className={inputClass}
+                    />
+                  </label>
+                  <button type="submit" disabled={busy || pending} className={buttonClass.danger}>
+                    Request deletion
+                  </button>
+                </form>
+              )}
               {error && (
                 <p role="alert" className="mt-4 text-sm text-rojo">
                   {error}
                 </p>
+              )}
+              {canTransfer && (
+                <div className="mt-6 border-t border-marino/10 pt-6">
+                  <h3 className="font-heading text-base font-semibold">Transfer ownership</h3>
+                  <p className="mt-2 text-sm text-marino/70">Handing the organization to another member is not available yet.</p>
+                </div>
               )}
             </Card>
           </div>

@@ -7,8 +7,11 @@ import type { AnalysisView } from "@arca/contracts";
 
 import { summary } from "@/components/app/AnalysisCard";
 import { headline, useAnalyses } from "@/components/app/useAnalyses";
-import { Badge, Card, EmptyState, FilterPills, PageHeader, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import {
+  Badge, Card, EmptyState, FilterPills, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass,
+} from "@/components/app/ui";
 import { DomainBar, TierBadge } from "@/components/score";
+import { useCan } from "@/lib/app/access";
 
 type Filter = "all" | "assessed" | "scan";
 type Sort = "date" | "score";
@@ -21,6 +24,8 @@ export default function AnalysesPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("date");
   const [picked, setPicked] = useState<string[]>([]);
+  // Every way to /quote follows analysis.create (DN-11 §6.2): a member or a viewer reads the analyses and runs none.
+  const canRun = useCan("analysis.create");
 
   const rows = useMemo(() => {
     const list = (analyses ?? []).filter(item =>
@@ -46,12 +51,15 @@ export default function AnalysesPage() {
         title="Analyses"
         description="Every scan and assessment saved to your organization, newest first."
         actions={
-          <Link href="/quote" className={buttonClass.secondary}>
-            <Plus aria-hidden className="h-4 w-4" />
-            Run a new analysis
-          </Link>
+          canRun && (
+            <Link href="/quote" className={buttonClass.secondary}>
+              <Plus aria-hidden className="h-4 w-4" />
+              Run a new analysis
+            </Link>
+          )
         }
       />
+      {!canRun && <ReadOnlyNotice>Ask an owner or admin to run a new analysis.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
           {error}
@@ -68,11 +76,17 @@ export default function AnalysesPage() {
         <EmptyState
           icon={FileText}
           title="No analyses saved yet."
-          description="Run a scan of your firm and save the results to your organization."
+          description={
+            canRun
+              ? "Run a scan of your firm and save the results to your organization."
+              : "Scans and assessments saved to your organization show here."
+          }
           action={
-            <Link href="/quote" className={buttonClass.primary}>
-              Run your first analysis
-            </Link>
+            canRun && (
+              <Link href="/quote" className={buttonClass.primary}>
+                Run your first analysis
+              </Link>
+            )
           }
         />
       ) : (
@@ -163,10 +177,12 @@ export default function AnalysesPage() {
                           <Link href={`/app/analyses/${item.scanId}`} aria-label={`View ${item.domain}`} className={buttonClass.secondary}>
                             View
                           </Link>
-                          <Link href="/quote" aria-label={`Re-run ${item.domain}`} className={buttonClass.ghost}>
-                            <RotateCw aria-hidden className="h-4 w-4" />
-                            Re-run
-                          </Link>
+                          {canRun && (
+                            <Link href="/quote" aria-label={`Re-run ${item.domain}`} className={buttonClass.ghost}>
+                              <RotateCw aria-hidden className="h-4 w-4" />
+                              Re-run
+                            </Link>
+                          )}
                           <button
                             type="button"
                             disabled

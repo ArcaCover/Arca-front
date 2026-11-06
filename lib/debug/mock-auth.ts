@@ -1,8 +1,8 @@
 import { apiFailure, apiParse, apiSend } from "@/lib/api/client";
 
 // The simulated sign-in of the mock back (DN-10 section 4.1): a token in the shape of a Supabase one, for any email. The
-// route exists only in mock and refuses a request without the debug header. Only the bridge reaches this module, and
-// only in mock.
+// route exists only in mock and refuses a request without the debug header. Only the bridge and the debug panel's
+// sign-ins as a seeded role (components/debug/RoleControls.tsx) reach this module, and only in mock.
 export type MockSession = { token: string; email: string; expiresAt: string };
 
 // The route answers with the user as well; the session keeps what the app stores of it.

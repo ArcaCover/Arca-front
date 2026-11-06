@@ -5,14 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, Menu, Plus, Search } from "lucide-react";
 
+import { useActions } from "@/components/app/ActionsState";
+import { useApp } from "@/components/app/AppContext";
 import { useSample } from "@/components/app/SampleState";
 import { Badge, buttonClass, formatDate } from "@/components/app/ui";
+import { canOpen, navItems, useCan, useForbiddenShown } from "@/lib/app/access";
 import { ALERT_SEVERITY } from "@/lib/app/mock/alerts";
 import { SAMPLE_TEMPLATES } from "@/lib/app/mock/records";
-import { HELP_ITEM, NAV_GROUPS } from "./nav";
 
 /** The bar above every private page: navigation toggle, organization, search, new analysis and notifications. */
 export default function TopBar({ organization, onMenu, top }: { organization: ReactNode; onMenu: () => void; top: string }) {
+  // Every way to /quote follows analysis.create (DN-11 §6.2): a new analysis is saved to the organization.
+  const canAnalyze = useCan("analysis.create");
   return (
     <div
       style={{ top }}
@@ -24,10 +28,12 @@ export default function TopBar({ organization, onMenu, top }: { organization: Re
       <div className="min-w-0 shrink text-sm">{organization}</div>
       <div className="ml-auto flex items-center gap-2">
         <WorkspaceSearch />
-        <Link href="/quote" className={`${buttonClass.primary} max-sm:hidden`}>
-          <Plus aria-hidden className="h-4 w-4" />
-          New analysis
-        </Link>
+        {canAnalyze && (
+          <Link href="/quote" className={`${buttonClass.primary} max-sm:hidden`}>
+            <Plus aria-hidden className="h-4 w-4" />
+            New analysis
+          </Link>
+        )}
         <Notifications />
       </div>
     </div>
@@ -36,22 +42,28 @@ export default function TopBar({ organization, onMenu, top }: { organization: Re
 
 type Result = { label: string; href: string; group: string };
 
-/** Searches a fixed list of pages and sample items in the browser (spec 2026-10-29 §5). Enter opens the first match. */
+/**
+ * Searches the pages of the sidebar, the plan's actions and the sample items in the browser (spec 2026-10-29 §5), only
+ * among what the role opens (DN-11 §6.1). Enter opens the first match.
+ */
 function WorkspaceSearch() {
   const router = useRouter();
-  const { actions, alerts } = useSample();
+  const { me, org } = useApp();
+  const { items } = useActions();
+  const { alerts } = useSample();
+  const forbiddenShown = useForbiddenShown();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
 
-  const index = useMemo<Result[]>(
-    () => [
-      ...[...NAV_GROUPS.flatMap(group => group.items), HELP_ITEM].map(item => ({ label: item.label, href: item.href, group: "Pages" })),
-      ...actions.map(item => ({ label: item.title, href: "/app/action-plan", group: "Action plan" })),
+  const index = useMemo<Result[]>(() => {
+    const { groups, footer } = navItems(org.role, { platformAdmin: me.platformAdmin, forbiddenShown });
+    return [
+      ...[...groups.flatMap(group => group.items), ...footer].map(item => ({ label: item.label, href: item.href, group: "Pages" })),
+      ...(items ?? []).map(item => ({ label: item.title, href: "/app/action-plan", group: "Action plan" })),
       ...alerts.map(alert => ({ label: alert.title, href: "/app/monitoring", group: "Monitoring" })),
       ...SAMPLE_TEMPLATES.map(doc => ({ label: doc.name, href: "/app/documents", group: "Documents" })),
-    ],
-    [actions, alerts],
-  );
+    ].filter(result => canOpen(org.role, result.href, forbiddenShown));
+  }, [me.platformAdmin, org.role, forbiddenShown, items, alerts]);
   const term = query.trim().toLowerCase();
   const results = term ? index.filter(item => item.label.toLowerCase().includes(term)).slice(0, 8) : [];
 
@@ -86,8 +98,9 @@ function WorkspaceSearch() {
             <p className="px-3 py-2 text-sm text-marino/60">No matches for “{query.trim()}”.</p>
           ) : (
             <ul aria-label="Search results">
-              {results.map(result => (
-                <li key={`${result.group}-${result.label}`}>
+              {/* Two of the organization's own actions may share a title, so the position keeps the keys apart. */}
+              {results.map((result, position) => (
+                <li key={`${result.group}-${result.label}-${position}`}>
                   <button
                     type="button"
                     onMouseDown={event => event.preventDefault()}

@@ -517,8 +517,15 @@ Ejemplo: "Miami Legal Services" (organización)
 **Roles y permisos:**
 - **owner:** Control total (billing, cancelar póliza, invitar/remover miembros)
 - **admin:** Ver todo, invitar miembros, re-hacer assessments (no billing)
-- **member:** Ver score, alertas, action plan, marcar acciones completadas
+- **member:** Solo ve y marca acciones: ve el score, las alertas y el action plan, y cambia el
+  estado de las acciones. No guarda análisis nuevos, no asigna acciones, no reporta incidentes ni
+  sube evidencia (DN-11 D2, noviembre 2026)
 - **viewer:** Solo lectura
+
+La tabla de permisos que aplican el back y el front vive en `@arca/contracts`
+(`packages/contracts/src/webapp.ts`) y la explica DN-11 §4.1 en Arca-back. En la webapp, lo que un
+rol no puede hacer se oculta; quien niega es el back. Las reglas de vista viven en
+`lib/app/access.ts`.
 
 La organización se crea automáticamente al comprar (Flujo A) o cuando el broker emite
 la póliza (Flujo C).
@@ -1418,7 +1425,7 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 
 This section applies only to this isolated implementation checkout and supersedes the historical Layer 2 mock status above. The original repositories, remote branches and deployments are unchanged.
 
-- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.3.0` on this branch, which also carries the debug and webapp contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
+- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.4.0`, which also carries the debug, webapp and role-view contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
 - `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
 - `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
 - Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial/PDF controls were removed.

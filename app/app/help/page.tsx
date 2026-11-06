@@ -2,25 +2,13 @@
 
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { CalendarClock, ChevronDown, Mail } from "lucide-react";
-import { ROLE_PERMISSIONS, ROLES, type Permission } from "@arca/contracts";
+import { ROLE_PERMISSIONS, ROLES } from "@arca/contracts";
 
 import { Card, PageHeader, buttonClass, inputClass, usePreview } from "@/components/app/ui";
+import { PERMISSION_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
 const EMAIL = "hello@arcacover.com";
 const CALENDLY = "https://calendly.com/arcacover/discovery";
-
-const PERMISSION_LABEL: Record<Permission, string> = {
-  "org.read": "see the organization's analyses and pages",
-  "analysis.create": "save new analyses",
-  "members.invite": "invite members",
-  "members.remove": "remove members",
-  "members.set_role": "change members' roles",
-  "billing.manage": "manage billing",
-  "org.transfer_ownership": "transfer ownership",
-  "org.request_deletion": "request the organization's deletion",
-};
-
-const ROLE_LABEL = { owner: "Owner", admin: "Admin", member: "Member", viewer: "Viewer" } as const;
 
 // Read from the API's own permission table, so this answer cannot drift from what the back allows.
 function RolesAnswer() {

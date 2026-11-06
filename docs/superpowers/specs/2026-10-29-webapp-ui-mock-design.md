@@ -5,6 +5,12 @@
 - **Rama:** `feat/webapp-ui-mock` (sale de `feat/webapp-orgs`, solo local)
 - **Base:** DN-10 de Arca-back (`docs/design-notes/DN-10-webapp-organizaciones-y-cobro.md`)
 
+> **Cambiada por DN-11** (Arca-back, `docs/design-notes/DN-11-vistas-por-rol.md`, vistas por rol, 2026-11-05). El plan
+> de acción y la actividad dejan de ser de muestra y leen la API (§6.3 y §6.10), el estado compartido del plan pasa a
+> `ActionsProvider` (§7), el puente de debug gana las funciones del interruptor "Show forbidden actions" (§3) y la regla
+> de los botones activos en los modos de debug queda reemplazada por D3: lo que un rol no puede hacer se oculta en todos
+> los modos (§2, §6.7). Cada rol ve su propia webapp; las reglas viven en `lib/app/access.ts` (DN-11 §6.1 y §6.2).
+
 ## 1. Por qué
 
 DN-10 dejó un esqueleto funcional de `/app`: login simulado, organizaciones, roles, paywall,
@@ -47,8 +53,9 @@ lo nuevo vive en datos locales.
   regulatorios, clientes ni benchmarks inventados como si fueran ciertos (CLAUDE.md §7).
 - Que un botón de muestra simule el éxito de algo que no ocurrió: "Incidente reportado",
   "Cotización enviada" o "Pago actualizado".
-- Romper el flujo real de DN-10: el paywall (402 a billing), el pago simulado, las invitaciones, los
-  403 visibles en modo debug y el aviso de borrado pendiente.
+- Romper el flujo real de DN-10: el paywall (402 a billing), el pago simulado, las invitaciones, el
+  403 del back que enseña la demo y el aviso de borrado pendiente. Con DN-11 D3 ese 403 se ve en mock
+  encendiendo el interruptor "Show forbidden actions", no con botones activos.
 - Que el código de muestra se cuele en producción como si fuera funcional.
 
 ## 3. Restricciones
@@ -74,11 +81,21 @@ lo nuevo vive en datos locales.
   - Contraste AA en el texto.
 - **Movimiento**: animaciones solo de entrada y de estado, con `prefers-reduced-motion`. Ningún bucle
   infinito.
-- **Modos (DN-09)**: nada de esto importa de `lib/debug/`. `npm run build` debe seguir con 0 fugas
-  de debug.
+- **Modos (DN-09)**: nada de esto importa de `lib/debug/`, salvo el puente (`lib/debug/bridge.ts`).
+  `npm run build` debe seguir con 0 fugas de debug.
+- **Puente del interruptor (DN-11 §6.4)**: el puente suma `showForbidden()`, `subscribeShowForbidden()` y
+  `setShowForbidden()`. Las tres empiezan con la comparación literal del modo, así que fuera de mock la
+  primera devuelve siempre `false` y las otras no hacen nada. La clave `arca.debug.showForbidden` aparece
+  solo dentro de ellas. El panel la escribe con `setShowForbidden`, y las páginas la leen con
+  `useSyncExternalStore` a través de `useCan` (`lib/app/access.ts`), que nunca toca `sessionStorage` por su
+  cuenta. El chequeo de fugas busca la clave y los textos del panel ("Show forbidden actions", "Seed demo
+  organization" y `demo.arca.example`).
 - **Pruebas**:
   - `typecheck`, `lint` y `test` en verde.
-  - `app-flow.test.tsx` se ajusta solo donde el layout movió algo.
+  - ~~`app-flow.test.tsx` se ajusta solo donde el layout movió algo.~~ Con DN-11 cambia también donde
+    DN-11 cambia el comportamiento a propósito: D3 en lugar de la regla de botones activos de DN-10 §5,
+    el plan de acción real en lugar del de muestra, el `member` sin `SaveResultsCta` (D2) y el Overview
+    por rol. Las reglas de DN-10 que siguen vigentes se siguen probando.
   - `npm run test:browser:webapp` (smoke de DN-10) sigue pasando.
 
 ## 4. Mapa de pantallas
@@ -88,21 +105,30 @@ lo nuevo vive en datos locales.
 | `/app` Overview | rehecha | análisis (`listAnalyses`, conserva el 402 a billing), org, aviso de pago, borrado y past_due | historial de score, KPI, alertas, benchmark |
 | `/app/analyses` | nueva (la lista sale de `/app`) | análisis | — |
 | `/app/analyses/[scanId]` | nueva | el análisis, sacado de `listAnalyses` | línea de tiempo |
-| `/app/action-plan` | nueva | acciones del último assessment, si existe | acciones extra, responsables, fechas y estado |
+| `/app/action-plan` | nueva; real con DN-11 | el plan vigente (`GET /orgs/:id/actions`): estado, responsable, fecha y acciones propias | — |
 | `/app/monitoring` | nueva | — | próximo re-escaneo, alertas |
 | `/app/coverage` | nueva | — | estado de la póliza, coberturas, límites ilustrativos |
 | `/app/documents` | nueva | lista de análisis (para sus reportes) | documentos y subida de evidencia local |
 | `/app/members` | rehecha | todo lo actual | — |
 | `/app/billing` | rehecha | todo lo actual | historial de facturas, contacto de facturación |
-| `/app/settings` | rehecha con pestañas | org y solicitud de borrado actuales | perfil de la firma, notificaciones, seguridad, integraciones |
-| `/app/activity` | nueva | — | registro de actividad |
+| `/app/settings` | rehecha por secciones, con índice de anclas (§6.9) | org, renombrarla (DN-11, `org.update`) y solicitud de borrado actuales | perfil de la firma, notificaciones, seguridad, integraciones |
+| `/app/activity` | nueva; real con DN-11 | la actividad de la organización (`GET /orgs/:id/activity`), que sale de `audit_log` | — |
 | `/app/help` | nueva | — | preguntas frecuentes, contacto, formulario de comentarios |
 
 **Paywall en las pantallas de muestra.** Las pantallas nuevas no llaman al back, así que nada las
 bloquearía con un 402. Si `org.paidAccess` es falso, muestran un estado bloqueado ("Choose a plan
-to unlock…", con botón a `/app/billing`) en lugar del contenido. El back sigue siendo la autoridad
-sobre los datos reales; esto solo impide que la vista previa contradiga al paywall. Billing,
-Members, Settings y Help no se bloquean, como hoy.
+to unlock…", con botón a `/app/billing`) en lugar del contenido. Con DN-11, quien no puede elegir
+plan (sin `billing.manage`) lee "Only the owner can unlock…" y "See billing status", también en el
+plan de acción. El back sigue siendo la autoridad sobre los datos reales; esto solo impide que la
+vista previa contradiga al paywall. Billing, Members, Settings y Help no se bloquean, como hoy. El
+plan de acción, ya real, se sigue bloqueando sin pago porque su ruta exige pago. La actividad, real
+desde DN-11, ya no se bloquea: no exige pago (D5).
+
+**Por rol (DN-11 §6.2).** Cada pantalla muestra solo lo que el rol puede hacer, en todos los modos.
+Una pantalla en solo lectura quita los controles y dice una vez, arriba, quién puede hacer el
+cambio. Ni el `member` ni el `viewer` abren la actividad: el layout muestra "Your role can't open
+this page". La pantalla que el rol no abre conserva el título de la página como h1, y el plan de
+acción y Monitoring bloqueados sin pago conservan su encabezado.
 
 ## 5. Shell
 
@@ -115,15 +141,19 @@ Members, Settings y Help no se bloquean, como hoy.
   requested", con textos distintos a los de Billing y a los avisos para no duplicarlos.
 
 Cada ítem lleva icono de `lucide-react`, `aria-current="page"` y una píldora de contador donde
-aplique: acciones abiertas y alertas sin leer, ambas de muestra.
+aplique: acciones abiertas (reales desde DN-11, de `ActionsProvider`) y alertas sin leer (de
+muestra). Con DN-11 la barra lista solo los ítems que el rol abre (`navItems` de `lib/app/access.ts`).
+Billing y Activity salen solo para owner y admin; Billing abre igual para todos desde el estado del
+plan, al pie.
 
 **Barra superior**:
 
 - Selector de organización. Es el `<select>` actual con iniciales de la org; con una sola org, solo
   el nombre.
 - Búsqueda. Filtra en local una lista fija de pantallas y elementos de muestra y abre un panel de
-  resultados; Enter navega.
-- Botón dorado "New analysis" que lleva a `/quote`.
+  resultados; Enter navega. Con DN-11 usa la misma lista que la barra lateral y encuentra las acciones
+  del plan real.
+- Botón dorado "New analysis" que lleva a `/quote`. Con DN-11 solo lo ve un rol con `analysis.create`.
 - Campana con contador y panel de alertas de muestra, con "Mark all as read" local.
 
 El email, el rol en la org activa y **Sign out** van en el pie de la barra lateral. Están siempre
@@ -152,21 +182,25 @@ barra superior.
 2. **Último análisis**: la tarjeta real del análisis más reciente, con el dominio como título,
    `ScoreGauge`, `TierBadge` y fecha. Botones "View analysis" (a su detalle) y "Run a new analysis"
    (a `/quote`). Sin análisis, un estado vacío con el mismo botón.
-3. **Fila de KPI** (4 tarjetas):
-   - Acciones abiertas (muestra)
+3. **Fila de KPI** (4 tarjetas; con DN-11 §6.3, las que tocan a cada rol):
+   - Acciones abiertas (reales desde DN-11; el `member` ve "My open actions")
    - Alertas sin leer (muestra)
    - Miembros (muestra; no se añade una llamada)
    - Cobertura: "Not active · ARCA does not bind policies yet". Es texto fijo y verdadero.
 4. **Tendencia del score**: línea SVG de 6 meses, marcada como `Sample data · Illustrative`.
-5. **Plan de acción**: las 3 primeras acciones, con casilla y puntos, y un enlace a la pantalla
-   completa.
+5. **Plan de acción**: las 3 primeras acciones abiertas del plan real, con casilla y puntos, y un
+   enlace a la pantalla completa. Con DN-11 el `member` ve primero las suyas y el `viewer` las ve sin
+   casillas.
 6. **Monitoreo**: las 3 alertas más recientes y un enlace a la pantalla.
-7. **Acciones rápidas**:
-   - New analysis
+7. **Acciones rápidas** (con DN-11, el `member` solo tiene "Book a call" y Help, y el `viewer` solo
+   "Book a call"):
+   - New analysis: con DN-11 es el botón "Add an analysis" de la tarjeta, fuera de la lista; sigue
+     `analysis.create` como todo enlace a `/quote`
    - Invite a teammate (a Members)
    - Download full report: deshabilitado, con "Coming soon"
    - Talk to a broker: modal de vista previa
    - Book a call: enlace real a `https://calendly.com/arcacover/discovery`, ya usado en la landing
+   - Help & support (a `/app/help`); con DN-11 owner y admin también la tienen
 8. **Benchmark**: "Percentile among firms in your state", con un número de muestra, marcado como
    "Illustrative: not computed from real firms".
 9. **Lista de análisis**: ya no está aquí. Se mueve a `/app/analyses`. La pantalla conserva la
@@ -189,7 +223,8 @@ muestra "Analysis not found". Tiene cuatro pestañas:
 
 - Overview: la `AnalysisCard` actual
 - Signals: las señales de Capa 1 con `signalsToCards` y `SignalCard`
-- Action plan: las acciones del assessment
+- Action plan: las acciones del assessment, "Recommended at the time of this analysis". En el análisis
+  del que sale el plan vigente, un enlace "Track these in the Action plan" (DN-11)
 - History: línea de tiempo de muestra
 
 El aviso del modelo de demostración de `AnalysisCard` se conserva.
@@ -197,11 +232,31 @@ El aviso del modelo de demostración de `AnalysisCard` se conserva.
 ### 6.3 Action plan (`/app/action-plan`)
 
 Lista agrupada por estado (To do, In progress, Done), con un resumen arriba: progreso y puntos
-potenciales. Cada acción muestra título, dominio, puntos y responsable (selector con miembros de
-muestra), fecha límite y selector de estado. Hay filtros por dominio y por responsable.
+potenciales. Cada acción muestra título, dominio, puntos y responsable (~~selector con miembros de
+muestra~~; con DN-11, los miembros reales que pueden marcar acciones, ver abajo), fecha límite y
+selector de estado. Hay filtros por dominio y por responsable.
 
-Las acciones vienen del último assessment real cuando existe, más unas de muestra marcadas como
-tales. El estado es local, y un aviso dice que se reinicia al recargar.
+~~Las acciones vienen del último assessment real cuando existe, más unas de muestra marcadas como
+tales. El estado es local, y un aviso dice que se reinicia al recargar.~~
+
+**Real desde DN-11 (§4.2 y §6.4).** Ya no hay acciones de muestra ni estado local:
+
+- Las acciones son las del plan vigente (el análisis con assessment completado más reciente) y las
+  propias de la organización. Se leen de `ActionsProvider`, y cada cambio pasa por la API
+  (`updateAction`, `createAction` y `deleteAction`) y vuelve a leer el plan.
+- El responsable se elige entre los miembros que pueden marcar acciones (D11). La fecha se guarda al
+  salir del campo, no en cada tecla. Pasar a otra ventana o pestaña no cuenta como salir: el campo
+  sigue siendo el elemento activo de la página, así que no se guarda nada (un año a medio escribir,
+  como 0020, ya es una fecha) y lo tecleado y el foco se quedan donde estaban.
+- Mientras el cambio de una acción va en camino, sus selectores de estado y de responsable quedan
+  inertes (`aria-disabled`, atenuados como los controles deshabilitados), no deshabilitados, para que
+  no pierdan el foco; lo que se elija entretanto se ignora. Un cambio de estado lleva la acción a la
+  lista de su nuevo estado: si el foco seguía en su selector de estado al llegar la respuesta, la sigue
+  hasta allí, y un `Toast` dice a qué estado pasó.
+- Las acciones propias se pueden borrar; las del assessment solo cambian de estado (D13).
+- Un aviso dice que marcar una acción no cambia el score (D16): "A new analysis updates the score".
+- Por rol: owner y admin lo hacen todo; el `member` solo cambia el estado; el `viewer` lo lee.
+- Sin pago sigue el estado bloqueado y no se pide nada a la API.
 
 ### 6.4 Monitoring (`/app/monitoring`)
 
@@ -210,7 +265,12 @@ tales. El estado es local, y un aviso dice que se reinicia al recargar.
 - **Lista de alertas** con filtros (All, Regulatory, Firm signals, Industry). Cada alerta tiene
   severidad (informativa, media, alta; la alta usa rojo por ser alerta), fecha y estado leído o no
   leído. Al abrir una, un panel lateral muestra la explicación y la acción sugerida; los botones son
-  "Mark as read", "Dismiss" y "Create action", que la añade al plan local.
+  "Mark as read", "Dismiss" y "Create action". Con DN-11 (D17), "Create action" abre el formulario de
+  acción propia con el texto sugerido y, al confirmarlo, la guarda en el plan real; la alerta dice si
+  su sugerencia ya está en el plan. "Create action" espera a que el plan se lea; si la lectura falla,
+  el panel lo dice con `LoadFailed` y "Try again". Si al llegar el plan el foco había caído a la
+  página (el botón "Try again" se va con el fallo), pasa a "Create action" o al enlace al plan.
+  "Create action" y "Dismiss" siguen `actions.assign`; "Mark as read" es personal.
 - **Textos genéricos**, por ejemplo "A state bar published new guidance on generative AI in
   filings". Todos llevan `Sample data`.
 
@@ -243,7 +303,10 @@ Conserva intactos todos los textos y etiquetas que usan las pruebas y el smoke:
 
 - "Email to invite", "Send invitation", "Copy invite link", "Invite link copied."
 - `Role for …`, `Remove …`, `Revoke invitation for …`
-- la regla de botones activos en modo debug
+- ~~la regla de botones activos en modo debug~~. Reemplazada por DN-11 D3: los controles que el rol
+  no permite se ocultan en todos los modos y la página dice "Ask an owner or admin to invite people or
+  change roles."; en mock, el interruptor "Show forbidden actions" los vuelve a mostrar para enseñar el
+  403 del back
 
 Además:
 
@@ -278,8 +341,13 @@ borrado sigue visible sin un clic previo, como lo esperan las pruebas de DN-10.
 
 ### 6.10 Activity (`/app/activity`)
 
-Registro de muestra con quién, qué, cuándo y desde dónde (`web` o `invite`), filtros por persona y
-tipo, y "Export CSV" deshabilitado. Refuerza la idea de trazabilidad de CLAUDE.md §8.
+~~Registro de muestra con quién, qué, cuándo y desde dónde (`web` o `invite`).~~
+
+**Real desde DN-11 (§4.3 y §6.4).** Lee `GET /orgs/:id/activity`, que sale de `audit_log`. No exige
+pago (D5) y solo la abren owner y admin (`activity.read`). Los textos de cada acción viven en un solo
+mapa del front (`app/app/activity/events.ts`). Un miembro aparece con su email; el personal de ARCA y
+el sistema, solo con su tipo. Quedan los filtros por persona y por tipo de evento, "Load more" con
+`nextBefore` y "Export CSV" deshabilitado. Refuerza la idea de trazabilidad de CLAUDE.md §8.
 
 ### 6.11 Help (`/app/help`)
 
@@ -296,21 +364,36 @@ tipo, y "Export CSV" deshabilitado. Refuerza la idea de trazabilidad de CLAUDE.m
 - `Badge` (incluye `SampleBadge`), `Tabs`, `EmptyState`, `LockedState`
 - `Modal` y `Drawer`, sobre `<dialog>` nativo
 - `Toast` (con un proveedor en el layout), `Sparkline` (SVG)
+- `ReadOnlyNotice`: la línea de solo lectura de DN-11 §6.1: una por página, arriba, dice quién puede
+  hacer el cambio
+- `LoadFailed`: la primera lectura de una página o pestaña que falló (o el plan en el panel de una
+  alerta de Monitoring), con el motivo de la API y "Try again". En la actividad y el panel de ARCA,
+  una negativa (401, 403, 404, 410) no ofrece "Try again", ni "Load more" si fue una página
+  siguiente, porque la respuesta sería la misma, y dice por qué. El panel de ARCA no tiene
+  organización de la que salir, así que con un 401 ofrece "Sign in again"
+  (`app/app/activity/ReadFailed.tsx`)
 
 **Datos de muestra** en `lib/app/mock/`:
 
-- `actions.ts`, `alerts.ts` y `team.ts` para lo que tiene estado.
-- `records.ts` para el resto: historial, benchmark, actividad, documentos, facturas, sesiones y
-  límites.
+- `alerts.ts` y `team.ts` para lo que tiene estado. Con DN-11 el plan de acción deja de ser de
+  muestra.
+- `records.ts` para el resto: historial, benchmark, documentos, facturas, sesiones y límites.
 - `dates.ts` para las fechas.
 - El índice de búsqueda se arma en la barra superior a partir de la navegación y de estos datos.
 - Datos deterministas, sin `Math.random`, para que pruebas y capturas sean estables.
 - Fechas relativas a "hoy" calculadas una vez.
 - Cabecera de archivo: `// Sample data for the /app preview. Not connected to the API (see spec 2026-10-29).`
 
-**Estado de muestra compartido**: el plan de acción y las alertas se comparten entre Overview, la
-barra lateral (contadores) y sus pantallas. Viven en un contexto ligero (`SampleStateProvider`) en
-el layout, con `useReducer`. No se persisten.
+**Estado de muestra compartido**: las alertas se comparten entre Overview, la barra lateral
+(contadores) y sus pantallas. Viven en un contexto ligero (`SampleStateProvider`) en el layout, con
+`useReducer`. No se persisten.
+
+**Plan de acción compartido (DN-11 §6.4).** El plan salió de `SampleStateProvider` y vive en
+`ActionsProvider` (`components/app/ActionsState.tsx`), en el layout, dentro de `AppContext` y con el
+mismo `key` por organización. Pide el plan solo si `org.paidAccess`; un 402 o un 403 no redirigen
+desde el proveedor, solo dejan fuera el contador. Otro fallo (un 429, un 500, la red) conserva el
+último plan leído, y el plan de acción avisa que puede estar desactualizado, con "Try again". Expone
+`refresh()` y es la única fuente de la barra lateral, el Overview, la búsqueda y Monitoring.
 
 **Avisos de vista previa**: un único texto para toda la app, "Preview only: this isn't connected
 yet.", más el detalle de cada caso.

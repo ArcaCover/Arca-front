@@ -22,8 +22,8 @@ import { rememberSession } from "@/lib/api/session";
 import { signIn } from "@/lib/app/auth";
 import {
   acceptInvitation, adminListDeletionRequests, adminListOrganizations, adminListPlans, adminReviewDeletion, adminUpdatePlan,
-  attachAnalysis, createClaim, createOrg, getMe, getPlans, invite, listAnalyses, listMembers, portal, requestDeletion,
-  setMemberRole,
+  attachAnalysis, createClaim, createOrg, getActionPlan, getMe, getPlans, invite, listAnalyses, listMembers, portal,
+  requestDeletion, setMemberRole,
 } from "@/lib/app/client";
 import { loadAppSession, loadPendingClaim, recallOrg, saveAppSession, savePendingClaim } from "@/lib/app/session";
 import { debugPay } from "@/lib/debug/bridge";
@@ -100,6 +100,8 @@ beforeEach(() => {
     return "signed_in";
   });
   vi.mocked(listAnalyses).mockResolvedValue([]);
+  // The shell reads the organization's real action plan (DN-11 §6.4); an empty one unless a test says otherwise.
+  vi.mocked(getActionPlan).mockResolvedValue({ source: null, items: [] });
   vi.mocked(listMembers).mockResolvedValue({ members: [], invitations: [] });
   vi.mocked(getPlans).mockResolvedValue([
     { code: "monthly", name: "Monthly (example price)", amountCents: 49_900, currency: "usd", interval: "month" },
@@ -369,6 +371,33 @@ describe("sign-up from the results", () => {
     expect(loadPendingClaim()?.claimId).toBe("cl_1");
   });
 
+  it("tells someone signed in with the claim's email that the results go to a new organization, and signs no one in", async () => {
+    // The email differs only in case from the claim's, as an address typed at sign-in may.
+    saveAppSession({ token: "app-token", email: "Owner@SmithLaw.com", expiresAt: future() });
+    vi.mocked(getMe).mockResolvedValue({
+      user: { id: "u_owner", email: "owner@smithlaw.com" }, organizations: [org({ role: "member" })], platformAdmin: false,
+    });
+    vi.mocked(createOrg).mockResolvedValue(org({ id: "org_new", billingStatus: "pending_payment", paidAccess: false }));
+    inApp("/app/signup", <SignupPage />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Save your results to a new organization" })).toBeTruthy();
+    expect(screen.queryByText(/activate your account/)).toBeNull();
+
+    await userEvent.type(screen.getByLabelText("Organization name"), "Owner Law");
+    await userEvent.click(button("Create organization"));
+    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/billing"));
+    expect(signIn).not.toHaveBeenCalled();
+    expect(createOrg).toHaveBeenCalledExactlyOnceWith("Owner Law", "cl_1");
+  });
+
+  it.each<[string, () => void]>([
+    ["no one is signed in", () => undefined],
+    ["someone is signed in with another email", () => signedIn(org())],
+  ])("asks to activate the account when %s, since sign-up signs in as the claim's email", async (_who, sign) => {
+    sign();
+    inApp("/app/signup", <SignupPage />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Save your results and activate your account" })).toBeTruthy();
+  });
+
   it("without a pending claim, sends the visitor to the funnel instead", async () => {
     sessionStorage.clear();
     inApp("/app/signup", <SignupPage />);
@@ -517,45 +546,58 @@ describe("members", () => {
     ],
     invitations: [{ id: "inv_1", email: "new@smithlaw.com", role: "viewer" as const, expiresAt: "2026-11-01T10:00:00.000Z" }],
   };
-  const controls = () => [
-    button("Send invitation"),
-    button("Remove owner@smithlaw.com"),
-    button("Remove member@smithlaw.com"),
-    select("Role for owner@smithlaw.com"),
-    select("Role for member@smithlaw.com"),
-    button("Revoke invitation for new@smithlaw.com"),
+  // Which controls are on the page. DN-11 D3 replaced the DN-10 §5 rule (every button active in the debug modes): what a
+  // role may not do is hidden in every mode, and only the mock's debug switch brings it back.
+  const shown = () => [
+    screen.queryByRole("button", { name: "Send invitation" }) !== null,
+    screen.queryByRole("button", { name: "Remove owner@smithlaw.com" }) !== null,
+    screen.queryByRole("button", { name: "Remove member@smithlaw.com" }) !== null,
+    screen.queryByRole("combobox", { name: "Role for owner@smithlaw.com" }) !== null,
+    screen.queryByRole("combobox", { name: "Role for member@smithlaw.com" }) !== null,
+    screen.queryByRole("button", { name: "Revoke invitation for new@smithlaw.com" }) !== null,
   ];
 
   beforeEach(() => {
     vi.mocked(listMembers).mockResolvedValue(people);
   });
 
-  it.each([undefined, "production"])("disables what a member's role does not allow when the mode is %s", async mode => {
+  it.each([undefined, "production", "mock", "live-debug"])("hides what a member's role does not allow when the mode is %s", async mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     signedIn(org({ role: "member" }));
     inApp("/app/members", <MembersPage />);
     await screen.findByText("owner@smithlaw.com");
-    expect(controls().map(control => control.disabled)).toEqual([true, true, true, true, true, true]);
+    expect(shown()).toEqual([false, false, false, false, false, false]);
+    expect(screen.getByText("Ask an owner or admin to invite people or change roles.")).toBeTruthy();
   });
 
-  it("disables an admin's buttons on an owner only, as canManageMember says", async () => {
+  it("shows an admin no control on an owner, as canManageMember says", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "production");
     signedIn(org({ role: "admin" }));
     inApp("/app/members", <MembersPage />);
     await screen.findByText("owner@smithlaw.com");
-    expect(controls().map(control => control.disabled)).toEqual([false, true, false, true, false, false]);
+    expect(shown()).toEqual([true, false, true, false, true, true]);
   });
 
-  it.each(["mock", "live-debug"])("keeps every button active in %s, so the back's 403 shows", async mode => {
-    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+  it("in mock with the debug switch on, shows a member every control, so the back's 403 shows", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    sessionStorage.setItem("arca.debug.showForbidden", "1");
     signedIn(org({ role: "member" }));
     vi.mocked(setMemberRole).mockRejectedValue(new ApiError("forbidden", "Your role does not allow this"));
     inApp("/app/members", <MembersPage />);
     await screen.findByText("owner@smithlaw.com");
-    expect(controls().map(control => control.disabled)).toEqual([false, false, false, false, false, false]);
+    expect(shown()).toEqual([true, true, true, true, true, true]);
     await userEvent.selectOptions(select("Role for member@smithlaw.com"), "viewer");
     expect(setMemberRole).toHaveBeenCalledExactlyOnceWith("org_1", "u_member", "viewer");
     expect((await screen.findByRole("alert")).textContent).toContain("Your role does not allow this");
+  });
+
+  it("in live-debug, ignores the switch's key: the switch is the mock's alone", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    sessionStorage.setItem("arca.debug.showForbidden", "1");
+    signedIn(org({ role: "member" }));
+    inApp("/app/members", <MembersPage />);
+    await screen.findByText("owner@smithlaw.com");
+    expect(shown()).toEqual([false, false, false, false, false, false]);
   });
 
   it("invites someone and never shows the whole invite token", async () => {
@@ -619,13 +661,16 @@ describe("SaveResultsCta", () => {
 
   it.each([
     ["a viewer, whose role cannot add analyses", org({ role: "viewer" })],
+    // DN-11 D2: a member no longer adds analyses either.
+    ["a member, whose role no longer adds analyses", org({ role: "member" })],
     ["an organization that has not paid", org({ billingStatus: "pending_payment", paidAccess: false })],
   ])("sends %s to sign-up, and says so on the button", async (_case, target) => {
     signedIn(target);
     const claim = { claimId: "cl_4", email: "me@smithlaw.com", expiresAt: future() };
     vi.mocked(createClaim).mockResolvedValue(claim);
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    // Signed in already, so sign-up only starts a new organization: there is no account to activate.
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results to a new organization" }));
     await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_4"));
     expect(attachAnalysis).not.toHaveBeenCalled();
     expect(loadPendingClaim()).toEqual(claim);
@@ -696,8 +741,9 @@ describe("the rest of the demo path", () => {
     signedIn(org({ role: "member", billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/billing", <BillingPage />);
     expect(await screen.findByText("Only the owner can manage billing.")).toBeTruthy();
-    // The note renders before the plans arrive, so the button is awaited rather than read at once.
-    expect((await screen.findByRole<HTMLButtonElement>("button", { name: "Pay with Monthly (example price)" })).disabled).toBe(true);
+    // The note renders before the plans arrive, so the plans are awaited; the owner's Pay is not there for anyone else.
+    expect(await screen.findByText("Monthly (example price)")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Pay with/ })).toBeNull();
   });
 
   it("accepts an invitation after signing in, and opens that organization", async () => {

@@ -3,7 +3,7 @@ import type { AnchorHTMLAttributes, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { AnalysisView, MeResponse, OrgView } from "@arca/contracts";
+import type { AnalysisView, MeResponse, OrgView, Role } from "@arca/contracts";
 
 import AppLayout from "@/app/app/layout";
 import CoveragePage from "@/app/app/coverage/page";
@@ -131,14 +131,27 @@ describe("/app/coverage", () => {
 });
 
 describe("the paywall on the information pages", () => {
-  it.each<[string, () => ReactElement, string]>([
-    ["/app/coverage", () => <CoveragePage />, "coverage"],
-    ["/app/documents", () => <DocumentsPage />, "documents"],
-  ])("locks %s for an organization that has not paid, and asks the API nothing", async (pathname, page, feature) => {
+  it.each<[string, () => ReactElement, string, string]>([
+    ["/app/coverage", () => <CoveragePage />, "coverage", "Your coverage"],
+    ["/app/documents", () => <DocumentsPage />, "documents", "Reports and documents"],
+  ])("locks %s for an organization that has not paid, and asks the API nothing", async (pathname, page, feature, title) => {
     signedIn(org(UNPAID));
     inApp(pathname, page());
     expect(await screen.findByRole("heading", { name: `Choose a plan to unlock ${feature}` })).toBeTruthy();
     expect(screen.getByRole("link", { name: "See plans" }).getAttribute("href")).toBe("/app/billing");
+    // The lock takes the page's content, not its title.
+    expect(screen.getAllByRole("heading", { level: 1 }).map(heading => heading.textContent)).toEqual([title]);
+    expect(listAnalyses).not.toHaveBeenCalled();
+  });
+
+  // DN-11 §6.1: a role that cannot pay is told who can, not asked to choose a plan. Billing opens for every role (D10).
+  it.each<Role>(["admin", "member", "viewer"])("tells a %s that only the owner can unlock a locked page", async role => {
+    signedIn(org({ ...UNPAID, role }));
+    inApp("/app/coverage", <CoveragePage />);
+    expect(await screen.findByRole("heading", { name: "Only the owner can unlock coverage" })).toBeTruthy();
+    expect(screen.getByText("Your organization's workspace opens once the owner chooses a plan.")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "See billing status" }).getAttribute("href")).toBe("/app/billing");
+    expect(screen.queryByText(/Choose a plan to unlock/)).toBeNull();
     expect(listAnalyses).not.toHaveBeenCalled();
   });
 
@@ -202,7 +215,7 @@ describe("/app/help", () => {
     expect(question.getAttribute("aria-expanded")).toBe("true");
     const answer = document.getElementById(question.getAttribute("aria-controls") ?? "");
     expect(answer?.hidden).toBe(false);
-    expect(answer?.textContent).toMatch(/Viewer can see the organization's analyses and pages\./);
+    expect(answer?.textContent).toMatch(/Viewer can see the organization and its analyses\./);
     await userEvent.click(question);
     expect(question.getAttribute("aria-expanded")).toBe("false");
   });

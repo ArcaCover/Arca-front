@@ -5,12 +5,17 @@ import { join } from 'node:path';
 
 // Strings that only debug code carries.
 // These live only in debug-only modules (components/debug and what only it imports), so no production module's
-// source holds them: they are searched everywhere, source maps included.
-const DEBUG_ONLY_MARKERS = [/arca-debug-sentinel-7f3c/, /\/__debug\//, /LIVE DEBUG/, /MODE MISMATCH/];
-// These two are also in lib/debug/bridge.ts, which production pages import. Its body folds to `return` in a production
+// source holds them: they are searched everywhere, source maps included. The last three are the debug panel's role
+// tools and the seeded demo users' domain (DN-11 §6.4).
+const DEBUG_ONLY_MARKERS = [
+  /arca-debug-sentinel-7f3c/, /\/__debug\//, /LIVE DEBUG/, /MODE MISMATCH/,
+  /Show forbidden actions/, /Seed demo organization/, /demo\.arca\.example/,
+];
+// These are also in lib/debug/bridge.ts, which production pages import. Its body folds to `return` in a production
 // build, but server source maps keep the module's original source, so in maps they would flag the bridge itself.
 // They are searched in everything else, which is the code that ships. Header names may reach the bundle lowercased.
-const BRIDGE_MARKERS = [/__arcaDebug/, /X-Arca-Debug-Scenario/i];
+// The last one is the storage key of the switch that shows forbidden controls again (DN-11 §6.4).
+const BRIDGE_MARKERS = [/__arcaDebug/, /X-Arca-Debug-Scenario/i, /arca\.debug\.showForbidden/];
 
 export function findDebugLeaks(dir) {
   return readdirSync(dir, { recursive: true, withFileTypes: true })

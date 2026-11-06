@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { debugPay, debugSignIn, publishDebugState, SCENARIO_STORAGE_KEY, sentDebugScenario, takeDebugScenarioHeaders } from "./bridge";
+import {
+  debugPay, debugSignIn, publishDebugState, SCENARIO_STORAGE_KEY, sentDebugScenario, setShowForbidden, showForbidden,
+  subscribeShowForbidden, takeDebugScenarioHeaders,
+} from "./bridge";
 import { installDebugStore } from "./store";
 
 const SCENARIO = JSON.stringify({ bar: "apify_quota", avvo: "apify_quota" });
@@ -254,5 +257,79 @@ describe("debug sign-in and payment", () => {
 
     fetchMock.mockResolvedValueOnce(Response.json({ error: "not_found", message: "Not found" }, { status: 404 }));
     await expect(debugPay("cs_mock_1")).rejects.toMatchObject({ code: "not_found" });
+  });
+});
+
+// DN-11 §6.4: the switch that shows again what a role may not do. Mock only; outside it the bridge never reads, writes or
+// listens, whatever the tab's storage holds.
+describe("the switch of forbidden controls", () => {
+  const KEY = "arca.debug.showForbidden";
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    sessionStorage.clear();
+  });
+
+  it.each([undefined, "production", "live-debug"])("is off, and stays off, when the mode is %s", mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+    sessionStorage.setItem(KEY, "1");
+    const listener = vi.fn();
+    const listen = vi.spyOn(window, "addEventListener");
+
+    expect(showForbidden()).toBe(false);
+    const unsubscribe = subscribeShowForbidden(listener);
+    setShowForbidden(false);
+    setShowForbidden(true);
+    window.dispatchEvent(new Event(KEY));
+    unsubscribe();
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(listen).not.toHaveBeenCalled();
+    // Not even removed: production leaves the tab's storage alone.
+    expect(sessionStorage.getItem(KEY)).toBe("1");
+  });
+
+  it("in mock, reads the tab's storage and tells every subscriber when the panel flips it", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    const listener = vi.fn();
+    const unsubscribe = subscribeShowForbidden(listener);
+
+    expect(showForbidden()).toBe(false);
+    setShowForbidden(true);
+    expect(sessionStorage.getItem(KEY)).toBe("1");
+    expect(showForbidden()).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    setShowForbidden(false);
+    expect(sessionStorage.getItem(KEY)).toBeNull();
+    expect(showForbidden()).toBe(false);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    setShowForbidden(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("in mock, reads as off when storage is blocked or missing, and then tells nobody", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    const listener = vi.fn();
+    const unsubscribe = subscribeShowForbidden(listener);
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+
+    expect(showForbidden()).toBe(false);
+    expect(() => setShowForbidden(true)).not.toThrow();
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
+    vi.restoreAllMocks();
+
+    vi.stubGlobal("sessionStorage", undefined);
+    expect(showForbidden()).toBe(false);
+    vi.unstubAllGlobals();
   });
 });

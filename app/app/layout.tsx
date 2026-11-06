@@ -6,13 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import type { MeResponse } from "@arca/contracts";
 
+import { ActionsProvider } from "@/components/app/ActionsState";
 import { AppContext, activeOrg, type AppState } from "@/components/app/AppContext";
 import { SampleStateProvider } from "@/components/app/SampleState";
-import { OrgNotices } from "@/components/app/shell/OrgNotices";
+import { OrgNotices, RoleGate } from "@/components/app/shell/OrgNotices";
 import Sidebar from "@/components/app/shell/Sidebar";
 import TopBar from "@/components/app/shell/TopBar";
 import { ToastProvider } from "@/components/app/ui";
 import { ApiError } from "@/lib/api/client";
+import { canOpen, useForbiddenShown } from "@/lib/app/access";
 import { signOut } from "@/lib/app/auth";
 import { getMe } from "@/lib/app/client";
 import { loadAppSession, rememberOrg } from "@/lib/app/session";
@@ -35,6 +37,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [picked, setPicked] = useState<string | null>(null);
   // The navigation panel below lg.
   const [menuOpen, setMenuOpen] = useState(false);
+  const forbiddenShown = useForbiddenShown();
 
   const leave = useCallback(() => {
     signOut();
@@ -106,26 +109,29 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         className={`min-h-screen bg-canvas text-marino${debugStrip() ? " pt-6" : ""}`}
       >
         <ToastProvider>
-          {/* Keyed by organization: switching remounts the pages and the sample state, so nothing carries over. */}
+          {/* Keyed by organization: switching remounts the pages, the plan and the sample state, so nothing carries over. */}
           <AppContext.Provider key={context.org.id} value={context}>
-            <SampleStateProvider>
-              <Sidebar
-                me={state.me}
-                org={context.org}
-                pathname={pathname}
-                open={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                onSignOut={leave}
-                top={debugStrip() ? "1.5rem" : "0px"}
-              />
-              <div className="lg:pl-64">
-                <TopBar organization={organization} onMenu={() => setMenuOpen(true)} top={debugStrip() ? "1.5rem" : "0px"} />
-                <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
-                  <OrgNotices pathname={pathname} />
-                  {children}
-                </main>
-              </div>
-            </SampleStateProvider>
+            <ActionsProvider>
+              <SampleStateProvider>
+                <Sidebar
+                  me={state.me}
+                  org={context.org}
+                  pathname={pathname}
+                  open={menuOpen}
+                  onClose={() => setMenuOpen(false)}
+                  onSignOut={leave}
+                  top={debugStrip() ? "1.5rem" : "0px"}
+                />
+                <div className="lg:pl-64">
+                  <TopBar organization={organization} onMenu={() => setMenuOpen(true)} top={debugStrip() ? "1.5rem" : "0px"} />
+                  <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+                    <OrgNotices pathname={pathname} />
+                    {/* A page the role does not open never mounts (DN-11 §6.1), unless the debug switch shows it. */}
+                    {canOpen(context.org.role, pathname, forbiddenShown) ? children : <RoleGate pathname={pathname} />}
+                  </main>
+                </div>
+              </SampleStateProvider>
+            </ActionsProvider>
           </AppContext.Provider>
         </ToastProvider>
       </div>

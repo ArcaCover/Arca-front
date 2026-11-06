@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import Link from "next/link";
-import { Lock } from "lucide-react";
+import { Info, Lock } from "lucide-react";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -131,10 +131,11 @@ export function EmptyState({
 
 /**
  * What a sample-data page shows to an organization that has not paid. The API stays the authority over real data;
- * this only keeps the preview from contradicting the paywall (spec 2026-10-29 §4).
+ * this only keeps the preview from contradicting the paywall (spec 2026-10-29 §4). A role that cannot pay is told who
+ * can instead (DN-11 §6.1); billing opens for every role, read-only but for the owner (D10).
  */
-export function LockedState({ feature }: { feature: string }) {
-  return (
+export function LockedState({ feature, canChoosePlan = true }: { feature: string; canChoosePlan?: boolean }) {
+  return canChoosePlan ? (
     <EmptyState
       icon={Lock}
       title={`Choose a plan to unlock ${feature}`}
@@ -145,6 +146,27 @@ export function LockedState({ feature }: { feature: string }) {
         </Link>
       }
     />
+  ) : (
+    <EmptyState
+      icon={Lock}
+      title={`Only the owner can unlock ${feature}`}
+      description="Your organization's workspace opens once the owner chooses a plan."
+      action={
+        <Link href="/app/billing" className={buttonClass.secondary}>
+          See billing status
+        </Link>
+      }
+    />
+  );
+}
+
+/** The one line a read-only page shows at the top to say who can make the change (DN-11 §6.1). */
+export function ReadOnlyNotice({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-6 flex items-start gap-2 rounded-2xl bg-bruma p-4 text-sm">
+      <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+      {children}
+    </p>
   );
 }
 
@@ -160,7 +182,8 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export const inputClass =
   "mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2 text-sm focus-visible:outline-2 " +
-  "focus-visible:outline-cielo disabled:opacity-60";
+  "focus-visible:outline-cielo disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed " +
+  "aria-disabled:opacity-60";
 
 export function initials(text: string): string {
   const words = text.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean);
