@@ -279,6 +279,26 @@ async function arcaSeesIt({ arca: { page } }) {
   console.log(`  ARCA opened the organization (4 members), its audit (the member's change) and the metrics (${counts.actions.done} done)`);
 }
 
+// next dev compiles a route on its first visit and then has Fast Refresh reload the pages already open, which once emptied
+// the platform admin's sign-in form half filled (point 4 of the DN-10 smoke). So each /app route the points use is visited
+// once first, in a context of its own that is closed before they start. Best effort: a route that fails to load here fails
+// again in its point, which says more. Requests off this machine are refused here too.
+const WARM_ROUTES = ['/app/login', '/app', '/app/admin', '/app/billing', '/app/members', '/app/action-plan', '/app/activity'];
+
+async function warmUp(browser) {
+  const context = await browser.newContext();
+  await context.route('**/*', route =>
+    LOCAL_HOSTS.has(new URL(route.request().url()).hostname) ? route.continue() : route.abort('blockedbyclient'),
+  );
+  const page = await context.newPage();
+  for (const route of WARM_ROUTES) {
+    await page.goto(`${frontendUrl}${route}`, { timeout: STEP_MS }).catch(error => {
+      console.log(`  warm-up: ${route} did not load (${error.message.split('\n')[0]})`);
+    });
+  }
+  await context.close();
+}
+
 const POINTS = [
   ['1 the debug panel seeds the demo organization', seed],
   ['2 each role signs in and gets its own sidebar and controls', rolesSeeTheirOwn],
@@ -299,6 +319,7 @@ const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || undefined;
 const browser = await chromium.launch({ executablePath, headless: true });
 let passed = 0;
 try {
+  await warmUp(browser);
   const actors = {};
   for (const name of [...ROLES, 'arca']) actors[name] = await actor(browser, name);
   for (const [name, point] of POINTS) {
