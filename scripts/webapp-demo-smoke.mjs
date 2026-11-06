@@ -156,7 +156,8 @@ async function payToEnter({ owner: { page } }) {
   console.log(`  402 before paying; after the simulated payment /app shows robust.arca.example at ${demo.score}`);
 }
 
-// 3. Invite a member → they join with the link → they cannot pay or change roles: the back answers 403 and it shows.
+// 3. Invite a member → they join with the link → with the debug switch on, they try to pay and change roles: the back
+// answers 403 and it shows.
 async function memberIsRefused({ owner, member: { page } }) {
   await owner.page.goto(`${frontendUrl}/app/members`);
   await owner.page.getByLabel('Email to invite').fill(MEMBER_EMAIL);
@@ -174,6 +175,12 @@ async function memberIsRefused({ owner, member: { page } }) {
   await page.waitForURL(onPath('/app'));
   await gauge(page, demo.score).waitFor();
 
+  // DN-11 D3: a member does not see what its role may not do, in any mode. The debug panel's switch, which lives in this
+  // tab's storage and so lasts across the navigations below, shows it again so the back's 403 can be reached.
+  await setPanel(page, true);
+  await panel(page).getByRole('switch', { name: 'Show forbidden actions' }).check();
+  await setPanel(page, false);
+
   // The organization is already paid, so billing offers the portal, not a checkout (ebfc3cf); both need billing.manage.
   await page.goto(`${frontendUrl}/app/billing`);
   const portal = page.waitForResponse(response => apiPath(response, /^\/orgs\/[^/]+\/billing\/portal$/, 'POST'));
@@ -190,7 +197,7 @@ async function memberIsRefused({ owner, member: { page } }) {
   await page.getByRole('alert').filter({ hasText: FORBIDDEN }).waitFor();
   if ((await ownerRole.inputValue()) !== 'owner') throw new Error('The owner lost the owner role');
   await shot(page, '3-member-cannot-set-roles');
-  console.log('  the member joined by the link and sees the analysis; billing portal 403, role change 403, both shown');
+  console.log('  the member joined by the link and sees the analysis; with the switch on, billing portal 403, role change 403, both shown');
 }
 
 // 4. The simulated platform admin changes a plan's price → /app/billing shows it.
