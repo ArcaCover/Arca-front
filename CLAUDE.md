@@ -517,8 +517,15 @@ Ejemplo: "Miami Legal Services" (organización)
 **Roles y permisos:**
 - **owner:** Control total (billing, cancelar póliza, invitar/remover miembros)
 - **admin:** Ver todo, invitar miembros, re-hacer assessments (no billing)
-- **member:** Ver score, alertas, action plan, marcar acciones completadas
+- **member:** Solo ve y marca acciones: ve el score, las alertas y el action plan, y cambia el
+  estado de las acciones. No guarda análisis nuevos, no asigna acciones, no reporta incidentes ni
+  sube evidencia (DN-11 D2, noviembre 2026)
 - **viewer:** Solo lectura
+
+La tabla de permisos que aplican el back y el front vive en `@arca/contracts`
+(`packages/contracts/src/webapp.ts`) y la explica DN-11 §4.1 en Arca-back. En la webapp, lo que un
+rol no puede hacer se oculta; quien niega es el back. Las reglas de vista viven en
+`lib/app/access.ts`.
 
 La organización se crea automáticamente al comprar (Flujo A) o cuando el broker emite
 la póliza (Flujo C).
