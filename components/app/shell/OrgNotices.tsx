@@ -5,7 +5,9 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 
 import { useApp } from "@/components/app/AppContext";
-import { EmptyState, LockedState, buttonClass } from "@/components/app/ui";
+import { NAV_GROUPS, isCurrent } from "@/components/app/shell/nav";
+import { EmptyState, LockedState, PageHeader, buttonClass } from "@/components/app/ui";
+import { useCan } from "@/lib/app/access";
 
 /**
  * The organization's standing notices, above every private page. Settings states the deletion itself next to its form,
@@ -35,25 +37,31 @@ export function OrgNotices({ pathname }: { pathname: string }) {
  */
 export function SampleGate({ feature, children }: { feature: string; children: ReactNode }) {
   const { org } = useApp();
-  return org.paidAccess ? <>{children}</> : <LockedState feature={feature} />;
+  const canChoosePlan = useCan("billing.manage");
+  return org.paidAccess ? <>{children}</> : <LockedState feature={feature} canChoosePlan={canChoosePlan} />;
 }
 
 /**
  * What a page the role does not open shows instead (DN-11 §6.1). The layout decides by pathname, before the page mounts,
- * so the page asks the API nothing.
+ * so the page asks the API nothing. It takes the page's place, so it keeps the page's title, from the sidebar, as the h1.
  */
-export function RoleGate() {
+export function RoleGate({ pathname }: { pathname: string }) {
   const { org } = useApp();
+  const group = NAV_GROUPS.find(candidate => candidate.items.some(item => isCurrent(item.href, pathname)));
+  const page = group?.items.find(item => isCurrent(item.href, pathname));
   return (
-    <EmptyState
-      icon={Lock}
-      title="Your role can't open this page"
-      description={`Your role in ${org.name} doesn't include it. An owner or admin can open it.`}
-      action={
-        <Link href="/app" className={buttonClass.secondary}>
-          Back to Overview
-        </Link>
-      }
-    />
+    <>
+      <PageHeader eyebrow={group?.label} title={page?.label ?? "Page not available"} />
+      <EmptyState
+        icon={Lock}
+        title="Your role can't open this page"
+        description={`Your role in ${org.name} doesn't include it. An owner or admin can open it.`}
+        action={
+          <Link href="/app" className={buttonClass.secondary}>
+            Back to Overview
+          </Link>
+        }
+      />
+    </>
   );
 }

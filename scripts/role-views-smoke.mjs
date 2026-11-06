@@ -183,7 +183,8 @@ async function rolesSeeTheirOwn(actors) {
     if (!team) await page.getByText('Ask an owner or admin to invite people or change roles.').waitFor();
 
     await page.goto(`${frontendUrl}/app/activity`);
-    if (team) await page.getByRole('heading', { name: 'Activity', level: 1 }).waitFor();
+    // The gate keeps the page's title as its h1, so the page's own description is what shows it opened.
+    if (team) await page.getByText('Who did what in your organization').waitFor();
     else await page.getByRole('heading', { name: "Your role can't open this page" }).waitFor();
   }
   console.log('  owner and admin: every item and control; member: no billing, activity, invite or assignment; viewer: read only');

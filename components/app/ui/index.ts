@@ -1,6 +1,6 @@
 export {
-  Avatar, Badge, Card, EmptyState, Field, LockedState, PageHeader, SampleBadge, StatCard, buttonClass, formatDate, initials,
-  inputClass,
+  Avatar, Badge, Card, EmptyState, Field, LockedState, PageHeader, ReadOnlyNotice, SampleBadge, StatCard, buttonClass, formatDate,
+  initials, inputClass,
 } from "./primitives";
 export { Dialog } from "./Dialog";
 export { FilterPills, Tabs, type TabItem } from "./Tabs";

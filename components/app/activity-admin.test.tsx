@@ -109,7 +109,8 @@ describe("the organization's activity", () => {
     signedIn([org({ role })]);
     inApp("/app/activity", <ActivityPage />);
     expect(await screen.findByRole("heading", { name: "Your role can't open this page" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Activity", level: 1 })).toBeNull();
+    // The gate keeps the page's title as its h1, so the page's own description is what proves it never mounted.
+    expect(screen.queryByText(/Who did what in your organization/)).toBeNull();
     expect(listActivity).not.toHaveBeenCalled();
   });
 

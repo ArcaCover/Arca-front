@@ -147,6 +147,8 @@ describe("the page gate", () => {
     expect(await screen.findByRole("heading", { name: "Your role can't open this page" })).toBeTruthy();
     expect(screen.queryByText("page content")).toBeNull();
     expect(screen.getByRole("link", { name: "Back to Overview" }).getAttribute("href")).toBe("/app");
+    // The gate takes the page's place, so it keeps the page's title as the one h1.
+    expect(screen.getAllByRole("heading", { level: 1 }).map(heading => heading.textContent)).toEqual(["Activity"]);
   });
 
   it.each<Role>(["owner", "admin"])("opens the activity to an %s", async role => {

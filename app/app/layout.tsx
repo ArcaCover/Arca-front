@@ -127,7 +127,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
                     <OrgNotices pathname={pathname} />
                     {/* A page the role does not open never mounts (DN-11 §6.1), unless the debug switch shows it. */}
-                    {canOpen(context.org.role, pathname, forbiddenShown) ? children : <RoleGate />}
+                    {canOpen(context.org.role, pathname, forbiddenShown) ? children : <RoleGate pathname={pathname} />}
                   </main>
                 </div>
               </SampleStateProvider>
