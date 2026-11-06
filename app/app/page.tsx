@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, type ReactNode } from "react";
+import { Suspense, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -47,6 +47,13 @@ function Overview() {
   const notify = useToast();
   const [broker, setBroker] = useState(false);
   const preview = usePreview();
+  // A box stays ticked from the click until the plan is read again, and takes no second click while its PATCH is on its
+  // way, so a double click sends one change, not two that would each be audited.
+  const [ticked, setTicked] = useState<{ plan: ActionItemView[] | null; keys: ReadonlySet<string> }>(() => ({
+    plan: null, keys: new Set(),
+  }));
+  const sending = useRef(new Set<string>());
+  const nextList = useRef<HTMLUListElement>(null);
 
   const latest = analyses?.[0] ?? null;
   const mine = (item: ActionItemView) => item.assignee?.userId === me.user.id;
@@ -57,12 +64,32 @@ function Overview() {
   const done = (items ?? []).length - open.length;
   const recentAlerts = alerts.slice(0, 3);
 
-  async function markDone(key: string) {
+  const isTicked = (key: string) => ticked.plan === items && ticked.keys.has(key);
+
+  async function markDone(item: ActionItemView) {
+    const { key } = item;
+    if (sending.current.has(key) || isTicked(key)) return;
+    sending.current.add(key);
+    const plan = items;
+    setTicked(current => ({ plan, keys: new Set(current.plan === plan ? current.keys : []).add(key) }));
     try {
       await updateAction(org.id, key, { status: "done" });
+      // The row leaves the list once the plan is read again, and its box with it: the focus waits on the list instead
+      // of dropping to the page, and the toast says what happened.
+      if (document.activeElement instanceof HTMLElement && document.activeElement.dataset.actionKey === key) {
+        nextList.current?.focus();
+      }
+      notify(`“${item.title}” marked as done.`);
     } catch (cause) {
+      setTicked(current => {
+        const keys = new Set(current.keys);
+        keys.delete(key);
+        return { ...current, keys };
+      });
       const message = fail(cause);
       if (message) notify(message);
+    } finally {
+      sending.current.delete(key);
     }
     refresh();
   }
@@ -111,10 +138,13 @@ function Overview() {
             href="/app/coverage"
           />
         );
+      default:
+        // A new kind fails the typecheck here instead of rendering nothing.
+        return kind satisfies never;
     }
   }
 
-  function quickAction(kind: Exclude<QuickAction, "new_analysis">): ReactNode {
+  function quickAction(kind: QuickAction): ReactNode {
     switch (kind) {
       case "invite":
         return <QuickLink key={kind} href="/app/members" icon={UserPlus} label="Invite a teammate" />;
@@ -150,6 +180,8 @@ function Overview() {
         );
       case "help":
         return <QuickLink key={kind} href="/app/help" icon={LifeBuoy} label="Help & support" />;
+      default:
+        return kind satisfies never;
     }
   }
 
@@ -246,7 +278,7 @@ function Overview() {
               <p className="text-sm text-marino/70">New analyses are run by an owner or admin of {org.name}.</p>
             )}
             <ul aria-label="Quick actions" className="mt-4 space-y-2 text-sm">
-              {quickActions.filter(kind => kind !== "new_analysis").map(quickAction)}
+              {quickActions.map(quickAction)}
             </ul>
           </Card>
           <Card title="Benchmark" sample="illustrative">
@@ -278,15 +310,23 @@ function Overview() {
             </Link>
           }
         >
-          <ul aria-label="Next actions" className="space-y-3">
+          <ul
+            ref={nextList}
+            tabIndex={-1}
+            aria-label="Next actions"
+            className="space-y-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cielo"
+          >
             {nextActions.map(item => (
               <li key={item.key} className="flex items-start gap-3">
                 {next.checkboxes && (
+                  // Ticked rather than disabled while it is sent, so the focus stays on it.
                   <input
                     type="checkbox"
-                    checked={false}
+                    checked={isTicked(item.key)}
+                    aria-disabled={isTicked(item.key) || undefined}
                     aria-label={`Mark “${item.title}” as done`}
-                    onChange={() => void markDone(item.key)}
+                    data-action-key={item.key}
+                    onChange={() => void markDone(item)}
                     className="mt-1 h-4 w-4 accent-marino"
                   />
                 )}

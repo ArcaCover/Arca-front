@@ -89,8 +89,13 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
         disabled={busy || target === undefined}
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-oro px-5 py-3 text-sm font-semibold disabled:opacity-60"
       >
-        {/* Which path a signed-in customer takes depends on the claim's email, unknown until the claim exists. */}
-        {target === null ? "Save your results and activate your account" : "Save your results"}
+        {/* Which path a signed-in customer takes depends on the claim's email, unknown until the claim exists. Someone
+            signed in already has an account, so on the sign-up path they only start a new organization. */}
+        {target === null
+          ? active
+            ? "Save your results to a new organization"
+            : "Save your results and activate your account"
+          : "Save your results"}
         <ArrowRight aria-hidden className="h-4 w-4" />
       </button>
       {error && (

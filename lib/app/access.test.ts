@@ -68,12 +68,12 @@ describe("overviewVariant", () => {
   it.each<[Role, ReturnType<typeof overviewVariant>]>([
     ["owner", {
       stats: ["open_actions", "alerts", "members", "coverage"],
-      quickActions: ["new_analysis", "invite", "download_report", "broker", "book_call"],
+      quickActions: ["invite", "download_report", "broker", "book_call", "help"],
       nextActions: { mineFirst: false, checkboxes: true },
     }],
     ["admin", {
       stats: ["open_actions", "alerts", "members", "coverage"],
-      quickActions: ["new_analysis", "invite", "download_report", "broker", "book_call"],
+      quickActions: ["invite", "download_report", "broker", "book_call", "help"],
       nextActions: { mineFirst: false, checkboxes: true },
     }],
     ["member", {
@@ -93,12 +93,12 @@ describe("overviewVariant", () => {
   it("brings back every control with the switch, and keeps the role's cards and order", () => {
     expect(overviewVariant("viewer", true)).toEqual({
       stats: ["open_actions", "coverage"],
-      quickActions: ["new_analysis", "invite", "download_report", "broker", "book_call"],
+      quickActions: ["invite", "download_report", "broker", "book_call", "help"],
       nextActions: { mineFirst: false, checkboxes: true },
     });
     expect(overviewVariant("member", true)).toEqual({
       stats: ["my_open_actions", "alerts", "coverage"],
-      quickActions: ["new_analysis", "invite", "download_report", "broker", "book_call", "help"],
+      quickActions: ["invite", "download_report", "broker", "book_call", "help"],
       nextActions: { mineFirst: true, checkboxes: true },
     });
     expect(overviewVariant("owner", true)).toEqual(overviewVariant("owner"));

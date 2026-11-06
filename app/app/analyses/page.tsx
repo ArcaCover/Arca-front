@@ -7,7 +7,9 @@ import type { AnalysisView } from "@arca/contracts";
 
 import { summary } from "@/components/app/AnalysisCard";
 import { headline, useAnalyses } from "@/components/app/useAnalyses";
-import { Badge, Card, EmptyState, FilterPills, PageHeader, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import {
+  Badge, Card, EmptyState, FilterPills, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass,
+} from "@/components/app/ui";
 import { DomainBar, TierBadge } from "@/components/score";
 import { useCan } from "@/lib/app/access";
 
@@ -57,7 +59,7 @@ export default function AnalysesPage() {
           )
         }
       />
-      {!canRun && <p className="-mt-4 mb-6 text-sm text-marino/70">Ask an owner or admin to run a new analysis.</p>}
+      {!canRun && <ReadOnlyNotice>Ask an owner or admin to run a new analysis.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
           {error}

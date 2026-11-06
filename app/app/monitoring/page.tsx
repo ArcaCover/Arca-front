@@ -4,13 +4,13 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { BellOff, CalendarClock, RefreshCw } from "lucide-react";
 
-import { NewActionDialog } from "@/app/app/action-plan/NewActionDialog";
 import { useActions } from "@/components/app/ActionsState";
+import { NewActionDialog } from "@/components/app/NewActionDialog";
 import { useSample } from "@/components/app/SampleState";
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import {
-  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, SampleBadge, buttonClass, formatDate, usePreview, useToast,
-  type TabItem,
+  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, ReadOnlyNotice, SampleBadge, buttonClass, formatDate, usePreview,
+  useToast, type TabItem,
 } from "@/components/app/ui";
 import { useCan } from "@/lib/app/access";
 import {
@@ -28,7 +28,7 @@ const comparable = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCas
 
 function Monitoring() {
   const { alerts, unreadAlerts, dispatch } = useSample();
-  const { items, refresh } = useActions();
+  const { items, error: planError, refresh } = useActions();
   // Acting on an alert is the team's (DN-11 §6.2): Create action and Dismiss follow actions.assign, and a re-scan is a new
   // analysis. Mark as read is personal, so everyone has it.
   const canAct = useCan("actions.assign");
@@ -36,7 +36,8 @@ function Monitoring() {
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState<SampleAlert | null>(null);
-  // Stable, so the form keeps the focus while the page re-renders under it.
+  // Stable, so the drawer and the form keep the focus while the page re-renders under them.
+  const close = useCallback(() => setOpenId(null), []);
   const closeCreating = useCallback(() => setCreating(null), []);
   const preview = usePreview();
   const notify = useToast();
@@ -53,7 +54,6 @@ function Monitoring() {
   const visible = filter === "all" ? alerts : alerts.filter(alert => alert.category === filter);
   // Read from the live list, so the panel follows Mark as read and closes itself once the alert is dismissed.
   const selected = alerts.find(alert => alert.id === openId) ?? null;
-  const close = () => setOpenId(null);
 
   return (
     <>
@@ -63,9 +63,9 @@ function Monitoring() {
         description="What changed in your firm and in the rules around AI, between one scan and the next."
       />
       {!canAct && (
-        <p className="mb-6 text-sm text-marino/70">
+        <ReadOnlyNotice>
           You can read every alert and mark it as read. Ask an owner or admin to turn one into an action or dismiss it.
-        </p>
+        </ReadOnlyNotice>
       )}
 
       <Card title="Monthly re-scan" sample>
@@ -178,8 +178,10 @@ function Monitoring() {
               ) : (
                 canAct && (
                   // D17: the alert is a sample, so its suggestion only fills the form; the action is real once confirmed.
+                  // Until the plan is read, nobody knows whether the suggestion is in it already, so it waits.
                   <button
                     type="button"
+                    disabled={items === null}
                     onClick={() => {
                       setCreating(selected);
                       close();
@@ -208,6 +210,13 @@ function Monitoring() {
               <h3 className="text-xs font-semibold uppercase tracking-wide text-marino/55">Suggested action</h3>
               <p className="mt-1 font-semibold">{selected.suggestedAction}</p>
             </section>
+            {canAct && items === null && (
+              <p role="status" className="text-sm text-marino/70">
+                {planError
+                  ? "The action plan could not be loaded, so this alert cannot become an action yet."
+                  : "Loading the action plan…"}
+              </p>
+            )}
           </div>
         )}
       </Dialog>

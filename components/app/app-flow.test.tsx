@@ -642,7 +642,8 @@ describe("SaveResultsCta", () => {
     const claim = { claimId: "cl_4", email: "me@smithlaw.com", expiresAt: future() };
     vi.mocked(createClaim).mockResolvedValue(claim);
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    // Signed in already, so sign-up only starts a new organization: there is no account to activate.
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results to a new organization" }));
     await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_4"));
     expect(attachAnalysis).not.toHaveBeenCalled();
     expect(loadPendingClaim()).toEqual(claim);

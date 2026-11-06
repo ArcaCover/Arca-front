@@ -78,6 +78,17 @@ const MEMBERS: MemberView[] = [
 const FORBIDDEN = new ApiError("forbidden", "Your role does not allow this");
 const RATE_LIMITED = new ApiError("rate_limited", "Too many changes to the action plan; try again in a minute", 60);
 
+/** A promise the test settles itself, to hold a request on its way. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+}
+
 const list = (name: string) => screen.findByRole("list", { name });
 const status = (title: string) => screen.queryByRole<HTMLSelectElement>("combobox", { name: `Status for “${title}”` });
 const assigneeSelect = (title: string) => screen.queryByRole<HTMLSelectElement>("combobox", { name: `Assignee for “${title}”` });
@@ -157,6 +168,141 @@ describe("the action plan by role", () => {
     expect(listMembers).not.toHaveBeenCalled();
   });
 
+  it("says who can change the plan in the read-only notice, above the note about the score", async () => {
+    signedIn(org({ role: "viewer" }));
+    inApp("/app/action-plan", <ActionPlanPage />);
+
+    await list("Actions to do");
+    const notice = screen.getByText("Your role can read the plan. Ask an owner, admin or member to update an action.");
+    // The notice primitive: a box with an icon, not a grey line under the D16 box.
+    expect(notice.querySelector("svg")).toBeTruthy();
+    const score = screen.getByText(/A new analysis updates the score\./);
+    expect(notice.compareDocumentPosition(score) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("adds up the open actions' demo points as separate estimates, without crediting the total to the model", async () => {
+    signedIn(org());
+    vi.mocked(getActionPlan).mockResolvedValue(
+      plan(POLICY, { ...POLICY, key: "a.sc_demo.improve:D2.1", title: "Approve the tools", pointsGain: 3.2 }, {
+        ...POLICY, key: "a.sc_demo.improve:D3.1", title: "Review the drafts", pointsGain: 4, status: "done",
+      }),
+    );
+    inApp("/app/action-plan", <ActionPlanPage />);
+
+    await list("Actions to do");
+    const card = screen.getByText("Demo points still open").parentElement!;
+    expect(card.textContent).toContain("+8.2");
+    expect(within(card).getByText("Each open action's own demo estimate, added up. They were not estimated together.")).toBeTruthy();
+    expect(screen.queryByText(/Estimated by the assessment's demo model/)).toBeNull();
+  });
+
+  it("gives the status alone a narrow column, and the four controls a wide one", async () => {
+    signedIn(org({ role: "member" }));
+    const memberView = inApp("/app/action-plan", <ActionPlanPage />);
+    await list("Actions to do");
+    const narrow = status("Document the policy")!.closest("div")!;
+    expect(narrow.className).toContain("md:w-44");
+    expect(narrow.className).not.toContain("md:w-[26rem]");
+    memberView.unmount();
+
+    signedIn(org());
+    inApp("/app/action-plan", <ActionPlanPage />);
+    await list("Actions to do");
+    expect(status("Document the policy")!.closest("div")!.className).toContain("md:w-[26rem]");
+  });
+
+  it("waits on each row's own write: the other rows stay usable, and the row's Delete waits too", async () => {
+    signedIn(org());
+    const policy = deferred<ActionItemView>();
+    const incident = deferred<ActionItemView>();
+    vi.mocked(updateAction).mockImplementation((_org, key) => (key === POLICY.key ? policy.promise : incident.promise));
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+    const deleteIncident = () => screen.getByRole<HTMLButtonElement>("button", { name: "Delete “Name an incident lead”" });
+
+    await list("Actions to do");
+    await user.selectOptions(status("Document the policy")!, "in_progress");
+    expect(status("Document the policy")!.disabled).toBe(true);
+    expect(status("Name an incident lead")!.disabled).toBe(false);
+    expect(deleteIncident().disabled).toBe(false);
+
+    await user.selectOptions(status("Name an incident lead")!, "done");
+    expect(updateAction).toHaveBeenCalledTimes(2);
+    expect(deleteIncident().disabled).toBe(true);
+
+    // The first write landing frees its own row only.
+    policy.resolve({ ...POLICY, status: "in_progress" });
+    await waitFor(() => expect(status("Document the policy")!.disabled).toBe(false));
+    expect(status("Name an incident lead")!.disabled).toBe(true);
+    expect(deleteIncident().disabled).toBe(true);
+
+    incident.resolve({ ...INCIDENT, status: "done" });
+    await waitFor(() => expect(deleteIncident().disabled).toBe(false));
+  });
+
+  it("shows a write that lands after the plan was read again while it was on its way", async () => {
+    signedIn(org());
+    const started = { ...POLICY, status: "in_progress" as const };
+    const incident = deferred<ActionItemView>();
+    vi.mocked(getActionPlan)
+      .mockResolvedValueOnce(PLAN)
+      .mockResolvedValueOnce(plan(started, INCIDENT))
+      // The read after the last write never lands here, so only the page's own record of that write can show it.
+      .mockReturnValue(new Promise(() => {}));
+    vi.mocked(updateAction).mockImplementation(async (_org, key) => (key === POLICY.key ? started : incident.promise));
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+
+    await list("Actions to do");
+    await user.selectOptions(status("Name an incident lead")!, "done");
+    await user.selectOptions(status("Document the policy")!, "in_progress");
+    await waitFor(() => expect(getActionPlan).toHaveBeenCalledTimes(2));
+    expect(within(await list("Actions in progress")).getByText("Document the policy")).toBeTruthy();
+
+    incident.resolve({ ...INCIDENT, status: "done" });
+    expect(within(await list("Actions done")).getByText("Name an incident lead")).toBeTruthy();
+    expect(within(await list("Actions in progress")).getByText("Document the policy")).toBeTruthy();
+  });
+
+  it("reads the plan again when the back no longer has the action (D14)", async () => {
+    signedIn(org({ role: "member" }));
+    const replaced = { ...POLICY, key: "a.sc_new.improve:D1.1", title: "Name a policy owner" };
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockResolvedValue(plan(replaced));
+    vi.mocked(updateAction).mockRejectedValue(new ApiError("not_found", "Action not found"));
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+
+    await list("Actions to do");
+    await user.selectOptions(status("Document the policy")!, "done");
+    expect((await screen.findByRole("alert")).textContent).toBe("Action not found");
+    expect(await within(await list("Actions to do")).findByText("Name a policy owner")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("Document the policy")).toBeNull());
+    expect(getActionPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the plan on screen when the read after a write fails, and says it may be out of date", async () => {
+    signedIn(org({ role: "member" }));
+    const done = { ...POLICY, status: "done" as const };
+    vi.mocked(getActionPlan)
+      .mockResolvedValueOnce(PLAN)
+      .mockRejectedValueOnce(new ApiError("internal_error", "The scan service failed."))
+      .mockResolvedValue(plan(done, INCIDENT));
+    vi.mocked(updateAction).mockResolvedValue(done);
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+
+    await list("Actions to do");
+    await user.selectOptions(status("Document the policy")!, "done");
+    expect((await screen.findByRole("alert")).textContent).toBe("The scan service failed. The plan shown may be out of date.");
+    expect(within(await list("Actions done")).getByText("Document the policy")).toBeTruthy();
+    expect(within(await list("Actions in progress")).getByText("Name an incident lead")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(within(await list("Actions done")).getByText("Document the policy")).toBeTruthy();
+    expect(getActionPlan).toHaveBeenCalledTimes(3);
+  });
+
   it("moves an action when its status changes, and reads the plan again", async () => {
     signedIn(org({ role: "member" }));
     const done = { ...POLICY, status: "done" as const, updatedAt: "2026-11-05T10:00:00.000Z" };
@@ -214,6 +360,20 @@ describe("the action plan by role", () => {
     fireEvent.change(other, { target: { value: "" } });
     fireEvent.blur(other);
     await waitFor(() => expect(updateAction).toHaveBeenLastCalledWith("org_1", INCIDENT.key, { dueDate: null }));
+  });
+
+  it("keeps the saved date when the field is left half edited", async () => {
+    signedIn(org());
+    inApp("/app/action-plan", <ActionPlanPage />);
+
+    await list("Actions to do");
+    const field = dueDate("Name an incident lead")!;
+    // A browser reports "" for a date with one part cleared, and says so through badInput, which jsdom does not model.
+    Object.defineProperty(field, "validity", { configurable: true, value: { badInput: true } });
+    fireEvent.change(field, { target: { value: "" } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(dueDate("Name an incident lead")!.value).toBe("2026-12-01"));
+    expect(updateAction).not.toHaveBeenCalled();
   });
 
   it("puts the saved date back when the back refuses it", async () => {
@@ -414,6 +574,14 @@ describe("the action plan by role", () => {
     expect(getActionPlan).not.toHaveBeenCalled();
     expect(listMembers).not.toHaveBeenCalled();
   });
+
+  it("tells a role that cannot choose a plan that the owner unlocks the page", async () => {
+    signedIn(org({ role: "member", billingStatus: "pending_payment", paidAccess: false }));
+    inApp("/app/action-plan", <ActionPlanPage />);
+    expect(await screen.findByRole("heading", { name: "Only the owner can unlock the action plan" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "See plans" })).toBeNull();
+    expect(getActionPlan).not.toHaveBeenCalled();
+  });
 });
 
 describe("monitoring by role", () => {
@@ -453,6 +621,37 @@ describe("monitoring by role", () => {
     expect(within(drawer).queryByRole("button", { name: "Create action" })).toBeNull();
   });
 
+  it("offers Create action only once the plan is read, so it cannot add an action the plan already has", async () => {
+    signedIn(org());
+    const read = deferred<ActionPlanResponse>();
+    vi.mocked(getActionPlan).mockReturnValue(read.promise);
+    inApp("/app/monitoring", <MonitoringPage />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: GUIDANCE }));
+    const drawer = screen.getByRole("dialog");
+    expect(within(drawer).getByRole<HTMLButtonElement>("button", { name: "Create action" }).disabled).toBe(true);
+    expect(within(drawer).getByText("Loading the action plan…")).toBeTruthy();
+
+    read.resolve(PLAN);
+    await waitFor(() => expect(within(drawer).getByRole<HTMLButtonElement>("button", { name: "Create action" }).disabled).toBe(false));
+    expect(within(drawer).queryByText("Loading the action plan…")).toBeNull();
+  });
+
+  it("says why Create action waits when the plan could not be read", async () => {
+    signedIn(org());
+    vi.mocked(getActionPlan).mockRejectedValue(new ApiError("internal_error", "The scan service failed."));
+    inApp("/app/monitoring", <MonitoringPage />);
+    const user = userEvent.setup();
+
+    await waitFor(() => expect(getActionPlan).toHaveBeenCalled());
+    await user.click(await screen.findByRole("button", { name: GUIDANCE }));
+    const drawer = screen.getByRole("dialog");
+    expect(await within(drawer).findByText("The action plan could not be loaded, so this alert cannot become an action yet.")).toBeTruthy();
+    expect(within(drawer).getByRole<HTMLButtonElement>("button", { name: "Create action" }).disabled).toBe(true);
+    expect(createAction).not.toHaveBeenCalled();
+  });
+
   it("knows from the real plan which suggestions are already in it", async () => {
     signedIn(org({ role: "viewer" }));
     vi.mocked(getActionPlan).mockResolvedValue(
@@ -472,9 +671,11 @@ describe("monitoring by role", () => {
     inApp("/app/monitoring", <MonitoringPage />);
     const user = userEvent.setup();
 
-    expect(
-      await screen.findByText("You can read every alert and mark it as read. Ask an owner or admin to turn one into an action or dismiss it."),
-    ).toBeTruthy();
+    const notice = await screen.findByText(
+      "You can read every alert and mark it as read. Ask an owner or admin to turn one into an action or dismiss it.",
+    );
+    // The read-only notice primitive, with its icon.
+    expect(notice.querySelector("svg")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Run re-scan now" })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: GUIDANCE }));

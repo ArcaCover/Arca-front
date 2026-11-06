@@ -13,7 +13,7 @@ import SaveResultsCta from "@/components/app/SaveResultsCta";
 import { ApiError } from "@/lib/api/client";
 import { fixtureResult } from "@/lib/api/fixture";
 import { rememberSession } from "@/lib/api/session";
-import { attachAnalysis, createClaim, getActionPlan, getMe, listAnalyses } from "@/lib/app/client";
+import { attachAnalysis, createClaim, getActionPlan, getMe, listAnalyses, updateAction } from "@/lib/app/client";
 import { loadPendingClaim, saveAppSession } from "@/lib/app/session";
 import { fixtureAssessmentResult } from "@/lib/test-fixtures/assessment";
 
@@ -141,7 +141,10 @@ describe("the Overview by role", () => {
     expect(statLabels()).toEqual(["Open actions", "Unread alerts", "Team members", "Coverage"]);
     expect(screen.getByRole("link", { name: /^Run a new analysis$/ }).getAttribute("href")).toBe("/quote");
     expect(screen.getByRole("link", { name: /Add an analysis/ }).getAttribute("href")).toBe("/quote");
-    expect(quickActions()).toEqual(["Invite a teammate", "Download full report", "Talk to a broker", "Book a call with ARCA"]);
+    // §6.3: all of them, help included.
+    expect(quickActions()).toEqual([
+      "Invite a teammate", "Download full report", "Talk to a broker", "Book a call with ARCA", "Help & support",
+    ]);
     // The plan's order, whoever each action is assigned to.
     expect(nextTitles()).toEqual(["Name an incident lead", "Write the AI policy", "Review vendor terms"]);
     expect(within(screen.getByRole("list", { name: "Next actions" })).getAllByRole("checkbox")).toHaveLength(3);
@@ -203,6 +206,48 @@ describe("the Overview by role", () => {
       expect(screen.queryAllByText(/owner or admin of Smith Law/)).toHaveLength(offered ? 0 : 1);
     },
   );
+});
+
+describe("the Overview's next actions", () => {
+  const box = (title: string) => screen.getByRole<HTMLInputElement>("checkbox", { name: `Mark “${title}” as done` });
+
+  it("ticks the box while it is sent, sends one change for a double click, and keeps the focus on the list", async () => {
+    signedIn(org({ role: "member" }));
+    let answer!: (action: ActionItemView) => void;
+    vi.mocked(updateAction).mockReturnValue(new Promise(resolve => (answer = resolve)));
+    const policy = PLAN.items[1];
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockResolvedValue({
+      ...PLAN, items: PLAN.items.map(item => (item.key === policy.key ? { ...item, status: "done" as const } : item)),
+    });
+    await overview();
+    const user = userEvent.setup();
+
+    await user.click(box("Write the AI policy"));
+    expect(box("Write the AI policy").checked).toBe(true);
+    await user.click(box("Write the AI policy"));
+    expect(box("Write the AI policy").checked).toBe(true);
+    expect(updateAction).toHaveBeenCalledExactlyOnceWith("org_1", policy.key, { status: "done" });
+
+    answer({ ...policy, status: "done" });
+    expect(await screen.findByText("“Write the AI policy” marked as done.")).toBeTruthy();
+    const list = screen.getByRole("list", { name: "Next actions" });
+    await waitFor(() => expect(within(list).queryByText("Write the AI policy")).toBeNull());
+    expect(document.activeElement).toBe(list);
+    expect(updateAction).toHaveBeenCalledTimes(1);
+    expect(getActionPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it("unticks the box and says why when the change is refused", async () => {
+    signedIn(org({ role: "member" }));
+    vi.mocked(updateAction).mockRejectedValue(new ApiError("rate_limited", "Too many changes to the action plan; try again in a minute", 60));
+    await overview();
+    const user = userEvent.setup();
+
+    await user.click(box("Write the AI policy"));
+    expect(await screen.findByText("Too many changes to the action plan; try again in a minute")).toBeTruthy();
+    await waitFor(() => expect(box("Write the AI policy").checked).toBe(false));
+    expect(document.activeElement).toBe(box("Write the AI policy"));
+  });
 });
 
 describe("the Overview with the debug switch", () => {
@@ -353,6 +398,24 @@ describe("the analysis detail by role", () => {
       expect(screen.queryByRole("link", { name: "Run a scan and assessment" }) !== null).toBe(offered);
     },
   );
+
+  it("in mock with the switch on, gives a viewer Re-run back", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    sessionStorage.setItem(SWITCH_KEY, "1");
+    signedIn(org({ role: "viewer" }));
+    navigation.params = { scanId: "sc_demo" };
+    inApp("/app/analyses/sc_demo", <AnalysisDetailPage />);
+    expect((await screen.findByRole("link", { name: /^Re-run$/ })).getAttribute("href")).toBe("/quote");
+    expect(screen.queryByText("Ask an owner or admin to run a new analysis.")).toBeNull();
+  });
+
+  it("says who runs a new analysis in the read-only notice", async () => {
+    signedIn(org({ role: "viewer" }));
+    navigation.params = { scanId: "sc_demo" };
+    inApp("/app/analyses/sc_demo", <AnalysisDetailPage />);
+    const notice = await screen.findByText("Ask an owner or admin to run a new analysis.");
+    expect(notice.querySelector("svg")).toBeTruthy();
+  });
 });
 
 describe("SaveResultsCta for a member or a viewer", () => {
@@ -360,12 +423,23 @@ describe("SaveResultsCta for a member or a viewer", () => {
     rememberSession("sc_demo", "synthetic-scan-capability");
   });
 
+  it("asks someone not signed in to activate an account, and someone signed in only to start an organization", async () => {
+    const anonymous = render(<SaveResultsCta scanId="sc_demo" />);
+    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    anonymous.unmount();
+
+    signedIn(org({ role: "viewer" }));
+    render(<SaveResultsCta scanId="sc_demo" />);
+    expect(await screen.findByRole("button", { name: "Save your results to a new organization" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /activate your account/ })).toBeNull();
+  });
+
   it.each<Role>(["member", "viewer"])("sends a %s of the active organization to create a new one, and says why", async role => {
     signedIn(org({ role }));
     const claim = { claimId: "cl_6", email: "me@smithlaw.com", expiresAt: future() };
     vi.mocked(createClaim).mockResolvedValue(claim);
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results to a new organization" }));
     expect(screen.getByText(/^Your role in Smith Law does not add analyses\./)).toBeTruthy();
     await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_6"));
     expect(attachAnalysis).not.toHaveBeenCalled();
@@ -377,7 +451,7 @@ describe("SaveResultsCta for a member or a viewer", () => {
     localStorage.setItem("arca.app.org", "org_2");
     vi.mocked(createClaim).mockResolvedValue({ claimId: "cl_7", email: "me@smithlaw.com", expiresAt: future() });
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Save your results to a new organization" }));
     expect(screen.getByText(/^Your role in Second Firm does not add analyses\./)).toBeTruthy();
     await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_7"));
     expect(attachAnalysis).not.toHaveBeenCalled();
@@ -386,7 +460,7 @@ describe("SaveResultsCta for a member or a viewer", () => {
   it("does not blame the role when the active organization only lacks payment", async () => {
     signedIn(org({ billingStatus: "pending_payment", paidAccess: false }));
     render(<SaveResultsCta scanId="sc_demo" />);
-    await screen.findByRole("button", { name: "Save your results and activate your account" });
+    await screen.findByRole("button", { name: "Save your results to a new organization" });
     expect(screen.getByText("Create your organization to keep this analysis and invite your colleagues.")).toBeTruthy();
     expect(screen.queryByText(/does not add analyses/)).toBeNull();
   });

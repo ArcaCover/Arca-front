@@ -9,7 +9,7 @@ import type { AnalysisView } from "@arca/contracts";
 import { useActions } from "@/components/app/ActionsState";
 import AnalysisCard from "@/components/app/AnalysisCard";
 import { headline, useAnalyses } from "@/components/app/useAnalyses";
-import { Badge, Card, EmptyState, PageHeader, Sparkline, Tabs, buttonClass, formatDate } from "@/components/app/ui";
+import { Badge, Card, EmptyState, PageHeader, ReadOnlyNotice, Sparkline, Tabs, buttonClass, formatDate } from "@/components/app/ui";
 import { SignalCard } from "@/components/score";
 import { useCan } from "@/lib/app/access";
 import { SAMPLE_SCORE_HISTORY } from "@/lib/app/mock/records";
@@ -104,7 +104,7 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
           </>
         }
       />
-      {!canRun && <p className="-mt-4 mb-6 text-sm text-marino/70">Ask an owner or admin to run a new analysis.</p>}
+      {!canRun && <ReadOnlyNotice>Ask an owner or admin to run a new analysis.</ReadOnlyNotice>}
 
       <Tabs<Section>
         label="Analysis sections"

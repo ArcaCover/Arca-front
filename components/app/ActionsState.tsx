@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { ActionItemView, ActionPlanResponse } from "@arca/contracts";
 
 import { useApp } from "@/components/app/AppContext";
+import { ApiError, type ApiErrorCode } from "@/lib/api/client";
 import { getActionPlan } from "@/lib/app/client";
 
 // The organization's real action plan (DN-11 §6.4), read once for the whole /app shell: the sidebar counter, the Overview,
@@ -17,13 +18,21 @@ export type ActionsState = {
   source: ActionPlanResponse["source"];
   /** The actions not done yet. Null whenever items is, so a counter simply does not show. */
   openCount: number | null;
-  /** Why the last request failed, for a page that wants to say so. The provider itself never redirects, not even on 402. */
+  /**
+   * Why the last request failed, for a page that wants to say so. The provider itself never redirects, not even on 402.
+   * With items still set, the plan on screen is the last one read and may be out of date.
+   */
   error: unknown;
   /** Asks for the plan again, after a change. */
   refresh: () => void;
 };
 
 const ActionsContext = createContext<ActionsState | null>(null);
+
+// The answers that say the plan is no longer this user's to read. Any other failure (a 429, a 500, the network) keeps
+// the last plan read, so a refresh that fails after a write does not blank the page.
+const REFUSED = new Set<ApiErrorCode>(["unauthorized", "payment_required", "forbidden", "not_found", "gone"]);
+const refused = (cause: unknown) => cause instanceof ApiError && REFUSED.has(cause.code);
 
 export function ActionsProvider({ children }: { children: ReactNode }) {
   const { org } = useApp();
@@ -45,7 +54,7 @@ export function ActionsProvider({ children }: { children: ReactNode }) {
         setError(null);
       } catch (cause) {
         if (cancelled) return;
-        setPlan(null);
+        if (refused(cause)) setPlan(null);
         setError(cause);
       }
     })();

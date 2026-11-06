@@ -1,24 +1,12 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import type { ActionItemView, DomainKey } from "@arca/contracts";
+import { DOMAIN_LABELS, DomainKey, type ActionItemView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Dialog, buttonClass, inputClass } from "@/components/app/ui";
 import { createAction } from "@/lib/app/client";
 
-// The assessment's six domains, named as the question bank names them. A Record over DomainKey, so a domain added to the
-// contract fails the typecheck until it gets a name here.
-export const DOMAIN_LABEL: Record<DomainKey, string> = {
-  governance: "AI Governance & Policy",
-  tools: "AI Tool Environment",
-  oversight: "Human Oversight & Review",
-  data_protection: "Data Protection & Confidentiality",
-  training: "Training & Competency",
-  incident_preparedness: "Incident Preparedness",
-};
-
-const DOMAINS = Object.keys(DOMAIN_LABEL) as DomainKey[];
 const NO_DOMAIN = "__none";
 
 /**
@@ -109,9 +97,9 @@ function NewActionForm({
         <span className="font-semibold">Domain</span>
         <select value={domain} onChange={event => setDomain(event.target.value)} className={inputClass}>
           <option value={NO_DOMAIN}>No domain</option>
-          {DOMAINS.map(key => (
+          {DomainKey.options.map(key => (
             <option key={key} value={key}>
-              {DOMAIN_LABEL[key]}
+              {DOMAIN_LABELS[key]}
             </option>
           ))}
         </select>

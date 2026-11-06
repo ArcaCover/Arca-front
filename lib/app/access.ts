@@ -67,19 +67,23 @@ export function navItems(
 }
 
 export type OverviewStat = "open_actions" | "my_open_actions" | "alerts" | "members" | "coverage";
-export type QuickAction = "new_analysis" | "invite" | "download_report" | "broker" | "book_call" | "help";
+export type QuickAction = "invite" | "download_report" | "broker" | "book_call" | "help";
 
 /** What the Overview shows a role, card by card (DN-11 §6.3). The latest analysis, the trend and monitoring are everyone's. */
 export type OverviewVariant = {
   /** The indicator cards, in order. */
   stats: OverviewStat[];
-  /** The quick actions, in order. */
+  /**
+   * The quick actions listed, in order. "Add an analysis" is not one of them: every way to /quote follows
+   * analysis.create (§6.2), which the Overview asks with useCan like the rest of the pages.
+   */
   quickActions: QuickAction[];
   /** "Next actions": the user's own actions first, and whether each row has a box to mark it done. */
   nextActions: { mineFirst: boolean; checkboxes: boolean };
 };
 
-const TEAM_QUICK_ACTIONS: QuickAction[] = ["new_analysis", "invite", "download_report", "broker", "book_call"];
+// §6.3 gives the owner and the admin all of them, help included.
+const TEAM_QUICK_ACTIONS: QuickAction[] = ["invite", "download_report", "broker", "book_call", "help"];
 const OVERVIEW: Record<Role, OverviewVariant> = {
   owner: {
     stats: ["open_actions", "alerts", "members", "coverage"],
