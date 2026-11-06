@@ -117,11 +117,12 @@ lo nuevo vive en datos locales.
 
 **Paywall en las pantallas de muestra.** Las pantallas nuevas no llaman al back, así que nada las
 bloquearía con un 402. Si `org.paidAccess` es falso, muestran un estado bloqueado ("Choose a plan
-to unlock…", con botón a `/app/billing`) en lugar del contenido. El back sigue siendo la autoridad
-sobre los datos reales; esto solo impide que la vista previa contradiga al paywall. Billing,
-Members, Settings y Help no se bloquean, como hoy. El plan de acción, ya real, se sigue bloqueando
-sin pago porque su ruta exige pago. La actividad, real desde DN-11, ya no se bloquea: no exige pago
-(D5).
+to unlock…", con botón a `/app/billing`) en lugar del contenido. Con DN-11, quien no puede elegir
+plan (sin `billing.manage`) lee "Only the owner can unlock…" y "See billing status", también en el
+plan de acción. El back sigue siendo la autoridad sobre los datos reales; esto solo impide que la
+vista previa contradiga al paywall. Billing, Members, Settings y Help no se bloquean, como hoy. El
+plan de acción, ya real, se sigue bloqueando sin pago porque su ruta exige pago. La actividad, real
+desde DN-11, ya no se bloquea: no exige pago (D5).
 
 **Por rol (DN-11 §6.2).** Cada pantalla muestra solo lo que el rol puede hacer, en todos los modos.
 Una pantalla en solo lectura quita los controles y dice una vez, arriba, quién puede hacer el
@@ -192,11 +193,13 @@ barra superior.
 6. **Monitoreo**: las 3 alertas más recientes y un enlace a la pantalla.
 7. **Acciones rápidas** (con DN-11, el `member` solo tiene "Book a call" y Help, y el `viewer` solo
    "Book a call"):
-   - New analysis
+   - New analysis: con DN-11 es el botón "Add an analysis" de la tarjeta, fuera de la lista; sigue
+     `analysis.create` como todo enlace a `/quote`
    - Invite a teammate (a Members)
    - Download full report: deshabilitado, con "Coming soon"
    - Talk to a broker: modal de vista previa
    - Book a call: enlace real a `https://calendly.com/arcacover/discovery`, ya usado en la landing
+   - Help & support (a `/app/help`); con DN-11 owner y admin también la tienen
 8. **Benchmark**: "Percentile among firms in your state", con un número de muestra, marcado como
    "Illustrative: not computed from real firms".
 9. **Lista de análisis**: ya no está aquí. Se mueve a `/app/analyses`. La pantalla conserva la
@@ -370,8 +373,9 @@ el sistema, solo con su tipo. Quedan los filtros por persona y por tipo de event
 **Plan de acción compartido (DN-11 §6.4).** El plan salió de `SampleStateProvider` y vive en
 `ActionsProvider` (`components/app/ActionsState.tsx`), en el layout, dentro de `AppContext` y con el
 mismo `key` por organización. Pide el plan solo si `org.paidAccess`; un 402 o un 403 no redirigen
-desde el proveedor, solo dejan fuera el contador. Expone `refresh()` y es la única fuente de la
-barra lateral, el Overview, la búsqueda y Monitoring.
+desde el proveedor, solo dejan fuera el contador. Otro fallo (un 429, un 500, la red) conserva el
+último plan leído, y el plan de acción avisa que puede estar desactualizado, con "Try again". Expone
+`refresh()` y es la única fuente de la barra lateral, el Overview, la búsqueda y Monitoring.
 
 **Avisos de vista previa**: un único texto para toda la app, "Preview only: this isn't connected
 yet.", más el detalle de cada caso.
