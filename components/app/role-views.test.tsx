@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { AnchorHTMLAttributes, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ActionItemView, ActionPlanResponse, MeResponse, OrgView, Role } from "@arca/contracts";
 
@@ -25,6 +25,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/link", () => ({ default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} /> }));
 vi.mock("@/lib/app/client");
+
+// The first render of the file is cold and, with every file of the suite running at once, takes longer than the default
+// second to show anything; the waits here are for data the mocks already hold, so a longer limit hides no slowness.
+configure({ asyncUtilTimeout: 5000 });
 
 const SWITCH_KEY = "arca.debug.showForbidden";
 

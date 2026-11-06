@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import type { AnchorHTMLAttributes, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, configure, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MeResponse, OrgView, Role } from "@arca/contracts";
 
@@ -29,6 +29,10 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next/link", () => ({ default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} /> }));
 vi.mock("@/lib/app/client");
+
+// The first render of the file is cold and, with every file of the suite running at once, takes longer than the default
+// second to show anything; the waits here are for data the mocks already hold, so a longer limit hides no slowness.
+configure({ asyncUtilTimeout: 5000 });
 
 const SWITCH_KEY = "arca.debug.showForbidden";
 const future = () => new Date(Date.now() + 3_600_000).toISOString();
@@ -102,7 +106,7 @@ describe("members", () => {
     ["admin", { ...ALL, removeOwner: false, ownerRole: false, transfer: false }],
     ["member", NONE],
     ["viewer", NONE],
-  ])("gives a %s only the controls its role allows, in every mode", async (role, expected) => {
+  ])("gives a %s only the controls its role allows while the switch is off", async (role, expected) => {
     signedIn(org({ role }));
     inApp("/app/members", <MembersPage />);
     await screen.findByText("owner@smithlaw.com");
