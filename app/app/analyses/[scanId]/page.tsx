@@ -6,10 +6,12 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Download, FileSearch, ListChecks, RotateCw } from "lucide-react";
 import type { AnalysisView } from "@arca/contracts";
 
+import { useActions } from "@/components/app/ActionsState";
 import AnalysisCard from "@/components/app/AnalysisCard";
 import { headline, useAnalyses } from "@/components/app/useAnalyses";
 import { Badge, Card, EmptyState, PageHeader, Sparkline, Tabs, buttonClass, formatDate } from "@/components/app/ui";
 import { SignalCard } from "@/components/score";
+import { useCan } from "@/lib/app/access";
 import { SAMPLE_SCORE_HISTORY } from "@/lib/app/mock/records";
 import { signalsToCards } from "@/lib/signals-view";
 
@@ -68,6 +70,12 @@ export default function AnalysisDetailPage() {
 
 function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode }) {
   const [section, setSection] = useState<Section>("overview");
+  // A member or a viewer reads the analysis and runs none: every way to /quote follows analysis.create (DN-11 §6.2).
+  const canRun = useCan("analysis.create");
+  // The organization's plan comes from one analysis only (DN-11 §4.2). Another one's actions are what was recommended
+  // then, and a newer analysis brings a new plan without them (D14).
+  const { source } = useActions();
+  const current = source?.scanId === analysis.scanId;
   const { kind } = headline(analysis);
   const signals = signalsToCards(analysis.layer1);
   const plan = analysis.assessment?.actionPlan ?? [];
@@ -82,10 +90,12 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
         description={`${kind} · saved ${formatDate(analysis.claimedAt)}`}
         actions={
           <>
-            <Link href="/quote" className={buttonClass.secondary}>
-              <RotateCw aria-hidden className="h-4 w-4" />
-              Re-run
-            </Link>
+            {canRun && (
+              <Link href="/quote" className={buttonClass.secondary}>
+                <RotateCw aria-hidden className="h-4 w-4" />
+                Re-run
+              </Link>
+            )}
             <button type="button" disabled className={buttonClass.secondary}>
               <Download aria-hidden className="h-4 w-4" />
               Download report
@@ -94,6 +104,7 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
           </>
         }
       />
+      {!canRun && <p className="-mt-4 mb-6 text-sm text-marino/70">Ask an owner or admin to run a new analysis.</p>}
 
       <Tabs<Section>
         label="Analysis sections"
@@ -107,7 +118,7 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
         ]}
         panel={
           section === "overview" ? (
-            <AnalysisCard analysis={analysis} />
+            <AnalysisCard analysis={analysis} current={current} />
           ) : section === "signals" ? (
             signals.length > 0 ? (
               <ul aria-label="Detected signals" className="grid gap-3 md:grid-cols-2">
@@ -124,11 +135,13 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
             plan.length > 0 ? (
               <Card
                 title="Recommended actions"
-                description="From this analysis's assessment. Points are from the demo scoring model."
+                description="Recommended at the time of this analysis. Points are from the demo scoring model."
                 actions={
-                  <Link href="/app/action-plan" className="text-sm font-semibold underline-offset-4 hover:underline">
-                    Track them in the action plan
-                  </Link>
+                  current && (
+                    <Link href="/app/action-plan" className="text-sm font-semibold underline-offset-4 hover:underline">
+                      Track these in the Action plan
+                    </Link>
+                  )
                 }
               >
                 {/* Not named "Action plan": that list name belongs to AnalysisCard, on the Overview tab. */}
@@ -144,6 +157,11 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
                     </li>
                   ))}
                 </ol>
+                {!current && source && (
+                  <p className="mt-4 text-xs text-marino/60">
+                    The Action plan follows the most recent analysis with an assessment, so these actions are not tracked there.
+                  </p>
+                )}
               </Card>
             ) : (
               <EmptyState
@@ -152,10 +170,12 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
                 description={
                   analysis.assessment
                     ? "The assessment did not recommend any action for this firm."
-                    : "A scan alone does not produce actions. Complete the assessment to get them."
+                    : canRun
+                      ? "A scan alone does not produce actions. Complete the assessment to get them."
+                      : "A scan alone does not produce actions. They come with an assessment."
                 }
                 action={
-                  !analysis.assessment && (
+                  !analysis.assessment && canRun && (
                     <Link href="/quote" className={buttonClass.primary}>
                       Run a scan and assessment
                     </Link>

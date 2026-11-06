@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { AnalysisView } from "@arca/contracts";
 
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
@@ -33,8 +34,11 @@ export function summary({ assessment, layer1, scanStatus }: AnalysisView): Summa
   };
 }
 
-/** One claimed analysis, drawn with the funnel's own score components. */
-export default function AnalysisCard({ analysis }: { analysis: AnalysisView }) {
+/**
+ * One claimed analysis, drawn with the funnel's own score components. Its action plan stays the static list the
+ * assessment recommended; only the analysis the organization's plan comes from (`current`) links to where it is tracked.
+ */
+export default function AnalysisCard({ analysis, current = false }: { analysis: AnalysisView; current?: boolean }) {
   const { score, tier, bars, decisionWithheld } = summary(analysis);
   const plan = analysis.assessment?.actionPlan ?? [];
 
@@ -72,6 +76,11 @@ export default function AnalysisCard({ analysis }: { analysis: AnalysisView }) {
             </li>
           ))}
         </ol>
+      )}
+      {current && plan.length > 0 && (
+        <Link href="/app/action-plan" className="mt-3 inline-block text-sm font-semibold underline-offset-4 hover:underline">
+          Track these in the Action plan
+        </Link>
       )}
       {/* The same boundaries /assessment/results states: a saved analysis is no more of an offer than the funnel's. */}
       <p className="mt-5 text-xs text-marino/75">

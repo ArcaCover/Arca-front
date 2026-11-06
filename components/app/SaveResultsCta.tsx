@@ -12,7 +12,8 @@ import { attachAnalysis, createClaim, getMe } from "@/lib/app/client";
 import { loadAppSession, savePendingClaim } from "@/lib/app/session";
 
 // An organization the analysis may be added to: the signed-in user's role adds analyses there and it has paid. Any other
-// would answer 403 or 402, which leaves the user nowhere, so the claim goes to sign-up instead.
+// would answer 403 or 402, which leaves the user nowhere, so the claim goes to sign-up instead. Neither a member (DN-11 D2)
+// nor a viewer adds analyses, so their results start an organization of their own.
 const canAttachTo = (org: OrgView) => can(org.role, "analysis.create") && org.paidAccess;
 
 // The claim is the visitor's email from the scan. Only the person signed in with that same email may add it to their own
@@ -23,8 +24,10 @@ const sameEmail = (a: string | undefined, b: string) => a !== undefined && a.toL
 // organization takes it to sign-up, and a signed-in customer adds the analysis to the organization they already have.
 export default function SaveResultsCta({ scanId }: { scanId: string }) {
   const router = useRouter();
-  // undefined while /me is asked; null when the analysis is going to a new organization through sign-up.
-  const [target, setTarget] = useState<OrgView | null | undefined>(undefined);
+  // The organization the user is in, and only that one (DN-10 §4.7): undefined while /me is asked, null with none.
+  const [active, setActive] = useState<OrgView | null | undefined>(undefined);
+  // null when the analysis is going to a new organization through sign-up.
+  const target = active && canAttachTo(active) ? active : active === undefined ? undefined : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +38,7 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
     lookup
       .catch(() => null)
       .then(org => {
-        if (!cancelled) setTarget(org && canAttachTo(org) ? org : null);
+        if (!cancelled) setActive(org);
       });
     return () => {
       cancelled = true;
@@ -76,7 +79,9 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
       <p className="mt-2 text-sm leading-7 text-marino/70">
         {target
           ? `If this scan was made with your email, it joins the analyses of ${target.name}; otherwise you create an organization for it.`
-          : "Create your organization to keep this analysis and invite your colleagues."}
+          : active && !can(active.role, "analysis.create")
+            ? `Your role in ${active.name} does not add analyses. Create an organization to keep this one and invite your colleagues.`
+            : "Create your organization to keep this analysis and invite your colleagues."}
       </p>
       <button
         type="button"
