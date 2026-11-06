@@ -1,14 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { BellOff, CalendarClock, RefreshCw } from "lucide-react";
 
+import { NewActionDialog } from "@/app/app/action-plan/NewActionDialog";
+import { useActions } from "@/components/app/ActionsState";
 import { useSample } from "@/components/app/SampleState";
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import {
-  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, SampleBadge, buttonClass, formatDate, usePreview, type TabItem,
+  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, SampleBadge, buttonClass, formatDate, usePreview, useToast,
+  type TabItem,
 } from "@/components/app/ui";
-import { ALERT_CATEGORY, ALERT_SEVERITY, type AlertCategory, type AlertSeverity } from "@/lib/app/mock/alerts";
+import { useCan } from "@/lib/app/access";
+import {
+  ALERT_CATEGORY, ALERT_SEVERITY, type AlertCategory, type AlertSeverity, type SampleAlert,
+} from "@/lib/app/mock/alerts";
 import { NEXT_RESCAN } from "@/lib/app/mock/records";
 
 type Filter = "all" | AlertCategory;
@@ -16,11 +23,26 @@ type Filter = "all" | AlertCategory;
 // High is the one level that is an alert in the brand's sense, so it alone takes rojo (CLAUDE.md §5).
 const SEVERITY_TONE: Record<AlertSeverity, "danger" | "warning" | "neutral"> = { high: "danger", medium: "warning", info: "neutral" };
 
+// The alerts are sample data and the plan is real, so "already in the plan" can only mean an action with the suggested text.
+const comparable = (text: string) => text.trim().replace(/\s+/g, " ").toLowerCase();
+
 function Monitoring() {
   const { alerts, unreadAlerts, dispatch } = useSample();
+  const { items, refresh } = useActions();
+  // Acting on an alert is the team's (DN-11 §6.2): Create action and Dismiss follow actions.assign, and a re-scan is a new
+  // analysis. Mark as read is personal, so everyone has it.
+  const canAct = useCan("actions.assign");
+  const canRescan = useCan("analysis.create");
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState<SampleAlert | null>(null);
+  // Stable, so the form keeps the focus while the page re-renders under it.
+  const closeCreating = useCallback(() => setCreating(null), []);
   const preview = usePreview();
+  const notify = useToast();
+
+  const planned = useMemo(() => new Set((items ?? []).map(item => comparable(item.title))), [items]);
+  const inPlan = (alert: SampleAlert) => planned.has(comparable(alert.suggestedAction));
 
   const pills: TabItem<Filter>[] = [
     { key: "all", label: "All", count: alerts.length },
@@ -40,6 +62,11 @@ function Monitoring() {
         title="Monitoring"
         description="What changed in your firm and in the rules around AI, between one scan and the next."
       />
+      {!canAct && (
+        <p className="mb-6 text-sm text-marino/70">
+          You can read every alert and mark it as read. Ask an owner or admin to turn one into an action or dismiss it.
+        </p>
+      )}
 
       <Card title="Monthly re-scan" sample>
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -51,14 +78,16 @@ function Monitoring() {
               Monthly re-scan · next on <span className="font-semibold">{formatDate(NEXT_RESCAN)}</span>
             </span>
           </p>
-          <button
-            type="button"
-            onClick={() => preview("Re-scans will run on their own schedule once monitoring is connected.")}
-            className={buttonClass.secondary}
-          >
-            <RefreshCw aria-hidden className="h-4 w-4" />
-            Run re-scan now
-          </button>
+          {canRescan && (
+            <button
+              type="button"
+              onClick={() => preview("Re-scans will run on their own schedule once monitoring is connected.")}
+              className={buttonClass.secondary}
+            >
+              <RefreshCw aria-hidden className="h-4 w-4" />
+              Run re-scan now
+            </button>
+          )}
         </div>
       </Card>
 
@@ -102,6 +131,7 @@ function Monitoring() {
                     {alert.title}
                     {!alert.read && <span className="sr-only"> (unread)</span>}
                   </span>
+                  {inPlan(alert) && <Badge tone="success">In the action plan</Badge>}
                   <span className="text-xs text-marino/55">{formatDate(alert.at)}</span>
                 </button>
               </li>
@@ -129,28 +159,37 @@ function Monitoring() {
               >
                 Mark as read
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch({ type: "alert.dismiss", id: selected.id });
-                  close();
-                }}
-                className={buttonClass.secondary}
-              >
-                Dismiss
-              </button>
-              {/* The action plan is real now and an alert is a sample, so nothing is added to the plan from here yet. */}
-              <button
-                type="button"
-                onClick={() => {
-                  dispatch({ type: "alert.read", id: selected.id });
-                  preview("Alerts are sample data, so they do not add actions to your plan yet.");
-                  close();
-                }}
-                className={buttonClass.primary}
-              >
-                Create action
-              </button>
+              {canAct && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({ type: "alert.dismiss", id: selected.id });
+                    close();
+                  }}
+                  className={buttonClass.secondary}
+                >
+                  Dismiss
+                </button>
+              )}
+              {inPlan(selected) ? (
+                <Link href="/app/action-plan" className={buttonClass.secondary}>
+                  Already in the action plan
+                </Link>
+              ) : (
+                canAct && (
+                  // D17: the alert is a sample, so its suggestion only fills the form; the action is real once confirmed.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreating(selected);
+                      close();
+                    }}
+                    className={buttonClass.primary}
+                  >
+                    Create action
+                  </button>
+                )
+              )}
             </>
           )
         }
@@ -172,6 +211,19 @@ function Monitoring() {
           </div>
         )}
       </Dialog>
+
+      <NewActionDialog
+        open={creating !== null}
+        onClose={closeCreating}
+        title={creating?.suggestedAction}
+        description="The suggestion comes from a sample alert. Edit it as you need: what you add here is a real action in your plan."
+        onCreated={() => {
+          if (creating) dispatch({ type: "alert.read", id: creating.id });
+          setCreating(null);
+          refresh();
+          notify("Action added to the plan.");
+        }}
+      />
     </>
   );
 }
