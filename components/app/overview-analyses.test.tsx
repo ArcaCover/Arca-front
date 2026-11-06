@@ -255,6 +255,10 @@ describe("the analysis the action plan comes from", () => {
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
     expect(screen.getByRole("list", { name: "Action plan" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Track these in the Action plan" })).toBeNull();
+    // Without a plan there is no count to give, not even of the actions done.
+    const open = within(screen.getByRole("region", { name: "Key figures" })).getByRole("link", { name: /^Open actions/ });
+    expect(open.textContent).toMatch(/Open actions\s*—\s*In the action plan/);
+    expect(open.textContent).not.toMatch(/done/);
   });
 
   it("on the current analysis's detail, links both tabs to the Action plan", async () => {

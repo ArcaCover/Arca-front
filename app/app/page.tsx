@@ -77,7 +77,7 @@ function Overview() {
             sample={false}
             label="Open actions"
             value={openCount ?? "—"}
-            hint={`${done} done`}
+            hint={items ? `${done} done` : "In the action plan"}
             href="/app/action-plan"
           />
         );
