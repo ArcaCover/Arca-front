@@ -1,8 +1,9 @@
 import type { ActionStatus, AuditActorKind, BillingStatus, Permission, Role } from "@arca/contracts";
 
 // The webapp's words for the contract's roles, billing statuses, permissions, action statuses and kinds of actor, kept in
-// one place so Members, Help, Billing, the Action plan, the activity and ARCA's panel cannot word them differently. Each
-// is a Record over the contract's type, so a value added there fails the typecheck until it gets words here.
+// one place so Members, Help, Billing, the Action plan, the activity, ARCA's panel and the sidebar cannot word them
+// differently. Each is a Record over the contract's type, so a value added there fails the typecheck until it gets words
+// here.
 
 export const ROLE_LABEL: Record<Role, string> = { owner: "Owner", admin: "Admin", member: "Member", viewer: "Viewer" };
 

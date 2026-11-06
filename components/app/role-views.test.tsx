@@ -11,6 +11,7 @@ import BillingPage from "@/app/app/billing/page";
 import { useActions } from "@/components/app/ActionsState";
 import { ApiError, type ApiErrorCode } from "@/lib/api/client";
 import { getActionPlan, getMe, getPlans, listAnalyses, updateAction } from "@/lib/app/client";
+import { ROLE_LABEL } from "@/lib/app/labels";
 import { saveAppSession } from "@/lib/app/session";
 import { setShowForbidden } from "@/lib/debug/bridge";
 
@@ -91,6 +92,13 @@ describe("the sidebar and the search by role", () => {
       expect(links.includes("Activity")).toBe(team);
     },
   );
+
+  it.each<Role>(["owner", "admin", "member", "viewer"])("%s: names the role in the sidebar as Members and Settings do", async role => {
+    signedIn(org({ role }));
+    inApp("/app");
+    const sidebar = await screen.findByRole("complementary", { name: "Workspace navigation" });
+    expect(within(sidebar).getByText(ROLE_LABEL[role])).toBeTruthy();
+  });
 
   it.each<[Role, boolean]>([["owner", true], ["admin", true], ["member", false], ["viewer", false]])(
     "%s: offers the top bar's New analysis only with analysis.create",

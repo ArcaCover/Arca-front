@@ -9,6 +9,7 @@ import { useActions } from "@/components/app/ActionsState";
 import { useSample } from "@/components/app/SampleState";
 import { Avatar } from "@/components/app/ui";
 import { navItems, useForbiddenShown } from "@/lib/app/access";
+import { ROLE_LABEL } from "@/lib/app/labels";
 import { isCurrent, type NavItem } from "./nav";
 
 const STATUS: Record<OrgView["billingStatus"], { label: string; tone: string }> = {
@@ -109,7 +110,7 @@ export default function Sidebar({
             <Avatar name={me.user.email} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{me.user.email}</p>
-              <p className="text-xs capitalize text-marino/60">{org.role}</p>
+              <p className="text-xs text-marino/60">{ROLE_LABEL[org.role]}</p>
             </div>
             <button
               type="button"
