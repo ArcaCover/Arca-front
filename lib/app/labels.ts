@@ -1,8 +1,8 @@
-import type { BillingStatus, Permission, Role } from "@arca/contracts";
+import type { ActionStatus, AuditActorKind, BillingStatus, Permission, Role } from "@arca/contracts";
 
-// The webapp's words for the contract's roles, billing statuses and permissions, kept in one place so Members, Help,
-// Billing, the activity and ARCA's panel cannot word them differently. Each is a Record over the contract's type, so a
-// value added there fails the typecheck until it gets words here.
+// The webapp's words for the contract's roles, billing statuses, permissions, action statuses and kinds of actor, kept in
+// one place so Members, Help, Billing, the Action plan, the activity and ARCA's panel cannot word them differently. Each
+// is a Record over the contract's type, so a value added there fails the typecheck until it gets words here.
 
 export const ROLE_LABEL: Record<Role, string> = { owner: "Owner", admin: "Admin", member: "Member", viewer: "Viewer" };
 
@@ -12,6 +12,11 @@ export const BILLING_STATUS_LABEL: Record<BillingStatus, string> = {
   past_due: "Past due",
   canceled: "Canceled",
 };
+
+export const ACTION_STATUS_LABEL: Record<ActionStatus, string> = { todo: "To do", in_progress: "In progress", done: "Done" };
+
+/** Who wrote an audit row, by kind. The activity names a member by email; ARCA staff and the system go by these. */
+export const ACTOR_KIND_LABEL: Record<AuditActorKind, string> = { member: "Member", platform: "ARCA staff", system: "System" };
 
 /**
  * What each permission lets a role do, read after "can": "Owner can invite members". Where one stands alone, as a row of
