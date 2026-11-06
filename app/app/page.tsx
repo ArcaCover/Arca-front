@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState, type ReactNode } from "react";
+import { Suspense, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -47,12 +47,20 @@ function Overview() {
   const notify = useToast();
   const [broker, setBroker] = useState(false);
   const preview = usePreview();
-  // A box stays ticked from the click until the plan is read again, and takes no second click while its PATCH is on its
-  // way, so a double click sends one change, not two that would each be audited.
+  // A box stays ticked from the click until the plan is read again after its PATCH, and takes no second click meanwhile,
+  // so a double click sends one change, not two that would each be audited. While the PATCH is on its way the box is
+  // ticked by `inFlight`, whatever plan reads land; once answered, by `ticked`, until the next read replaces that plan.
+  const [inFlight, setInFlight] = useState<ReadonlySet<string>>(() => new Set());
   const [ticked, setTicked] = useState<{ plan: ActionItemView[] | null; keys: ReadonlySet<string> }>(() => ({
     plan: null, keys: new Set(),
   }));
+  // The same keys as inFlight, for a second click that comes before React renders the first.
   const sending = useRef(new Set<string>());
+  // The plan as last read, which an answer that lands after a newer read must tick against.
+  const lastPlan = useRef(items);
+  useLayoutEffect(() => {
+    lastPlan.current = items;
+  }, [items]);
   const nextList = useRef<HTMLUListElement>(null);
 
   const latest = analyses?.[0] ?? null;
@@ -64,16 +72,17 @@ function Overview() {
   const done = (items ?? []).length - open.length;
   const recentAlerts = alerts.slice(0, 3);
 
-  const isTicked = (key: string) => ticked.plan === items && ticked.keys.has(key);
+  const isTicked = (key: string) => inFlight.has(key) || (ticked.plan === items && ticked.keys.has(key));
 
   async function markDone(item: ActionItemView) {
     const { key } = item;
     if (sending.current.has(key) || isTicked(key)) return;
     sending.current.add(key);
-    const plan = items;
-    setTicked(current => ({ plan, keys: new Set(current.plan === plan ? current.keys : []).add(key) }));
+    setInFlight(current => new Set(current).add(key));
     try {
       await updateAction(org.id, key, { status: "done" });
+      const plan = lastPlan.current;
+      setTicked(current => ({ plan, keys: new Set(current.plan === plan ? current.keys : []).add(key) }));
       // The row leaves the list once the plan is read again, and its box with it: the focus waits on the list instead
       // of dropping to the page, and the toast says what happened.
       if (document.activeElement instanceof HTMLElement && document.activeElement.dataset.actionKey === key) {
@@ -81,15 +90,15 @@ function Overview() {
       }
       notify(`“${item.title}” marked as done.`);
     } catch (cause) {
-      setTicked(current => {
-        const keys = new Set(current.keys);
-        keys.delete(key);
-        return { ...current, keys };
-      });
       const message = fail(cause);
       if (message) notify(message);
     } finally {
       sending.current.delete(key);
+      setInFlight(current => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
     }
     refresh();
   }

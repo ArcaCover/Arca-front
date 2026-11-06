@@ -131,14 +131,16 @@ describe("/app/coverage", () => {
 });
 
 describe("the paywall on the information pages", () => {
-  it.each<[string, () => ReactElement, string]>([
-    ["/app/coverage", () => <CoveragePage />, "coverage"],
-    ["/app/documents", () => <DocumentsPage />, "documents"],
-  ])("locks %s for an organization that has not paid, and asks the API nothing", async (pathname, page, feature) => {
+  it.each<[string, () => ReactElement, string, string]>([
+    ["/app/coverage", () => <CoveragePage />, "coverage", "Your coverage"],
+    ["/app/documents", () => <DocumentsPage />, "documents", "Reports and documents"],
+  ])("locks %s for an organization that has not paid, and asks the API nothing", async (pathname, page, feature, title) => {
     signedIn(org(UNPAID));
     inApp(pathname, page());
     expect(await screen.findByRole("heading", { name: `Choose a plan to unlock ${feature}` })).toBeTruthy();
     expect(screen.getByRole("link", { name: "See plans" }).getAttribute("href")).toBe("/app/billing");
+    // The lock takes the page's content, not its title.
+    expect(screen.getAllByRole("heading", { level: 1 }).map(heading => heading.textContent)).toEqual([title]);
     expect(listAnalyses).not.toHaveBeenCalled();
   });
 

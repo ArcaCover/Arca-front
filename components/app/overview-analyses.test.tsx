@@ -109,6 +109,13 @@ async function overview() {
   return within(screen.getByRole("list", { name: "Next actions" })).findByText("Write the AI policy");
 }
 
+/** A promise the test settles itself, to hold a request on its way. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>(yes => (resolve = yes));
+  return { promise, resolve };
+}
+
 const nextTitles = () =>
   within(screen.getByRole("list", { name: "Next actions" }))
     .getAllByRole("listitem")
@@ -231,6 +238,45 @@ describe("the Overview's next actions", () => {
     expect(document.activeElement).toBe(list);
     expect(updateAction).toHaveBeenCalledTimes(1);
     expect(getActionPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a second box ticked and inert until its own change is answered, though the first one's re-read lands before", async () => {
+    signedIn(org({ role: "member" }));
+    const policy = PLAN.items[1];
+    const tool = PLAN.items[4];
+    const writes = { [policy.key]: deferred<ActionItemView>(), [tool.key]: deferred<ActionItemView>() };
+    vi.mocked(updateAction).mockImplementation((_org, key) => writes[key].promise);
+    const doneWith = (...keys: string[]): ActionPlanResponse => ({
+      ...PLAN, items: PLAN.items.map(item => (keys.includes(item.key) ? { ...item, status: "done" as const } : item)),
+    });
+    const lastRead = deferred<ActionPlanResponse>();
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockResolvedValueOnce(doneWith(policy.key)).mockReturnValue(lastRead.promise);
+    await overview();
+    const user = userEvent.setup();
+    const list = screen.getByRole("list", { name: "Next actions" });
+
+    await user.click(box("Write the AI policy"));
+    await user.click(box("Pick an approved tool"));
+    expect(updateAction).toHaveBeenCalledTimes(2);
+
+    // The first change is answered and the plan read again while the second is still on its way.
+    writes[policy.key].resolve({ ...policy, status: "done" });
+    await waitFor(() => expect(within(list).queryByText("Write the AI policy")).toBeNull());
+    expect(box("Pick an approved tool").checked).toBe(true);
+    expect(box("Pick an approved tool").getAttribute("aria-disabled")).toBe("true");
+    await user.click(box("Pick an approved tool"));
+    expect(box("Pick an approved tool").checked).toBe(true);
+    expect(updateAction).toHaveBeenCalledTimes(2);
+
+    // Answered, it stays ticked until the read after it lands, and then leaves the list.
+    writes[tool.key].resolve({ ...tool, status: "done" });
+    expect(await screen.findByText("“Pick an approved tool” marked as done.")).toBeTruthy();
+    await waitFor(() => expect(getActionPlan).toHaveBeenCalledTimes(3));
+    expect(box("Pick an approved tool").checked).toBe(true);
+    expect(box("Pick an approved tool").getAttribute("aria-disabled")).toBe("true");
+    lastRead.resolve(doneWith(policy.key, tool.key));
+    await waitFor(() => expect(within(list).queryByText("Pick an approved tool")).toBeNull());
+    expect(updateAction).toHaveBeenCalledTimes(2);
   });
 
   it("unticks the box and says why when the change is refused", async () => {

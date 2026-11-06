@@ -8,7 +8,8 @@ import type { ActionItemView, ActionPlanResponse, MeResponse, OrgView, Role } fr
 import AppLayout from "@/app/app/layout";
 import AppHome from "@/app/app/page";
 import BillingPage from "@/app/app/billing/page";
-import { ApiError } from "@/lib/api/client";
+import { useActions } from "@/components/app/ActionsState";
+import { ApiError, type ApiErrorCode } from "@/lib/api/client";
 import { getActionPlan, getMe, getPlans, listAnalyses, updateAction } from "@/lib/app/client";
 import { saveAppSession } from "@/lib/app/session";
 import { setShowForbidden } from "@/lib/debug/bridge";
@@ -229,6 +230,46 @@ describe("the real action plan in the shell", () => {
     await waitFor(() => expect(getActionPlan).toHaveBeenCalled());
     await screen.findByRole("navigation", { name: "App" });
     expect(screen.queryByLabelText(/open actions/)).toBeNull();
+    expect(navigation.router.replace).not.toHaveBeenCalled();
+  });
+
+  // A page that shows what the provider holds and asks for the plan again, as a page does after a write.
+  function PlanProbe() {
+    const { items, error, refresh } = useActions();
+    return (
+      <>
+        <button type="button" onClick={refresh}>
+          Read the plan again
+        </button>
+        <p>{error ? "The last read failed." : "The last read worked."}</p>
+        <p>{items ? `${items.length} actions in the plan` : "No plan"}</p>
+      </>
+    );
+  }
+
+  it.each<[ApiErrorCode, boolean]>([
+    ["unauthorized", false],
+    ["payment_required", false],
+    ["forbidden", false],
+    ["not_found", false],
+    ["gone", false],
+    ["rate_limited", true],
+    ["internal_error", true],
+    ["network", true],
+  ])("after a read that worked, a read that fails with %s keeps the plan: %s", async (code, kept) => {
+    signedIn(org());
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockRejectedValue(new ApiError(code, "The read failed."));
+    inApp("/app", <PlanProbe />);
+    expect(await screen.findByLabelText("2 open actions")).toBeTruthy();
+    expect(screen.getByText("3 actions in the plan")).toBeTruthy();
+
+    await userEvent.click(screen.getByRole("button", { name: "Read the plan again" }));
+    expect(await screen.findByText("The last read failed.")).toBeTruthy();
+    expect(getActionPlan).toHaveBeenCalledTimes(2);
+    // A refused read says the plan is no longer this user's to see; any other failure leaves the last one on screen.
+    expect(screen.queryByLabelText("2 open actions") !== null).toBe(kept);
+    expect(screen.queryByText("3 actions in the plan") !== null).toBe(kept);
+    expect(screen.queryByText("No plan") !== null).toBe(!kept);
     expect(navigation.router.replace).not.toHaveBeenCalled();
   });
 

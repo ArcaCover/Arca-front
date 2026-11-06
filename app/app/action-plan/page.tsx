@@ -17,8 +17,8 @@ import {
 import { ApiError } from "@/lib/api/client";
 import { useAccess, useCan } from "@/lib/app/access";
 import { deleteAction, listMembers, updateAction } from "@/lib/app/client";
+import { ACTION_STATUS_LABEL } from "@/lib/app/labels";
 
-const STATUS_LABEL: Record<ActionStatus, string> = { todo: "To do", in_progress: "In progress", done: "Done" };
 const SECTION_LIST: Record<ActionStatus, string> = {
   todo: "Actions to do",
   in_progress: "Actions in progress",
@@ -67,7 +67,7 @@ function useAssignees(enabled: boolean): { assignees: MemberView[] | null; error
   return { assignees: enabled ? members : null, error: enabled ? error : null };
 }
 
-function ActionPlan() {
+function ActionPlan({ adding, closeAdding }: { adding: boolean; closeAdding: () => void }) {
   const { org, me } = useApp();
   const { items, source, error: planError, refresh } = useActions();
   const access = useAccess();
@@ -81,11 +81,12 @@ function ActionPlan() {
   const [pending, setPending] = useState<ReadonlySet<string>>(() => new Set());
   const [domain, setDomain] = useState(ALL_DOMAINS);
   const [assignee, setAssignee] = useState(ANYONE);
-  const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<ActionItemView | null>(null);
-  // Stable, so the dialogs keep the focus while the page re-renders under them.
-  const closeAdding = useCallback(() => setAdding(false), []);
+  // Stable, so the dialog keeps the focus while the page re-renders under it.
   const closeDeleting = useCallback(() => setDeleting(null), []);
+  // The action whose Status select takes the focus once its row is mounted in the list of its new status.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const statusFocused = useCallback(() => setFocusKey(null), []);
   // What the back answered since the plan was last read, so a change shows at once instead of snapping back while the
   // plan is read again. It holds only for the plan it was made on: the next read replaces it.
   const [local, setLocal] = useState<{ base: ActionItemView[]; list: ActionItemView[] } | null>(null);
@@ -134,7 +135,12 @@ function ActionPlan() {
   const change = (item: ActionItemView, patch: UpdateActionRequest) =>
     run(item.key, async () => {
       const updated = await updateAction(org.id, item.key, patch);
+      // A new status moves the row to another list, where React mounts it anew. The focus follows it there instead of
+      // dropping to the page, unless the user has taken it elsewhere meanwhile.
+      const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      if (patch.status && focused?.dataset.statusKey === item.key) setFocusKey(item.key);
       settle(list => list.map(entry => (entry.key === updated.key ? updated : entry)));
+      if (patch.status) notify(`“${updated.title}” moved to ${ACTION_STATUS_LABEL[updated.status]}.`);
     });
 
   async function remove(item: ActionItemView) {
@@ -175,19 +181,6 @@ function ActionPlan() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Workspace"
-        title="Action plan"
-        description="What to change in your practice, who owns it and when it is due."
-        actions={
-          canAssign && (
-            <button type="button" onClick={() => setAdding(true)} className={buttonClass.primary}>
-              <Plus aria-hidden className="h-4 w-4" />
-              Add an action
-            </button>
-          )
-        }
-      />
       {readOnly && <ReadOnlyNotice>{readOnly}</ReadOnlyNotice>}
       {/* While the delete dialog is open it says the error itself, over the page. */}
       {error && !deleting && (
@@ -299,7 +292,7 @@ function ActionPlan() {
             {ACTION_STATUSES.map(status => {
               const list = visible.filter(item => item.status === status);
               return (
-                <Card key={status} title={`${STATUS_LABEL[status]} (${list.length})`}>
+                <Card key={status} title={`${ACTION_STATUS_LABEL[status]} (${list.length})`}>
                   {list.length === 0 ? (
                     <p className="text-sm text-marino/70">
                       {all.length === 0 ? "No actions yet." : "Nothing here with these filters."}
@@ -315,6 +308,8 @@ function ActionPlan() {
                           canAssign={canAssign}
                           assignees={assignees}
                           busy={pending.has(item.key)}
+                          focusStatus={focusKey === item.key}
+                          onStatusFocused={statusFocused}
                           onChange={patch => change(item, patch)}
                           onDelete={() => {
                             setError(null);
@@ -335,7 +330,7 @@ function ActionPlan() {
         open={adding}
         onClose={closeAdding}
         onCreated={created => {
-          setAdding(false);
+          closeAdding();
           settle(list => [...list, created]);
           notify("Action added to the plan.");
         }}
@@ -376,7 +371,7 @@ function ActionPlan() {
 }
 
 function ActionRow({
-  item, me, canMark, canAssign, assignees, busy, onChange, onDelete,
+  item, me, canMark, canAssign, assignees, busy, focusStatus, onStatusFocused, onChange, onDelete,
 }: {
   item: ActionItemView;
   me: string;
@@ -384,10 +379,20 @@ function ActionRow({
   canAssign: boolean;
   assignees: MemberView[] | null;
   busy: boolean;
+  /** Whether the Status select takes the focus: the row was just moved to this list by a change made from it. */
+  focusStatus: boolean;
+  onStatusFocused: () => void;
   /** Resolves to whether the back took the change. */
   onChange: (patch: UpdateActionRequest) => Promise<boolean>;
   onDelete: () => void;
 }) {
+  const statusSelect = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    if (!focusStatus) return;
+    statusSelect.current?.focus();
+    onStatusFocused();
+  }, [focusStatus, onStatusFocused]);
+
   const label = `“${item.title}”`;
   const owner = item.assignee ? (item.assignee.userId === me ? `${item.assignee.email} (you)` : item.assignee.email) : null;
   // The current assignee stays listed even if they could no longer be picked, so the control never misstates the row.
@@ -424,13 +429,15 @@ function ActionRow({
             <>
               <label className="min-w-0 flex-1 text-xs">
                 <span className="font-semibold text-marino/70">Assignee</span>
+                {/* Inert while the row's write is on its way, as the status below is. */}
                 <select
                   aria-label={`Assignee for ${label}`}
                   value={item.assignee?.userId ?? UNASSIGNED}
-                  disabled={busy || assignees === null}
-                  onChange={event =>
-                    void onChange({ assigneeUserId: event.target.value === UNASSIGNED ? null : event.target.value })
-                  }
+                  disabled={assignees === null}
+                  aria-disabled={busy || undefined}
+                  onChange={event => {
+                    if (!busy) void onChange({ assigneeUserId: event.target.value === UNASSIGNED ? null : event.target.value });
+                  }}
                   className={inputClass}
                 >
                   <option value={UNASSIGNED}>Unassigned</option>
@@ -454,16 +461,22 @@ function ActionRow({
           {canMark && (
             <label className="min-w-0 flex-1 text-xs">
               <span className="font-semibold text-marino/70">Status</span>
+              {/* Inert rather than disabled while the row's write is on its way, so the focus stays on it: a change made
+                  meanwhile is ignored, and the select shows the saved status again. */}
               <select
+                ref={statusSelect}
                 aria-label={`Status for ${label}`}
                 value={item.status}
-                disabled={busy}
-                onChange={event => void onChange({ status: event.target.value as ActionStatus })}
+                aria-disabled={busy || undefined}
+                data-status-key={item.key}
+                onChange={event => {
+                  if (!busy) void onChange({ status: event.target.value as ActionStatus });
+                }}
                 className={inputClass}
               >
                 {ACTION_STATUSES.map(status => (
                   <option key={status} value={status}>
-                    {STATUS_LABEL[status]}
+                    {ACTION_STATUS_LABEL[status]}
                   </option>
                 ))}
               </select>
@@ -494,11 +507,15 @@ function DueDate({
   label, saved, disabled, onSave,
 }: { label: string; saved: string | null; disabled: boolean; onSave: (dueDate: string | null) => Promise<boolean> }) {
   const [draft, setDraft] = useState(saved ?? "");
-  async function commit(field: HTMLInputElement) {
+  // Bumped to mount a new field. With no saved date the value is "" before and after, so React would write nothing and
+  // the browser would keep showing the half-typed parts.
+  const [field, setField] = useState(0);
+  async function commit(input: HTMLInputElement) {
     // A partly edited date reads as "" too. Only a field really emptied clears the date; a half-typed one goes back to
     // the saved date instead of removing it.
-    if (draft === "" && field.validity.badInput) {
+    if (draft === "" && input.validity.badInput) {
       setDraft(saved ?? "");
+      setField(current => current + 1);
       return;
     }
     if (draft === (saved ?? "")) return;
@@ -509,6 +526,7 @@ function DueDate({
     <label className="min-w-0 flex-1 text-xs">
       <span className="font-semibold text-marino/70">Due date</span>
       <input
+        key={field}
         type="date"
         aria-label={label}
         value={draft}
@@ -527,7 +545,34 @@ function DueDate({
 export default function ActionPlanPage() {
   const { org } = useApp();
   const canChoosePlan = useCan("billing.manage");
-  // The plan is read only for a paid organization (the back answers 402 otherwise), so an unpaid one sees the locked
-  // state and the page asks nothing.
-  return org.paidAccess ? <ActionPlan /> : <LockedState feature="the action plan" canChoosePlan={canChoosePlan} />;
+  const canAssign = useCan("actions.assign");
+  const [adding, setAdding] = useState(false);
+  // Stable, so the dialog keeps the focus while the page re-renders under it.
+  const closeAdding = useCallback(() => setAdding(false), []);
+  // The title stays over the locked state too, so the page keeps its h1 (as Coverage and Documents do). The plan is read
+  // only for a paid organization (the back answers 402 otherwise), so an unpaid one sees the locked state and the page
+  // asks nothing.
+  return (
+    <>
+      <PageHeader
+        eyebrow="Workspace"
+        title="Action plan"
+        description="What to change in your practice, who owns it and when it is due."
+        actions={
+          org.paidAccess &&
+          canAssign && (
+            <button type="button" onClick={() => setAdding(true)} className={buttonClass.primary}>
+              <Plus aria-hidden className="h-4 w-4" />
+              Add an action
+            </button>
+          )
+        }
+      />
+      {org.paidAccess ? (
+        <ActionPlan adding={adding} closeAdding={closeAdding} />
+      ) : (
+        <LockedState feature="the action plan" canChoosePlan={canChoosePlan} />
+      )}
+    </>
+  );
 }

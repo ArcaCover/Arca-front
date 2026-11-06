@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BellOff, CalendarClock, RefreshCw } from "lucide-react";
 
@@ -9,8 +9,8 @@ import { NewActionDialog } from "@/components/app/NewActionDialog";
 import { useSample } from "@/components/app/SampleState";
 import { SampleGate } from "@/components/app/shell/OrgNotices";
 import {
-  Badge, Card, Dialog, EmptyState, FilterPills, PageHeader, ReadOnlyNotice, SampleBadge, buttonClass, formatDate, usePreview,
-  useToast, type TabItem,
+  Badge, Card, Dialog, EmptyState, FilterPills, LoadFailed, PageHeader, ReadOnlyNotice, SampleBadge, buttonClass, formatDate,
+  usePreview, useToast, type TabItem,
 } from "@/components/app/ui";
 import { useCan } from "@/lib/app/access";
 import {
@@ -41,6 +41,17 @@ function Monitoring() {
   const closeCreating = useCallback(() => setCreating(null), []);
   const preview = usePreview();
   const notify = useToast();
+  // The drawer's way into the plan, whichever the plan allows.
+  const createButton = useRef<HTMLButtonElement>(null);
+  const planLink = useRef<HTMLAnchorElement>(null);
+
+  // A plan read that lands while the focus is on the page, not in the open drawer, moves it to the control the plan
+  // unblocks. Mostly that is Try again's read, whose button leaves with the failure; but any read does it, for instance
+  // after Mark as read was disabled under the focus.
+  useEffect(() => {
+    if (items === null || document.activeElement !== document.body) return;
+    (createButton.current ?? planLink.current)?.focus();
+  }, [items]);
 
   const planned = useMemo(() => new Set((items ?? []).map(item => comparable(item.title))), [items]);
   const inPlan = (alert: SampleAlert) => planned.has(comparable(alert.suggestedAction));
@@ -57,11 +68,6 @@ function Monitoring() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Workspace"
-        title="Monitoring"
-        description="What changed in your firm and in the rules around AI, between one scan and the next."
-      />
       {!canAct && (
         <ReadOnlyNotice>
           You can read every alert and mark it as read. Ask an owner or admin to turn one into an action or dismiss it.
@@ -172,7 +178,7 @@ function Monitoring() {
                 </button>
               )}
               {inPlan(selected) ? (
-                <Link href="/app/action-plan" className={buttonClass.secondary}>
+                <Link ref={planLink} href="/app/action-plan" className={buttonClass.secondary}>
                   Already in the action plan
                 </Link>
               ) : (
@@ -180,6 +186,7 @@ function Monitoring() {
                   // D17: the alert is a sample, so its suggestion only fills the form; the action is real once confirmed.
                   // Until the plan is read, nobody knows whether the suggestion is in it already, so it waits.
                   <button
+                    ref={createButton}
                     type="button"
                     disabled={items === null}
                     onClick={() => {
@@ -210,13 +217,18 @@ function Monitoring() {
               <h3 className="text-xs font-semibold uppercase tracking-wide text-marino/55">Suggested action</h3>
               <p className="mt-1 font-semibold">{selected.suggestedAction}</p>
             </section>
-            {canAct && items === null && (
-              <p role="status" className="text-sm text-marino/70">
-                {planError
-                  ? "The action plan could not be loaded, so this alert cannot become an action yet."
-                  : "Loading the action plan…"}
-              </p>
-            )}
+            {canAct &&
+              items === null &&
+              (planError ? (
+                <LoadFailed
+                  message="The action plan could not be loaded, so this alert cannot become an action yet."
+                  onRetry={refresh}
+                />
+              ) : (
+                <p role="status" className="text-sm text-marino/70">
+                  Loading the action plan…
+                </p>
+              ))}
           </div>
         )}
       </Dialog>
@@ -238,9 +250,17 @@ function Monitoring() {
 }
 
 export default function MonitoringPage() {
+  // The title stays over the locked state too, so the page keeps its h1 (as Coverage and Documents do).
   return (
-    <SampleGate feature="monitoring">
-      <Monitoring />
-    </SampleGate>
+    <>
+      <PageHeader
+        eyebrow="Workspace"
+        title="Monitoring"
+        description="What changed in your firm and in the rules around AI, between one scan and the next."
+      />
+      <SampleGate feature="monitoring">
+        <Monitoring />
+      </SampleGate>
+    </>
   );
 }

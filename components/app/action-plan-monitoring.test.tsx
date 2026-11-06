@@ -89,6 +89,9 @@ const list = (name: string) => screen.findByRole("list", { name });
 const status = (title: string) => screen.queryByRole<HTMLSelectElement>("combobox", { name: `Status for “${title}”` });
 const assigneeSelect = (title: string) => screen.queryByRole<HTMLSelectElement>("combobox", { name: `Assignee for “${title}”` });
 const dueDate = (title: string) => screen.queryByLabelText<HTMLInputElement>(`Due date for “${title}”`);
+const h1s = () => screen.getAllByRole("heading", { level: 1 }).map(heading => heading.textContent);
+/** Finds the text inside the toast's live region, which a screen reader speaks, not only somewhere on the page. */
+const spoken = async (text: string) => within(await screen.findByRole("status")).findByText(text);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -218,9 +221,15 @@ describe("the action plan by role", () => {
 
     await list("Actions to do");
     await user.selectOptions(status("Document the policy")!, "in_progress");
-    expect(status("Document the policy")!.disabled).toBe(true);
-    expect(status("Name an incident lead")!.disabled).toBe(false);
+    // Inert rather than disabled while it is sent, so the focus stays on it.
+    expect(status("Document the policy")!.getAttribute("aria-disabled")).toBe("true");
+    expect(status("Document the policy")!.disabled).toBe(false);
+    expect(document.activeElement).toBe(status("Document the policy"));
+    expect(status("Name an incident lead")!.getAttribute("aria-disabled")).toBeNull();
     expect(deleteIncident().disabled).toBe(false);
+    // A second change while the first is on its way is not sent.
+    await user.selectOptions(status("Document the policy")!, "done");
+    expect(updateAction).toHaveBeenCalledTimes(1);
 
     await user.selectOptions(status("Name an incident lead")!, "done");
     expect(updateAction).toHaveBeenCalledTimes(2);
@@ -228,12 +237,43 @@ describe("the action plan by role", () => {
 
     // The first write landing frees its own row only.
     policy.resolve({ ...POLICY, status: "in_progress" });
-    await waitFor(() => expect(status("Document the policy")!.disabled).toBe(false));
-    expect(status("Name an incident lead")!.disabled).toBe(true);
+    await waitFor(() => expect(status("Document the policy")!.getAttribute("aria-disabled")).toBeNull());
+    expect(status("Name an incident lead")!.getAttribute("aria-disabled")).toBe("true");
     expect(deleteIncident().disabled).toBe(true);
 
     incident.resolve({ ...INCIDENT, status: "done" });
     await waitFor(() => expect(deleteIncident().disabled).toBe(false));
+  });
+
+  it("keeps a row's assignee inert, not disabled, while its write is on its way, and sends no second change", async () => {
+    signedIn(org());
+    const assigned = { ...POLICY, assignee: { userId: "u_admin", email: "admin@smithlaw.com" } };
+    const write = deferred<ActionItemView>();
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockResolvedValue(plan(assigned, INCIDENT));
+    vi.mocked(updateAction).mockReturnValue(write.promise);
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+
+    await list("Actions to do");
+    await waitFor(() => expect(assigneeSelect("Document the policy")!.disabled).toBe(false));
+    await user.selectOptions(assigneeSelect("Document the policy")!, "u_admin");
+    expect(updateAction).toHaveBeenCalledExactlyOnceWith("org_1", POLICY.key, { assigneeUserId: "u_admin" });
+    const select = assigneeSelect("Document the policy")!;
+    expect(select.getAttribute("aria-disabled")).toBe("true");
+    expect(select.disabled).toBe(false);
+    expect(document.activeElement).toBe(select);
+    expect(assigneeSelect("Name an incident lead")!.getAttribute("aria-disabled")).toBeNull();
+
+    // Each change sent is an audited write, so one made while the first is on its way is dropped, and the select shows
+    // the saved assignee again.
+    await user.selectOptions(select, "u_member");
+    expect(updateAction).toHaveBeenCalledTimes(1);
+    expect(select.value).toBe("__unassigned");
+
+    write.resolve(assigned);
+    await waitFor(() => expect(assigneeSelect("Document the policy")!.getAttribute("aria-disabled")).toBeNull());
+    expect(assigneeSelect("Document the policy")!.value).toBe("u_admin");
+    expect(updateAction).toHaveBeenCalledTimes(1);
   });
 
   it("shows a write that lands after the plan was read again while it was on its way", async () => {
@@ -315,6 +355,51 @@ describe("the action plan by role", () => {
     expect(screen.getByText("Nothing here with these filters.")).toBeTruthy();
   });
 
+  it("keeps the focus on an action's status as it moves to another list, and says where it went", async () => {
+    signedIn(org({ role: "member" }));
+    const started = { ...POLICY, status: "in_progress" as const };
+    const read = deferred<ActionPlanResponse>();
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockReturnValue(read.promise);
+    vi.mocked(updateAction).mockResolvedValue(started);
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+
+    await list("Actions to do");
+    const before = status("Document the policy")!;
+    await user.selectOptions(before, "in_progress");
+    expect(await spoken("“Document the policy” moved to In progress.")).toBeTruthy();
+    const moved = within(await list("Actions in progress")).getByRole("combobox", { name: "Status for “Document the policy”" });
+    // The row was mounted anew in its new list, and the focus went with it instead of dropping to the page.
+    expect(before.isConnected).toBe(false);
+    await waitFor(() => expect(document.activeElement).toBe(moved));
+
+    // The plan read after the write lands (its new date shows), and the focus stays put.
+    expect(getActionPlan).toHaveBeenCalledTimes(2);
+    read.resolve(plan({ ...started, updatedAt: "2026-11-05T10:00:00.000Z" }, INCIDENT));
+    expect(await screen.findByText("Updated Nov 5, 2026")).toBeTruthy();
+    expect(status("Document the policy")).toBe(moved);
+    expect(document.activeElement).toBe(moved);
+  });
+
+  it("leaves the focus where the user took it while the status change was on its way", async () => {
+    signedIn(org({ role: "member" }));
+    const started = { ...POLICY, status: "in_progress" as const };
+    const write = deferred<ActionItemView>();
+    vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockResolvedValue(plan(started, INCIDENT));
+    vi.mocked(updateAction).mockReturnValue(write.promise);
+    inApp("/app/action-plan", <ActionPlanPage />);
+    const user = userEvent.setup();
+
+    await list("Actions to do");
+    await user.selectOptions(status("Document the policy")!, "in_progress");
+    const filter = screen.getByRole("combobox", { name: "Filter by domain" });
+    filter.focus();
+    write.resolve(started);
+    expect(await spoken("“Document the policy” moved to In progress.")).toBeTruthy();
+    expect(within(await list("Actions in progress")).getByText("Document the policy")).toBeTruthy();
+    expect(document.activeElement).toBe(filter);
+  });
+
   it("assigns only to members who can mark actions, and clears an assignee", async () => {
     signedIn(org());
     const assigned = { ...POLICY, assignee: { userId: "u_admin", email: "admin@smithlaw.com" } };
@@ -369,6 +454,22 @@ describe("the action plan by role", () => {
     fireEvent.change(field, { target: { value: "" } });
     fireEvent.blur(field);
     await waitFor(() => expect(dueDate("Name an incident lead")!.value).toBe("2026-12-01"));
+    expect(updateAction).not.toHaveBeenCalled();
+  });
+
+  it("empties a field with no saved date when it is left half edited", async () => {
+    signedIn(org());
+    inApp("/app/action-plan", <ActionPlanPage />);
+
+    await list("Actions to do");
+    const field = dueDate("Document the policy")!;
+    expect(field.value).toBe("");
+    // The value was "" and stays "", so only a new field drops the half-typed parts the browser still shows.
+    Object.defineProperty(field, "validity", { configurable: true, value: { badInput: true } });
+    fireEvent.change(field, { target: { value: "" } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(dueDate("Document the policy")!.validity.badInput).toBe(false));
+    expect(dueDate("Document the policy")!.value).toBe("");
     expect(updateAction).not.toHaveBeenCalled();
   });
 
@@ -567,6 +668,9 @@ describe("the action plan by role", () => {
     signedIn(org({ billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/action-plan", <ActionPlanPage />);
     expect(await screen.findByRole("heading", { name: "Choose a plan to unlock the action plan" })).toBeTruthy();
+    // The lock takes the page's content, not its title.
+    expect(h1s()).toEqual(["Action plan"]);
+    expect(screen.queryByRole("button", { name: "Add an action" })).toBeNull();
     expect(getActionPlan).not.toHaveBeenCalled();
     expect(listMembers).not.toHaveBeenCalled();
   });
@@ -575,8 +679,16 @@ describe("the action plan by role", () => {
     signedIn(org({ role: "member", billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/action-plan", <ActionPlanPage />);
     expect(await screen.findByRole("heading", { name: "Only the owner can unlock the action plan" })).toBeTruthy();
+    expect(h1s()).toEqual(["Action plan"]);
     expect(screen.queryByRole("link", { name: "See plans" })).toBeNull();
     expect(getActionPlan).not.toHaveBeenCalled();
+  });
+
+  it("keeps one title over the plan once it is unlocked", async () => {
+    signedIn(org());
+    inApp("/app/action-plan", <ActionPlanPage />);
+    await list("Actions to do");
+    expect(h1s()).toEqual(["Action plan"]);
   });
 });
 
@@ -634,18 +746,28 @@ describe("monitoring by role", () => {
     expect(within(drawer).queryByText("Loading the action plan…")).toBeNull();
   });
 
-  it("says why Create action waits when the plan could not be read", async () => {
+  it("says why Create action waits when the plan could not be read, and reads it again from the drawer", async () => {
     signedIn(org());
-    vi.mocked(getActionPlan).mockRejectedValue(new ApiError("internal_error", "The scan service failed."));
+    vi.mocked(getActionPlan).mockRejectedValueOnce(new ApiError("internal_error", "The scan service failed.")).mockResolvedValue(PLAN);
     inApp("/app/monitoring", <MonitoringPage />);
     const user = userEvent.setup();
+    const create = () => within(screen.getByRole("dialog")).getByRole<HTMLButtonElement>("button", { name: "Create action" });
 
     await waitFor(() => expect(getActionPlan).toHaveBeenCalled());
     await user.click(await screen.findByRole("button", { name: GUIDANCE }));
     const drawer = screen.getByRole("dialog");
-    expect(await within(drawer).findByText("The action plan could not be loaded, so this alert cannot become an action yet.")).toBeTruthy();
-    expect(within(drawer).getByRole<HTMLButtonElement>("button", { name: "Create action" }).disabled).toBe(true);
+    expect((await within(drawer).findByRole("alert")).textContent).toBe(
+      "The action plan could not be loaded, so this alert cannot become an action yet.",
+    );
+    expect(create().disabled).toBe(true);
     expect(createAction).not.toHaveBeenCalled();
+
+    await user.click(within(drawer).getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(create().disabled).toBe(false));
+    expect(within(drawer).queryByRole("alert")).toBeNull();
+    expect(getActionPlan).toHaveBeenCalledTimes(2);
+    // Try again left with the failure; the focus went on to what the plan unblocked, not to the page under the drawer.
+    expect(document.activeElement).toBe(create());
   });
 
   it("knows from the real plan which suggestions are already in it", async () => {
@@ -700,6 +822,24 @@ describe("monitoring by role", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByRole("button", { name: title })).toBeNull();
+  });
+
+  it.each<[Role, string]>([
+    ["owner", "Choose a plan to unlock monitoring"],
+    ["member", "Only the owner can unlock monitoring"],
+  ])("keeps the page's title over the lock for an unpaid organization's %s", async (role, lock) => {
+    signedIn(org({ role, billingStatus: "pending_payment", paidAccess: false }));
+    inApp("/app/monitoring", <MonitoringPage />);
+    expect(await screen.findByRole("heading", { name: lock })).toBeTruthy();
+    expect(h1s()).toEqual(["Monitoring"]);
+    expect(getActionPlan).not.toHaveBeenCalled();
+  });
+
+  it("keeps one title over the alerts once the page is unlocked", async () => {
+    signedIn(org());
+    inApp("/app/monitoring", <MonitoringPage />);
+    await screen.findByRole("button", { name: GUIDANCE });
+    expect(h1s()).toEqual(["Monitoring"]);
   });
 
   it("in mock with the switch on, gives a member Create action, and shows the back's 403 in the form", async () => {
