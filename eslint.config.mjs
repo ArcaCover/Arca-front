@@ -32,14 +32,14 @@ const DEBUG_BOUNDARY = [
   },
 ];
 // no-restricted-imports does not see import(), so the same paths are refused there too. esquery regexes cannot hold a
-// "/", hence \x2F.
+// "/", hence \x2F. A template literal source has no value, so its text is read instead: import(`../debug/store`), and
+// any part of one built from expressions, so import(`../debug/${name}`) is refused as well.
+const DEBUG_IMPORT_PATH =
+  "/^@arca\\x2Fcontracts\\x2Fdebug$|(^|\\x2F)(components|lib)\\x2Fdebug\\x2F(?!(DebugMount|bridge)$)|^(\\.\\.?\\x2F)+debug\\x2F(?!(DebugMount|bridge)$)/";
 const DEBUG_DYNAMIC_IMPORT = [
   "error",
-  {
-    selector:
-      "ImportExpression[source.value=/^@arca\\x2Fcontracts\\x2Fdebug$|(^|\\x2F)(components|lib)\\x2Fdebug\\x2F(?!(DebugMount|bridge)$)|^(\\.\\.?\\x2F)+debug\\x2F(?!(DebugMount|bridge)$)/]",
-    message: DEBUG_ONLY,
-  },
+  { selector: `ImportExpression[source.value=${DEBUG_IMPORT_PATH}]`, message: DEBUG_ONLY },
+  { selector: `ImportExpression > TemplateLiteral.source > TemplateElement[value.cooked=${DEBUG_IMPORT_PATH}]`, message: DEBUG_ONLY },
 ];
 
 // Next 16 dropped `next lint`, so ESLint is wired up directly. Deliberately narrow: the

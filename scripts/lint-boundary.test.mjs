@@ -34,6 +34,11 @@ describe('debug import boundary', () => {
     ['lib/app/access.ts', 'export const store = () => import("../debug/store");'],
     ['components/app/shell/Sidebar.tsx', 'import StatePanel from "../../debug/StatePanel";'],
     ['components/Navbar.tsx', 'export const Banner = () => import("./debug/ModeBanner");'],
+    // A template literal has no source.value, so the boundary reads its text instead.
+    ['lib/app/access.ts', 'export const store = () => import(`../debug/store`);'],
+    ['app/layout.tsx', 'export const Root = () => import(`@/components/debug/DebugRoot`);'],
+    ['lib/api/client.ts', 'export const presets = () => import(`@arca/contracts/debug`);'],
+    ['lib/app/access.ts', 'export const tool = (name) => import(`../debug/${name}`);'],
   ])('refuses a production module (%s) that imports debug-only code', async (filePath, source) => {
     expect(await importErrors(filePath, source)).toHaveLength(1);
   });
@@ -44,6 +49,8 @@ describe('debug import boundary', () => {
     ['lib/api/client.ts', 'import { takeDebugScenarioHeaders } from "@/lib/debug/bridge";'],
     ['app/score/page.tsx', 'import { Layer1Result } from "@arca/contracts";'],
     ['app/layout.tsx', 'export const Mount = () => import("@/components/debug/DebugMount");'],
+    ['app/layout.tsx', 'export const Mount = () => import(`@/components/debug/DebugMount`);'],
+    ['lib/app/access.ts', 'export const bridge = () => import(`../debug/bridge`);'],
     ['lib/app/access.ts', 'import { showForbidden, subscribeShowForbidden } from "../debug/bridge";'],
     ['lib/app/access.ts', 'import { showForbidden } from "@/lib/debug/bridge";'],
   ])('lets a production module (%s) import the two entry points and the public contract', async (filePath, source) => {
