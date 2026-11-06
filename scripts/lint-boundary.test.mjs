@@ -38,15 +38,16 @@ describe('debug import boundary', () => {
     ['lib/app/access.ts', 'export const store = () => import(`../debug/store`);'],
     ['app/layout.tsx', 'export const Root = () => import(`@/components/debug/DebugRoot`);'],
     ['lib/api/client.ts', 'export const presets = () => import(`@arca/contracts/debug`);'],
-    ['lib/app/access.ts', 'export const tool = (name) => import(`../debug/${name}`);'],
   ])('refuses a production module (%s) that imports debug-only code', async (filePath, source) => {
-    expect(await importErrors(filePath, source)).toHaveLength(1);
+    // Refused for the path it names, not by the rule on paths built at run time.
+    expect(await importErrors(filePath, source)).toEqual([expect.stringMatching(/Debug-only code|The debug contract/)]);
   });
 
   // A path put together at run time cannot be read by the rule, so outside the debug folders import() takes a literal:
   // each of these reaches a debug module, or may, past a check of the path's text.
   const BUILT_PATHS = [
     'import("../debug/" + "store")',
+    'import(`../debug/${x}`)',
     'import(`@/components/${"debug"}/DebugRoot`)',
     'import(`../debug/bridge${"/../store"}`)',
     'import(`../debug/bridge${x}`)',
