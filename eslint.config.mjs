@@ -31,15 +31,23 @@ const DEBUG_BOUNDARY = [
     ],
   },
 ];
-// no-restricted-imports does not see import(), so the same paths are refused there too. esquery regexes cannot hold a
-// "/", hence \x2F. A template literal source has no value, so its text is read instead: import(`../debug/store`), and
-// any part of one built from expressions, so import(`../debug/${name}`) is refused as well.
+// no-restricted-imports does not see import(), so outside the debug folders this rule checks every import() itself:
+// - a string literal source is refused when its value matches DEBUG_IMPORT_PATH, and a template literal without
+//   expressions when its text does (esquery regexes cannot hold a "/", hence \x2F);
+// - any other source is refused whatever it would name: a concatenation, a variable, a call, or a template with ${...}.
+//   Its text is not the path it loads, so it cannot be checked, and production code only ever imports a literal path.
 const DEBUG_IMPORT_PATH =
   "/^@arca\\x2Fcontracts\\x2Fdebug$|(^|\\x2F)(components|lib)\\x2Fdebug\\x2F(?!(DebugMount|bridge)$)|^(\\.\\.?\\x2F)+debug\\x2F(?!(DebugMount|bridge)$)/";
+const BUILT_PATH = "Outside components/debug and lib/debug, import() takes a literal path, so the debug boundary can read it (DN-09 §6.1).";
 const DEBUG_DYNAMIC_IMPORT = [
   "error",
   { selector: `ImportExpression[source.value=${DEBUG_IMPORT_PATH}]`, message: DEBUG_ONLY },
-  { selector: `ImportExpression > TemplateLiteral.source > TemplateElement[value.cooked=${DEBUG_IMPORT_PATH}]`, message: DEBUG_ONLY },
+  {
+    selector: `ImportExpression > TemplateLiteral.source[expressions.length=0] > TemplateElement[value.cooked=${DEBUG_IMPORT_PATH}]`,
+    message: DEBUG_ONLY,
+  },
+  { selector: "ImportExpression[source.type!=/^(Literal|TemplateLiteral)$/]", message: BUILT_PATH },
+  { selector: "ImportExpression > TemplateLiteral.source[expressions.length>0]", message: BUILT_PATH },
 ];
 
 // Next 16 dropped `next lint`, so ESLint is wired up directly. Deliberately narrow: the

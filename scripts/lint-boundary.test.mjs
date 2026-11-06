@@ -43,6 +43,29 @@ describe('debug import boundary', () => {
     expect(await importErrors(filePath, source)).toHaveLength(1);
   });
 
+  // A path put together at run time cannot be read by the rule, so outside the debug folders import() takes a literal:
+  // each of these reaches a debug module, or may, past a check of the path's text.
+  const BUILT_PATHS = [
+    'import("../debug/" + "store")',
+    'import(`@/components/${"debug"}/DebugRoot`)',
+    'import(`../debug/bridge${"/../store"}`)',
+    'import(`../debug/bridge${x}`)',
+    'import(`${x}/debug/store`)',
+    'import(`../${x}/store`)',
+  ];
+  it.each(['lib/app/access.ts', 'app/layout.tsx'].flatMap(filePath => BUILT_PATHS.map(path => [filePath, path])))(
+    'refuses a production module (%s) a dynamic import built at run time: %s',
+    async (filePath, path) => {
+      expect(await importErrors(filePath, `export const load = (x) => ${path};`))
+        .toEqual([expect.stringContaining('import() takes a literal path')]);
+    },
+  );
+
+  it('lets a production module import a literal path of its own', async () => {
+    const source = 'export const Checkout = () => import("./MockCheckout");';
+    expect(await importErrors('app/app/billing/mock-checkout/page.tsx', source)).toEqual([]);
+  });
+
   it.each([
     ['app/layout.tsx', 'import DebugMount from "@/components/debug/DebugMount";'],
     ['app/quote/page.tsx', 'import { publishDebugState } from "@/lib/debug/bridge";'],
