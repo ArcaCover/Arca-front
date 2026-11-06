@@ -10,6 +10,7 @@ import type { BackModeProbe } from "@/lib/debug/mode-check";
 import type { DebugStore } from "@/lib/debug/store";
 import { tokenTimes, type TokenTimes } from "@/lib/debug/token";
 import AssessmentControls from "./AssessmentControls";
+import RoleControls from "./RoleControls";
 import ScenarioControls from "./ScenarioControls";
 
 // The state that pages keep invisible today (DN-09 §6.3). Everything is rendered as text, never as HTML: reasons and
@@ -86,6 +87,9 @@ export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: P
       </dl>
       {section === "quote" && <ScenarioControls apiUrl={apiUrl} onScenarioChange={onScenarioChange} />}
       {section === "assessment" && scanId && <AssessmentControls scanId={scanId} />}
+      {/* DN-11 §6.4: on every private page, apart from SECTIONS, and in mock only. The live-debug back answers 501 to the
+          webapp, so there is nothing there to seed or sign in to. */}
+      {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && pathname.startsWith("/app") && <RoleControls />}
       {/* Keyed by scan, so a new scan starts from a fresh token reading and no internal state from the last one. */}
       {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} />}
     </section>
