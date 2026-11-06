@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import type { AdminAuditEventView, AdminOrgView } from "@arca/contracts";
 
-import { Badge, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import { Badge, LoadFailed, buttonClass, formatDate, inputClass } from "@/components/app/ui";
 import { adminListAudit } from "@/lib/app/client";
 
 import { describeAction, formatTime } from "../activity/events";
-import { LoadFailed } from "./LoadFailed";
 import { ACTOR_KIND_LABEL, messageOf } from "./shared";
 
 // ARCA's own audit across organizations, newest first, a page at a time (DN-11 §4.5). Unlike an organization's activity it

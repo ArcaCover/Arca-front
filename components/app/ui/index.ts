@@ -3,6 +3,7 @@ export {
   initials, inputClass,
 } from "./primitives";
 export { Dialog } from "./Dialog";
+export { LoadFailed } from "./LoadFailed";
 export { FilterPills, Tabs, type TabItem } from "./Tabs";
 export { PREVIEW_ONLY, ToastProvider, usePreview, useToast } from "./Toast";
 export { Progress, Sparkline } from "./Sparkline";

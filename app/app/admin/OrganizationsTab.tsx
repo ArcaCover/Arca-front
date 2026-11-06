@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ScrollText } from "lucide-react";
 import type { AdminOrgDetailView, AdminOrgView } from "@arca/contracts";
 
-import { Badge, Field, buttonClass, formatDate } from "@/components/app/ui";
+import { Badge, Field, LoadFailed, buttonClass, formatDate } from "@/components/app/ui";
 import { adminGetOrganization, adminListOrganizations } from "@/lib/app/client";
 import { BILLING_STATUS_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
-import { LoadFailed } from "./LoadFailed";
 import { messageOf } from "./shared";
 
 // Every organization, the deleted ones too, and one of them in full without leaving /app/admin (DN-11 §4.5, §6.4): the

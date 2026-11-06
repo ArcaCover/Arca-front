@@ -1,6 +1,6 @@
-import { buttonClass } from "@/components/app/ui";
+import { buttonClass } from "./primitives";
 
-/** A tab whose first read failed: the API's reason, and a way to ask again without leaving the panel. */
+/** A page or tab whose first read failed: the API's reason, and a way to ask again without leaving it. */
 export function LoadFailed({ message, onRetry, className }: { message: string; onRetry: () => void; className?: string }) {
   return (
     <div className={className}>

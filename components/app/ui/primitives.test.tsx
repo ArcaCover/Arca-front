@@ -2,8 +2,9 @@
 import type { AnchorHTMLAttributes } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
-import { LockedState, ReadOnlyNotice } from "@/components/app/ui";
+import { LoadFailed, LockedState, ReadOnlyNotice } from "@/components/app/ui";
 
 vi.mock("next/link", () => ({ default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} /> }));
 
@@ -34,5 +35,15 @@ describe("LockedState", () => {
     expect(screen.getByRole("link", { name: "See billing status" }).getAttribute("href")).toBe("/app/billing");
     expect(screen.queryByText(/Choose a plan/)).toBeNull();
     expect(screen.queryByRole("link", { name: "See plans" })).toBeNull();
+  });
+});
+
+describe("LoadFailed", () => {
+  it("announces why the first read failed and asks again on Try again", async () => {
+    const onRetry = vi.fn();
+    render(<LoadFailed message="We could not load the audit." onRetry={onRetry} />);
+    expect(screen.getByRole("alert").textContent).toBe("We could not load the audit.");
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import type { AdminMetricsView } from "@arca/contracts";
 
+import { LoadFailed } from "@/components/app/ui";
 import { adminGetMetrics } from "@/lib/app/client";
 import { BILLING_STATUS_LABEL } from "@/lib/app/labels";
 
-import { LoadFailed } from "./LoadFailed";
 import { messageOf } from "./shared";
 
 // Counts only (DN-11 §4.5): the back sends no figure about money, and nothing here derives one.
