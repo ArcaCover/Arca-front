@@ -37,6 +37,15 @@ export function canOpen(role: Role, pathname: string, forbiddenShown = false): b
   return PAGE_PERMISSION.every(page => !isCurrent(page.href, pathname) || can(role, page.permission));
 }
 
+// The sample invoices are for the people who run the organization (DN-11 §6.2). No permission of the contract covers
+// reading them, so the rule is a list of roles.
+const INVOICE_ROLES: readonly Role[] = ["owner", "admin"];
+
+/** Whether a role sees the sample invoices on the billing page. */
+export function seesSampleInvoices(role: Role, forbiddenShown = false): boolean {
+  return forbiddenShown || INVOICE_ROLES.includes(role);
+}
+
 export type NavGroup = { label: string; items: NavItem[] };
 
 /**

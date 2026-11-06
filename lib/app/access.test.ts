@@ -7,7 +7,7 @@ import { PERMISSIONS, ROLES, type OrgView, type Role } from "@arca/contracts";
 import { AppContext, type AppState } from "@/components/app/AppContext";
 import { setShowForbidden } from "@/lib/debug/bridge";
 
-import { allows, canOpen, navItems, overviewVariant, useAccess, useCan, useOverviewVariant } from "./access";
+import { allows, canOpen, navItems, overviewVariant, seesSampleInvoices, useAccess, useCan, useOverviewVariant } from "./access";
 
 // DN-11 §6.2: what each role opens, lists and gets. Every rule yields to the debug switch, which exists in mock only.
 
@@ -102,6 +102,19 @@ describe("overviewVariant", () => {
       nextActions: { mineFirst: true, checkboxes: true },
     });
     expect(overviewVariant("owner", true)).toEqual(overviewVariant("owner"));
+  });
+});
+
+describe("seesSampleInvoices", () => {
+  it.each<[Role, boolean]>([["owner", true], ["admin", true], ["member", false], ["viewer", false]])(
+    "shows the sample invoices to a %s: %s",
+    (role, sees) => {
+      expect(seesSampleInvoices(role)).toBe(sees);
+    },
+  );
+
+  it.each(ROLES)("shows them to a %s while the switch is on", role => {
+    expect(seesSampleInvoices(role, true)).toBe(true);
   });
 });
 

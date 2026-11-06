@@ -3,11 +3,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { CreditCard, Download, Info } from "lucide-react";
-import type { BillingStatus, PlanView, Role } from "@arca/contracts";
+import type { BillingStatus, PlanView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Badge, Card, PageHeader, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
-import { useAccess } from "@/lib/app/access";
+import { seesSampleInvoices, useAccess } from "@/lib/app/access";
 import { checkout, getPlans, portal } from "@/lib/app/client";
 import { SAMPLE_INVOICES } from "@/lib/app/mock/records";
 import { formatPrice } from "@/lib/app/price";
@@ -18,10 +18,6 @@ const STATUS: Record<BillingStatus, string> = {
   past_due: "Past due",
   canceled: "Canceled",
 };
-
-// The sample invoices are for the people who run the organization (DN-11 §6.2). No permission of the contract covers
-// reading them, so the rule is a list of roles; like every view rule, it yields to the debug switch.
-const INVOICE_ROLES: readonly Role[] = ["owner", "admin"];
 
 export default function BillingPage() {
   const { org } = useApp();
@@ -54,7 +50,7 @@ export default function BillingPage() {
   // back, to show the back's 403 (DN-11 D3).
   const access = useAccess();
   const canPay = access.can("billing.manage");
-  const seesInvoices = access.forbiddenShown || INVOICE_ROLES.includes(access.role);
+  const seesInvoices = seesSampleInvoices(access.role, access.forbiddenShown);
 
   async function leaveFor(page: () => Promise<{ url: string }>) {
     setBusy(true);
