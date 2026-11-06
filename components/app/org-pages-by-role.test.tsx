@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import type { AnchorHTMLAttributes, ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { MeResponse, OrgView, Role } from "@arca/contracts";
+import type { BillingStatus, MeResponse, OrgView, Role } from "@arca/contracts";
 
 import AppLayout from "@/app/app/layout";
 import BillingPage from "@/app/app/billing/page";
@@ -13,7 +13,9 @@ import HelpPage from "@/app/app/help/page";
 import MembersPage from "@/app/app/members/page";
 import SettingsPage from "@/app/app/settings/page";
 import { ApiError } from "@/lib/api/client";
-import { getActionPlan, getMe, getPlans, listAnalyses, listMembers, renameOrg, setMemberRole } from "@/lib/app/client";
+import {
+  getActionPlan, getMe, getPlans, listAnalyses, listMembers, renameOrg, requestDeletion, setMemberRole,
+} from "@/lib/app/client";
 import { saveAppSession } from "@/lib/app/session";
 
 // DN-11 §6.2 on the organization and information pages: what each role sees and can change on Members, Billing, Settings,
@@ -307,6 +309,80 @@ describe("settings", () => {
     // A different name can still be sent.
     await userEvent.type(input, " LLP");
     expect(rename.disabled).toBe(false);
+  });
+
+  it("keeps Rename off for the saved name when /me showed another name while the rename was on its way", async () => {
+    signedIn(org({ role: "owner" }));
+    let answer: (renamed: OrgView) => void = () => undefined;
+    vi.mocked(renameOrg).mockImplementation(() => new Promise(resolve => (answer = resolve)));
+    vi.mocked(requestDeletion).mockResolvedValue({
+      id: "del_1", orgId: "org_1", reason: "Closing", status: "pending", requestedAt: "2026-11-01T10:00:00.000Z",
+      reviewedAt: null, reviewNote: null,
+    });
+    inApp("/app/settings", <SettingsPage />);
+    const input = await screen.findByLabelText<HTMLInputElement>("Organization name");
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(1));
+    await userEvent.clear(input);
+    await userEvent.type(input, "Smith & Jones Law");
+    const rename = screen.getByRole<HTMLButtonElement>("button", { name: "Rename" });
+    await userEvent.click(rename);
+
+    // Before the rename answers, a read of /me (here the one after a deletion request) shows a rename made elsewhere.
+    vi.mocked(getMe).mockResolvedValue(me([org({ name: "Jones Law" })]));
+    await userEvent.type(screen.getByLabelText("Reason"), "Closing");
+    await userEvent.click(screen.getByRole("button", { name: "Request deletion" }));
+    expect(await screen.findByText("Jones Law", { selector: "dd" })).toBeTruthy();
+
+    // The rename answers; the read of /me it asks for has not answered yet.
+    vi.mocked(getMe).mockReturnValue(new Promise(() => undefined));
+    await act(async () => answer(org({ name: "Smith & Jones Law" })));
+    expect(await screen.findByText("Name saved.")).toBeTruthy();
+    expect(screen.getByText("Jones Law", { selector: "dd" })).toBeTruthy();
+    expect(input.value).toBe("Smith & Jones Law");
+    expect(rename.disabled).toBe(true);
+    await userEvent.click(rename);
+    expect(renameOrg).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["to another name", "Jones Law"],
+    ["back to the name it had", "Smith Law"],
+  ])("lets the name it saved be sent again once /me shows the organization renamed elsewhere, %s", async (_how, later) => {
+    signedIn(org({ role: "owner" }));
+    vi.mocked(renameOrg).mockResolvedValue(org({ name: "Smith & Jones Law" }));
+    vi.mocked(requestDeletion).mockResolvedValue({
+      id: "del_1", orgId: "org_1", reason: "Closing", status: "pending", requestedAt: "2026-11-01T10:00:00.000Z",
+      reviewedAt: null, reviewNote: null,
+    });
+    inApp("/app/settings", <SettingsPage />);
+    const input = await screen.findByLabelText<HTMLInputElement>("Organization name");
+    await waitFor(() => expect(getMe).toHaveBeenCalledTimes(1));
+    vi.mocked(getMe).mockResolvedValue(me([org({ name: "Smith & Jones Law" })]));
+    await userEvent.clear(input);
+    await userEvent.type(input, "Smith & Jones Law");
+    await userEvent.click(screen.getByRole("button", { name: "Rename" }));
+    expect(await screen.findByText("Smith & Jones Law", { selector: "dd" })).toBeTruthy();
+
+    // Someone else renames it after that; the next read of /me, here the one after a deletion request, says so.
+    vi.mocked(getMe).mockResolvedValue(me([org({ name: later })]));
+    await userEvent.type(screen.getByLabelText("Reason"), "Closing");
+    await userEvent.click(screen.getByRole("button", { name: "Request deletion" }));
+    expect(await screen.findByText(later, { selector: "dd" })).toBeTruthy();
+
+    await userEvent.clear(input);
+    await userEvent.type(input, "Smith & Jones Law");
+    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Rename" }).disabled).toBe(false);
+  });
+
+  it.each<[Role, BillingStatus, string, string]>([
+    ["owner", "pending_payment", "Owner", "Pending payment"],
+    ["viewer", "past_due", "Viewer", "Past due"],
+  ])("words the role %s and the billing status %s as the rest of /app does", async (role, billingStatus, roleWord, billingWord) => {
+    signedIn(org({ role, billingStatus, paidAccess: billingStatus !== "pending_payment" }));
+    inApp("/app/settings", <SettingsPage />);
+    await screen.findByText("Smith Law", { selector: "dd" });
+    expect(screen.getByText("Your role").nextElementSibling?.textContent).toBe(roleWord);
+    expect(screen.getByText("Billing", { selector: "dt" }).nextElementSibling?.textContent).toBe(billingWord);
   });
 
   it("shows the API's reason when the rename is refused", async () => {

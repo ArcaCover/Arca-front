@@ -9,8 +9,10 @@ import {
   Avatar, Badge, Card, EmptyState, FilterPills, PageHeader, buttonClass, formatDate, inputClass, type TabItem,
 } from "@/components/app/ui";
 import { listActivity } from "@/lib/app/client";
+import { ACTOR_KIND_LABEL } from "@/lib/app/labels";
 
 import { EVENT_KINDS, describeAction, describeChange, formatTime, type EventKind } from "./events";
+import { FailureNote, ReadFailed, refusalOf, type Failure } from "./ReadFailed";
 
 // The organization's real activity (DN-11 §4.3, §6.4), read from its audit log a page at a time. It takes activity.read
 // and no payment (D5): the layout keeps it from the other roles, and an owner keeps the trail even unpaid.
@@ -22,11 +24,14 @@ const EVERYONE = "__everyone";
 
 /** Who acted, as the page names them. ARCA staff and the system carry no email (DN-11 §4.3), so none can show. */
 function actorOf({ actor }: ActivityEventView): { key: string; name: string } {
-  if (actor.kind === "arca") return { key: "arca", name: "ARCA staff" };
-  if (actor.kind === "system") return { key: "system", name: "System" };
+  if (actor.kind === "arca") return { key: "arca", name: ACTOR_KIND_LABEL.platform };
+  if (actor.kind === "system") return { key: "system", name: ACTOR_KIND_LABEL.system };
   // A member whose profile is gone has no email left.
   return actor.email ? { key: `member:${actor.email}`, name: actor.email } : { key: "member", name: "A member" };
 }
+
+/** useFailure gives no message for a 402 or a refused session, which move the page on: nothing to show for them here. */
+const failed = (message: string | null, cause: unknown): Failure | null => (message === null ? null : { message, cause });
 
 // Days are UTC, like every date in /app, and the back's timestamps are UTC too.
 const dayKey = (iso: string) => iso.slice(0, 10);
@@ -42,7 +47,8 @@ export default function ActivityPage() {
   const { org } = useApp();
   const fail = useFailure();
   const [log, setLog] = useState<Log | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Why the first page, or the last Load more, could not be read.
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [person, setPerson] = useState(EVERYONE);
   const [kind, setKind] = useState<KindFilter>("all");
@@ -56,7 +62,7 @@ export default function ActivityPage() {
         if (!cancelled) setLog(page);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(fail(cause));
+        if (!cancelled) setFailure(failed(fail(cause), cause));
       });
     return () => {
       cancelled = true;
@@ -64,18 +70,18 @@ export default function ActivityPage() {
   }, [org.id, fail, attempt]);
 
   function retry() {
-    setError(null);
+    setFailure(null);
     setAttempt(value => value + 1);
   }
 
   async function loadMore(before: number) {
-    setError(null);
+    setFailure(null);
     setLoadingMore(true);
     try {
       const page = await listActivity(org.id, { before });
       setLog(current => current && { events: [...current.events, ...page.events], nextBefore: page.nextBefore });
     } catch (cause) {
-      setError(fail(cause));
+      setFailure(failed(fail(cause), cause));
     } finally {
       setLoadingMore(false);
     }
@@ -95,23 +101,13 @@ export default function ActivityPage() {
       }
     />
   );
-  const alert = error && (
-    <p role="alert" className="mb-4 text-sm text-rojo">
-      {error}
-    </p>
-  );
 
   if (!log) {
     return (
       <>
         {header}
-        {alert ? (
-          <>
-            {alert}
-            <button type="button" onClick={retry} className={buttonClass.secondary}>
-              Try again
-            </button>
-          </>
+        {failure ? (
+          <ReadFailed failure={failure} onRetry={retry} />
         ) : (
           <p role="status" className="text-sm text-marino/70">
             Loading activity…
@@ -137,6 +133,8 @@ export default function ActivityPage() {
   ];
 
   const next = log.nextBefore;
+  // A later page the back refused would be refused again, so Load more goes and the note says why.
+  const refused = refusalOf(failure?.cause) !== undefined;
   // The page arrives newest first, so grouping keeps that order.
   const days: { key: string; label: string; rows: typeof rows }[] = [];
   for (const row of visible) {
@@ -215,16 +213,18 @@ export default function ActivityPage() {
         )}
 
         <div className="mt-6">
-          {alert}
+          {failure && <FailureNote failure={failure} className="mb-4" />}
           {next !== null ? (
-            <button
-              type="button"
-              onClick={() => loadMore(next)}
-              disabled={loadingMore}
-              className={buttonClass.secondary}
-            >
-              {loadingMore ? "Loading…" : "Load more"}
-            </button>
+            !refused && (
+              <button
+                type="button"
+                onClick={() => loadMore(next)}
+                disabled={loadingMore}
+                className={buttonClass.secondary}
+              >
+                {loadingMore ? "Loading…" : "Load more"}
+              </button>
+            )
           ) : (
             rows.length > 0 && <p className="text-xs text-marino/60">That is the whole log.</p>
           )}

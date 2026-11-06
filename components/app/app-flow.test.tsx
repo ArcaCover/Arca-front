@@ -371,6 +371,33 @@ describe("sign-up from the results", () => {
     expect(loadPendingClaim()?.claimId).toBe("cl_1");
   });
 
+  it("tells someone signed in with the claim's email that the results go to a new organization, and signs no one in", async () => {
+    // The email differs only in case from the claim's, as an address typed at sign-in may.
+    saveAppSession({ token: "app-token", email: "Owner@SmithLaw.com", expiresAt: future() });
+    vi.mocked(getMe).mockResolvedValue({
+      user: { id: "u_owner", email: "owner@smithlaw.com" }, organizations: [org({ role: "member" })], platformAdmin: false,
+    });
+    vi.mocked(createOrg).mockResolvedValue(org({ id: "org_new", billingStatus: "pending_payment", paidAccess: false }));
+    inApp("/app/signup", <SignupPage />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Save your results to a new organization" })).toBeTruthy();
+    expect(screen.queryByText(/activate your account/)).toBeNull();
+
+    await userEvent.type(screen.getByLabelText("Organization name"), "Owner Law");
+    await userEvent.click(button("Create organization"));
+    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/billing"));
+    expect(signIn).not.toHaveBeenCalled();
+    expect(createOrg).toHaveBeenCalledExactlyOnceWith("Owner Law", "cl_1");
+  });
+
+  it.each<[string, () => void]>([
+    ["no one is signed in", () => undefined],
+    ["someone is signed in with another email", () => signedIn(org())],
+  ])("asks to activate the account when %s, since sign-up signs in as the claim's email", async (_who, sign) => {
+    sign();
+    inApp("/app/signup", <SignupPage />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Save your results and activate your account" })).toBeTruthy();
+  });
+
   it("without a pending claim, sends the visitor to the funnel instead", async () => {
     sessionStorage.clear();
     inApp("/app/signup", <SignupPage />);

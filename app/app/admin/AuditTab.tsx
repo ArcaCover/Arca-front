@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import type { AdminAuditEventView, AdminOrgView } from "@arca/contracts";
 
-import { Badge, LoadFailed, buttonClass, formatDate, inputClass } from "@/components/app/ui";
+import { Badge, buttonClass, formatDate, inputClass } from "@/components/app/ui";
 import { adminListAudit } from "@/lib/app/client";
+import { ACTOR_KIND_LABEL } from "@/lib/app/labels";
 
 import { describeAction, formatTime } from "../activity/events";
-import { ACTOR_KIND_LABEL, messageOf } from "./shared";
+import { FailureNote, ReadFailed, refusalOf, type Failure } from "../activity/ReadFailed";
+import { messageOf } from "./shared";
 
 // ARCA's own audit across organizations, newest first, a page at a time (DN-11 §4.5). Unlike an organization's activity it
 // names ARCA staff by email: it is ARCA's record of what its own people did.
@@ -30,12 +32,12 @@ export function AuditTab({
 }: { organizations: AdminOrgView[]; orgId: string; onOrgChange: (orgId: string) => void }) {
   const [log, setLog] = useState<Log | null>(null);
   // Only the first page's failure; a later page's is kept with its list below.
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   // Bumped by Try again, so a first page that failed is asked for again without leaving the tab.
   const [attempt, setAttempt] = useState(0);
   // The next page being read, or why it could not be, for the list it extends. Tied to that list, so a page asked before
   // the filter changed neither keeps the new list's button busy nor shows its error there.
-  const [more, setMore] = useState<{ list: Log; error: string | null } | null>(null);
+  const [more, setMore] = useState<{ list: Log; failure: Failure | null } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +46,7 @@ export function AuditTab({
         if (!cancelled) setLog({ orgId, ...page });
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(messageOf(cause));
+        if (!cancelled) setFailure({ message: messageOf(cause), cause });
       });
     return () => {
       cancelled = true;
@@ -53,17 +55,17 @@ export function AuditTab({
 
   function pick(next: string) {
     setLog(null);
-    setError(null);
+    setFailure(null);
     onOrgChange(next);
   }
 
   function retry() {
-    setError(null);
+    setFailure(null);
     setAttempt(value => value + 1);
   }
 
   async function loadMore(list: Log, before: number) {
-    setMore({ list, error: null });
+    setMore({ list, failure: null });
     try {
       const page = await adminListAudit({ ...filterOf(list.orgId), before });
       // A page that arrives after the filter changed belongs to a list no longer on screen.
@@ -72,14 +74,16 @@ export function AuditTab({
       );
       setMore(current => (current?.list === list ? null : current));
     } catch (cause) {
-      setMore(current => (current?.list === list ? { list, error: messageOf(cause) } : current));
+      setMore(current => (current?.list === list ? { list, failure: { message: messageOf(cause), cause } } : current));
     }
   }
 
   // An organization opened from its detail may be newer than the list this page loaded.
   const known = !orgId || organizations.some(org => org.id === orgId);
   const mine = log !== null && more?.list === log ? more : null;
-  const loadingMore = mine !== null && mine.error === null;
+  const loadingMore = mine !== null && mine.failure === null;
+  // A later page the back refused would be refused again, so Load more goes and the note says why.
+  const refused = refusalOf(mine?.failure?.cause) !== undefined;
   const next = log?.nextBefore ?? null;
   return (
     <div>
@@ -97,8 +101,8 @@ export function AuditTab({
       </label>
 
       {!log &&
-        (error ? (
-          <LoadFailed message={error} onRetry={retry} className="mt-6" />
+        (failure ? (
+          <ReadFailed failure={failure} onRetry={retry} className="mt-6" />
         ) : (
           <p role="status" className="mt-6 text-sm text-marino/70">
             Loading the audit…
@@ -125,12 +129,8 @@ export function AuditTab({
         </ol>
       )}
 
-      {mine?.error && (
-        <p role="alert" className="mt-6 text-sm text-rojo">
-          {mine.error}
-        </p>
-      )}
-      {log && next !== null && (
+      {mine?.failure && <FailureNote failure={mine.failure} className="mt-6" />}
+      {log && next !== null && !refused && (
         <button type="button" onClick={() => loadMore(log, next)} disabled={loadingMore} className={`${buttonClass.secondary} mt-6`}>
           {loadingMore ? "Loading…" : "Load more"}
         </button>

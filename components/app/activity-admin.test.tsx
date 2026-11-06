@@ -12,6 +12,7 @@ import ActivityPage from "@/app/app/activity/page";
 import AdminPage from "@/app/app/admin/page";
 import AppLayout from "@/app/app/layout";
 import { ApiError } from "@/lib/api/client";
+import { ACTION_STATUS_LABEL } from "@/lib/app/labels";
 import {
   adminGetMetrics, adminGetOrganization, adminListAudit, adminListDeletionRequests, adminListOrganizations, adminListPlans,
   getActionPlan, getMe, listActivity, listAnalyses,
@@ -70,6 +71,14 @@ const EVENTS: ActivityEventView[] = [
   }),
 ];
 
+// What a read the back refused says instead of Try again: asking the same thing again gets the same answer.
+const REFUSED_WHY = {
+  unauthorized: "Your session has ended, so trying again would get the same answer.",
+  forbidden: "Your access does not include this, so trying again would get the same answer.",
+  not_found: "It cannot be found, so trying again would get the same answer.",
+  gone: "It was deleted, so trying again would get the same answer.",
+};
+
 const button = (name: string | RegExp) => screen.getByRole<HTMLButtonElement>("button", { name });
 const select = (name: string) => screen.getByRole<HTMLSelectElement>("combobox", { name });
 // The actor's name is the one span of its sentence; the person filter repeats it in an option.
@@ -114,8 +123,28 @@ describe("the activity's words", () => {
     expect(describeAction("analysis.claimed", null, SYSTEM).text).toBe("saved an analysis");
     expect(describeAction("invitation.revoked", null, SYSTEM).text).toBe("closed an invitation");
     for (const action of Object.keys(ACTION_LABELS)) {
-      expect(describeAction(action, null, SYSTEM).text).not.toMatch(/\b(of|for|the action|the plan|invited|removed)$/);
+      expect(describeAction(action, null, SYSTEM).text).not.toMatch(/\b(of|for|the action|the plan|invited|removed)$|“/);
     }
+  });
+
+  it("names the plan that changed inside the sentence, and quotes an action's title as the rest of /app does", () => {
+    const STAFF = { member: false, email: "ops@arca.example" };
+    expect(describeAction("plan.updated", "monthly", STAFF).text).toBe("changed the monthly plan");
+    expect(describeAction("plan.updated", null, STAFF).text).toBe("changed a plan");
+    const title = "Write the AI policy";
+    expect(describeAction("action.created", title, SYSTEM).text).toBe("added the action “Write the AI policy”");
+    expect(describeAction("action.updated", title, SYSTEM).text).toBe("updated the action “Write the AI policy”");
+    expect(describeAction("action.deleted", title, SYSTEM).text).toBe("deleted the action “Write the AI policy”");
+    expect(describeAction("action.deleted", null, SYSTEM).text).toBe("deleted an action");
+    // Only titles are quoted: an email or a name stays as it is.
+    expect(describeAction("member.removed", "admin@smithlaw.com", SYSTEM).text).toBe("removed admin@smithlaw.com");
+  });
+
+  it("words an action's status as the Action plan does", () => {
+    expect(describeChange("action.updated", { from: "todo", to: "in_progress" })).toBe(
+      `Status: ${ACTION_STATUS_LABEL.todo} → ${ACTION_STATUS_LABEL.in_progress}`,
+    );
+    expect(describeChange("action.updated", { from: "in_progress", to: "done" })).toBe("Status: In progress → Done");
   });
 
   it("shows the role a removed member had, not a change to none", () => {
@@ -159,7 +188,7 @@ describe("the organization's activity", () => {
     inApp("/app/activity", <ActivityPage />);
     await screen.findByText("changed the role of member@smithlaw.com");
     expect(screen.getByText("Role: Member → Admin")).toBeTruthy();
-    expect(screen.getByText("updated the action Write the AI policy")).toBeTruthy();
+    expect(screen.getByText("updated the action “Write the AI policy”")).toBeTruthy();
     expect(screen.getByText("Status: To do → Done")).toBeTruthy();
     expect(actor("ARCA staff")).toBeTruthy();
     expect(screen.getByText("turned down the deletion of the organization")).toBeTruthy();
@@ -187,7 +216,7 @@ describe("the organization's activity", () => {
 
     await user.click(button(/^All/));
     await user.selectOptions(select("Filter by person"), "member@smithlaw.com");
-    expect(screen.getByText("updated the action Write the AI policy")).toBeTruthy();
+    expect(screen.getByText("updated the action “Write the AI policy”")).toBeTruthy();
     expect(screen.queryByText("created the organization")).toBeNull();
     // The pills count what the person filter leaves.
     expect(button(/^Action plan/).textContent).toBe("Action plan1");
@@ -225,6 +254,25 @@ describe("the organization's activity", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("We could not reach the server.");
     expect(screen.getByText("changed the role of member@smithlaw.com")).toBeTruthy();
     expect(button("Load more").disabled).toBe(false);
+  });
+
+  it.each<[ApiError, string]>([
+    [new ApiError("forbidden", "Your role does not allow this"), REFUSED_WHY.forbidden],
+    [new ApiError("gone", "This organization was deleted"), REFUSED_WHY.gone],
+  ])("keeps what it loaded, says why and drops Load more when a later page is refused: %s", async (refusal, why) => {
+    signedIn([org()]);
+    vi.mocked(listActivity)
+      .mockResolvedValueOnce({ events: EVENTS.slice(0, 2), nextBefore: 3 })
+      .mockRejectedValueOnce(refusal);
+    inApp("/app/activity", <ActivityPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal.message);
+    expect(screen.getByText(why)).toBeTruthy();
+    expect(screen.getByText("changed the role of member@smithlaw.com")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    // Not the whole log: the rest was refused, not missing.
+    expect(screen.queryByText("That is the whole log.")).toBeNull();
+    expect(listActivity).toHaveBeenCalledTimes(2);
   });
 
   it("names who the system added, and the role a removed member had", async () => {
@@ -268,6 +316,20 @@ describe("the organization's activity", () => {
     expect(listActivity).toHaveBeenCalledTimes(2);
   });
 
+  it.each<[ApiError, string]>([
+    [new ApiError("not_found", "Organization not found"), REFUSED_WHY.not_found],
+    [new ApiError("gone", "This organization was deleted"), REFUSED_WHY.gone],
+    [new ApiError("forbidden", "Your role does not allow this"), REFUSED_WHY.forbidden],
+  ])("says why instead of offering to try again when the first page is refused: %s", async (refusal, why) => {
+    signedIn([org()]);
+    vi.mocked(listActivity).mockRejectedValue(refusal);
+    inApp("/app/activity", <ActivityPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal.message);
+    expect(screen.getByText(why)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(listActivity).toHaveBeenCalledOnce();
+  });
+
   it("shows an action the front has no words for under its own name", async () => {
     signedIn([org()]);
     vi.mocked(listActivity).mockResolvedValue({ events: [event({ id: "e9", action: "something.new" })], nextBefore: null });
@@ -291,6 +353,8 @@ describe("the organization's activity", () => {
     vi.mocked(listActivity).mockRejectedValue(new ApiError("forbidden", "Your role does not allow this"));
     inApp("/app/activity", <ActivityPage />);
     expect((await screen.findByRole("alert")).textContent).toContain("Your role does not allow this");
+    expect(screen.getByText(REFUSED_WHY.forbidden)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(listActivity).toHaveBeenCalledExactlyOnceWith("org_1");
     expect(navigation.router.replace).not.toHaveBeenCalled();
   });
@@ -328,6 +392,7 @@ describe("the platform admin page", () => {
     organizations: { pending_payment: 1, active: 2, past_due: 0, canceled: 0, deleted: 3 },
     members: 4, analyses: 5, pendingDeletionRequests: 1, actions: { todo: 6, in_progress: 7, done: 8 },
   };
+  const REFUSAL = new ApiError("forbidden", "Only ARCA platform admins can do this");
 
   /** An ARCA person: a platform admin who belongs to no organization. */
   const staff = () => signedIn([], true);
@@ -373,6 +438,90 @@ describe("the platform admin page", () => {
     expect(adminGetOrganization).not.toHaveBeenCalled();
   });
 
+  it("offers to try again when the panel cannot load, and opens it then", async () => {
+    staff();
+    vi.mocked(adminListPlans)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce([monthly]);
+    inApp("/app/admin", <AdminPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe("We could not reach the server.");
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("heading", { name: "Platform admin (proof of concept)" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminListPlans).toHaveBeenCalledTimes(2);
+  });
+
+  it.each<[ApiError, string]>([
+    [new ApiError("forbidden", "Only ARCA platform admins can do this"), REFUSED_WHY.forbidden],
+    [new ApiError("unauthorized", "Sign in again"), REFUSED_WHY.unauthorized],
+  ])("says why instead of offering to try again when the panel is refused: %s", async (refusal, why) => {
+    staff();
+    vi.mocked(adminListDeletionRequests).mockRejectedValue(refusal);
+    inApp("/app/admin", <AdminPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe(refusal.message);
+    expect(screen.getByText(why)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
+  it("offers a platform admin whose session ended a way to sign in again, as the panel has no organization to leave", async () => {
+    staff();
+    vi.mocked(adminListDeletionRequests).mockRejectedValue(new ApiError("unauthorized", "Your session has expired"));
+    inApp("/app/admin", <AdminPage />);
+    expect((await screen.findByRole("alert")).textContent).toBe("Your session has expired");
+    expect(screen.getByText(REFUSED_WHY.unauthorized)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Sign in again" }).getAttribute("href")).toBe("/app/login");
+  });
+
+  it("offers to try again when an organization's detail cannot load", async () => {
+    staff();
+    vi.mocked(adminGetOrganization)
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce(DETAIL);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Organizations");
+    await userEvent.click(await screen.findByRole("button", { name: "Open Jones Legal" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("We could not reach the server.");
+    expect(button("All organizations")).toBeTruthy();
+
+    await userEvent.click(button("Try again"));
+    expect(await screen.findByRole("heading", { name: "Jones Legal" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminGetOrganization).toHaveBeenCalledTimes(2);
+  });
+
+  it("says why instead of offering to try again when an organization's detail is not found", async () => {
+    staff();
+    vi.mocked(adminGetOrganization).mockRejectedValue(new ApiError("not_found", "Organization not found"));
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Organizations");
+    await userEvent.click(await screen.findByRole("button", { name: "Open Jones Legal" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Organization not found");
+    expect(screen.getByText(REFUSED_WHY.not_found)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    // The way back stays.
+    await userEvent.click(button("All organizations"));
+    expect(await screen.findByRole("list", { name: "Organizations" })).toBeTruthy();
+  });
+
+  it.each<[string, () => void]>([
+    ["Organizations", () => vi.mocked(adminListOrganizations).mockRejectedValue(REFUSAL)],
+    ["Audit", () => vi.mocked(adminListAudit).mockRejectedValue(REFUSAL)],
+    ["Metrics", () => vi.mocked(adminGetMetrics).mockRejectedValue(REFUSAL)],
+  ])("says why instead of offering to try again when the %s tab is refused", async (name, refuse) => {
+    staff();
+    inApp("/app/admin", <AdminPage />);
+    // The panel's own read takes the first answer; the tab's is the one refused.
+    await screen.findByRole("tab", { name });
+    refuse();
+    await openTab(name);
+    expect((await screen.findByRole("alert")).textContent).toBe(REFUSAL.message);
+    expect(screen.getByText(REFUSED_WHY.forbidden)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    // Only an ended session is sent to sign in.
+    expect(screen.queryByRole("link", { name: "Sign in again" })).toBeNull();
+  });
+
   it("lists the organizations and opens one in the same page, then goes back", async () => {
     staff();
     inApp("/app/admin", <AdminPage />);
@@ -414,6 +563,7 @@ describe("the platform admin page", () => {
             id: "a2", action: "plan.updated", orgId: null, orgName: null, actorKind: "platform", actorEmail: "ops@arca.example",
             targetLabel: "monthly",
           }),
+          audit({ id: "a1b", action: "action.created", actorEmail: "admin@smithlaw.com", targetLabel: "Train the team" }),
           audit({ id: "a1", action: "billing.event_applied", actorKind: "system", actorEmail: null }),
         ],
         nextBefore: null,
@@ -429,9 +579,13 @@ describe("the platform admin page", () => {
     const events = await screen.findByRole("list", { name: "Audit events" });
     expect(adminListAudit).toHaveBeenLastCalledWith({});
     expect(within(events).getByText("ops@arca.example")).toBeTruthy();
-    expect(within(events).getByText("changed the plan monthly")).toBeTruthy();
+    expect(within(events).getByText("changed the monthly plan")).toBeTruthy();
+    expect(within(events).getByText("added the action “Train the team”")).toBeTruthy();
     expect(within(events).getByText("Platform")).toBeTruthy();
     expect(within(events).getAllByText("System")).toHaveLength(2);
+    // Each row's badge is its kind of actor, in the words the organization's activity uses.
+    expect(within(events).getByText("ARCA staff")).toBeTruthy();
+    expect(within(events).getByText("Member")).toBeTruthy();
 
     await userEvent.selectOptions(select("Organization"), "org_1");
     expect(await screen.findByText("removed member@smithlaw.com")).toBeTruthy();
@@ -481,6 +635,93 @@ describe("the platform admin page", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(button("Load more").disabled).toBe(false);
     expect(screen.queryByText("created the organization")).toBeNull();
+  });
+
+  it("does not append a page asked before the filter changed when it arrives", async () => {
+    staff();
+    let answer: (page: { events: AdminAuditEventView[]; nextBefore: number | null }) => void = () => undefined;
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockImplementationOnce(() => new Promise(resolve => (answer = resolve)))
+      .mockResolvedValueOnce({ events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })], nextBefore: 7 });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    expect(await screen.findByText("removed member@smithlaw.com")).toBeTruthy();
+
+    await act(async () => answer({ events: [audit({ id: "a2", action: "org.renamed" })], nextBefore: null }));
+    const events = screen.getByRole("list", { name: "Audit events" });
+    expect(within(events).getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.queryByText("renamed the organization")).toBeNull();
+    // The list on screen keeps its own next page.
+    expect(button("Load more").disabled).toBe(false);
+  });
+
+  it("from every organization to one and back, shows every organization's rows once, and only theirs", async () => {
+    staff();
+    let answerOne: (page: { events: AdminAuditEventView[]; nextBefore: number | null }) => void = () => undefined;
+    let answerMore: (page: { events: AdminAuditEventView[]; nextBefore: number | null }) => void = () => undefined;
+    const EVERY = { events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 };
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce(EVERY)
+      // Load more on the first list of every organization, answered last.
+      .mockImplementationOnce(() => new Promise(resolve => (answerMore = resolve)))
+      // The one organization's first page, answered after the filter went back.
+      .mockImplementationOnce(() => new Promise(resolve => (answerOne = resolve)))
+      .mockResolvedValueOnce(EVERY);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+
+    await userEvent.selectOptions(select("Organization"), "org_1");
+    await userEvent.selectOptions(select("Organization"), "");
+    expect(await screen.findByText("created the organization")).toBeTruthy();
+    expect(adminListAudit).toHaveBeenLastCalledWith({});
+
+    await act(async () =>
+      answerOne({ events: [audit({ id: "a4", action: "member.removed", targetLabel: "member@smithlaw.com" })], nextBefore: null }),
+    );
+    await act(async () => answerMore({ events: [audit({ id: "a2", action: "org.renamed" })], nextBefore: null }));
+    const events = screen.getByRole("list", { name: "Audit events" });
+    expect(within(events).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(events).getAllByText("created the organization")).toHaveLength(1);
+    expect(screen.queryByText("removed member@smithlaw.com")).toBeNull();
+    expect(screen.queryByText("renamed the organization")).toBeNull();
+    expect(button("Load more").disabled).toBe(false);
+  });
+
+  it("keeps the audit loaded, says why and drops Load more when a later page is refused", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockRejectedValueOnce(REFUSAL);
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toBe(REFUSAL.message);
+    expect(screen.getByText(REFUSED_WHY.forbidden)).toBeTruthy();
+    expect(screen.getByText("created the organization")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    expect(adminListAudit).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps Load more after a later page of the audit fails for a reason that may pass", async () => {
+    staff();
+    vi.mocked(adminListAudit)
+      .mockResolvedValueOnce({ events: [audit({ id: "a3", action: "org.created" })], nextBefore: 5 })
+      .mockRejectedValueOnce(new ApiError("network", "We could not reach the server."))
+      .mockResolvedValueOnce({ events: [audit({ id: "a2", action: "org.renamed" })], nextBefore: null });
+    inApp("/app/admin", <AdminPage />);
+    await openTab("Audit");
+    await userEvent.click(await screen.findByRole("button", { name: "Load more" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("We could not reach the server.");
+
+    await userEvent.click(button("Load more"));
+    expect(await screen.findByText("renamed the organization")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(adminListAudit).toHaveBeenLastCalledWith({ before: 5 });
   });
 
   it("offers to try again when the audit's first page cannot load", async () => {
@@ -533,11 +774,11 @@ describe("the platform admin page", () => {
   it("shows the API's reason when a tab cannot load, and offers to try again", async () => {
     staff();
     vi.mocked(adminGetMetrics)
-      .mockRejectedValueOnce(new ApiError("forbidden", "Platform admin access required"))
+      .mockRejectedValueOnce(new ApiError("internal_error", "The metrics could not be read"))
       .mockResolvedValueOnce(METRICS);
     inApp("/app/admin", <AdminPage />);
     await openTab("Metrics");
-    expect((await screen.findByRole("alert")).textContent).toContain("Platform admin access required");
+    expect((await screen.findByRole("alert")).textContent).toContain("The metrics could not be read");
 
     await userEvent.click(button("Try again"));
     expect(await screen.findByRole("region", { name: "Organizations" })).toBeTruthy();

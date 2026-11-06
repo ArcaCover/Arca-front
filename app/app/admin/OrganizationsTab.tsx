@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, ScrollText } from "lucide-react";
 import type { AdminOrgDetailView, AdminOrgView } from "@arca/contracts";
 
-import { Badge, Field, LoadFailed, buttonClass, formatDate } from "@/components/app/ui";
+import { Badge, Field, buttonClass, formatDate } from "@/components/app/ui";
 import { adminGetOrganization, adminListOrganizations } from "@/lib/app/client";
 import { BILLING_STATUS_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
+import { ReadFailed, type Failure } from "../activity/ReadFailed";
 import { messageOf } from "./shared";
 
 // Every organization, the deleted ones too, and one of them in full without leaving /app/admin (DN-11 §4.5, §6.4): the
@@ -18,7 +19,7 @@ const count = (value: number, one: string, many: string) => `${value} ${value ==
 
 export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void }) {
   const [list, setList] = useState<AdminOrgView[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   // Bumped by Try again, so a list that failed is asked for again without leaving the tab.
   const [attempt, setAttempt] = useState(0);
@@ -30,7 +31,7 @@ export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void
         if (!cancelled) setList(next);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(messageOf(cause));
+        if (!cancelled) setFailure({ message: messageOf(cause), cause });
       });
     return () => {
       cancelled = true;
@@ -38,12 +39,12 @@ export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void
   }, [attempt]);
 
   if (open) return <OrganizationDetail id={open} onBack={() => setOpen(null)} onAudit={onAudit} />;
-  if (error) {
+  if (failure) {
     return (
-      <LoadFailed
-        message={error}
+      <ReadFailed
+        failure={failure}
         onRetry={() => {
-          setError(null);
+          setFailure(null);
           setAttempt(value => value + 1);
         }}
       />
@@ -77,7 +78,9 @@ export function OrganizationsTab({ onAudit }: { onAudit: (orgId: string) => void
 
 function OrganizationDetail({ id, onBack, onAudit }: { id: string; onBack: () => void; onAudit: (orgId: string) => void }) {
   const [detail, setDetail] = useState<AdminOrgDetailView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  // Bumped by Try again, so a detail that failed is asked for again without going back to the list.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,12 +89,12 @@ function OrganizationDetail({ id, onBack, onAudit }: { id: string; onBack: () =>
         if (!cancelled) setDetail(next);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(messageOf(cause));
+        if (!cancelled) setFailure({ message: messageOf(cause), cause });
       });
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, attempt]);
 
   const back = (
     <button type="button" onClick={onBack} className={buttonClass.ghost}>
@@ -103,10 +106,15 @@ function OrganizationDetail({ id, onBack, onAudit }: { id: string; onBack: () =>
     return (
       <>
         {back}
-        {error ? (
-          <p role="alert" className="mt-4 text-sm text-rojo">
-            {error}
-          </p>
+        {failure ? (
+          <ReadFailed
+            failure={failure}
+            onRetry={() => {
+              setFailure(null);
+              setAttempt(value => value + 1);
+            }}
+            className="mt-4"
+          />
         ) : (
           <p role="status" className="mt-4 text-sm text-marino/70">
             Loading the organization…

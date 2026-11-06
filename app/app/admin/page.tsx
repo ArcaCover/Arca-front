@@ -10,6 +10,7 @@ import {
 } from "@/lib/app/client";
 import { formatPrice } from "@/lib/app/price";
 
+import { ReadFailed, type Failure } from "../activity/ReadFailed";
 import { AuditTab } from "./AuditTab";
 import { MetricsTab } from "./MetricsTab";
 import { OrganizationsTab } from "./OrganizationsTab";
@@ -21,7 +22,7 @@ import { messageOf } from "./shared";
 // The tabs are local state, not paths, so the layout's staff guard keeps matching /app/admin exactly.
 
 type Panel = { plans: PlanView[]; requests: DeletionRequestView[]; organizations: AdminOrgView[]; orgNames: Map<string, string> };
-type State = { kind: "loading" } | { kind: "not_admin" } | { kind: "ready"; panel: Panel } | { kind: "failed"; message: string };
+type State = { kind: "loading" } | { kind: "not_admin" } | { kind: "ready"; panel: Panel } | { kind: "failed"; failure: Failure };
 
 type Tab = "operations" | "organizations" | "audit" | "metrics";
 const TABS: TabItem<Tab>[] = [
@@ -38,6 +39,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("operations");
   // The audit's organization filter; empty for every organization. Kept here so an organization's detail can open it.
   const [auditOrg, setAuditOrg] = useState("");
+  // Bumped by Try again, so a panel that failed is asked for again without leaving the page.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,12 +59,12 @@ export default function AdminPage() {
         if (!cancelled) setState(next);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setState({ kind: "failed", message: messageOf(cause) });
+        if (!cancelled) setState({ kind: "failed", failure: { message: messageOf(cause), cause } });
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
   function replace(change: (panel: Panel) => Panel) {
     setState(current => (current.kind === "ready" ? { kind: "ready", panel: change(current.panel) } : current));
@@ -109,9 +112,13 @@ export default function AdminPage() {
   }
   if (state.kind === "failed") {
     return (
-      <p role="alert" className="text-sm text-rojo">
-        {state.message}
-      </p>
+      <ReadFailed
+        failure={state.failure}
+        onRetry={() => {
+          setState({ kind: "loading" });
+          setAttempt(value => value + 1);
+        }}
+      />
     );
   }
 

@@ -234,7 +234,7 @@ async function adminReadsActivity({ admin: { page } }) {
   const activity = page.waitForResponse(response => apiPath(response, /^\/orgs\/[^/]+\/activity$/, 'GET'));
   await page.goto(`${frontendUrl}/app/activity`);
   await expectStatus(activity, 200, 'GET /orgs/:id/activity');
-  const row = page.getByRole('listitem').filter({ hasText: `updated the action ${demo.marked}` });
+  const row = page.getByRole('listitem').filter({ hasText: `updated the action “${demo.marked}”` });
   await row.filter({ hasText: MEMBER_EMAIL }).filter({ hasText: 'Status: To do → Done' }).waitFor();
   await shot(page, '5-admin-activity');
   console.log(`  the admin's activity shows ${MEMBER_EMAIL} moving "${demo.marked}" from To do to Done`);
@@ -265,7 +265,7 @@ async function arcaSeesIt({ arca: { page } }) {
   await page.getByRole('button', { name: 'See its audit' }).click();
   await expectStatus(audit, 200, 'GET /admin/audit?orgId=');
   await page.getByRole('list', { name: 'Audit events' }).getByRole('listitem')
-    .filter({ hasText: `updated the action ${demo.marked}` }).filter({ hasText: MEMBER_EMAIL }).waitFor();
+    .filter({ hasText: `updated the action “${demo.marked}”` }).filter({ hasText: MEMBER_EMAIL }).waitFor();
   await shot(page, '6-arca-audit');
 
   const metrics = page.waitForResponse(response => apiPath(response, /^\/admin\/metrics$/, 'GET'));

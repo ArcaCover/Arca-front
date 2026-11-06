@@ -1,7 +1,7 @@
 import type { ActivityEventView } from "@arca/contracts";
 
 import { formatDate } from "@/components/app/ui";
-import { ROLE_LABEL } from "@/lib/app/labels";
+import { ACTION_STATUS_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 
 // The front's words for each audited action (DN-11 §6.4): the organization's activity and ARCA's audit both read this one
 // map, so an event reads the same in both. The back sends the action as it stored it; an action it adds later still shows,
@@ -18,17 +18,24 @@ export const EVENT_KINDS: Record<EventKind, string> = {
   other: "Other",
 };
 
-type ActionLabel = {
-  kind: Exclude<EventKind, "other">;
-  /** What the actor did, read after their name: "renamed the organization", "changed the role of". */
-  text: string;
-  /**
-   * Set where the back's target label ends the sentence ("changed the role of member@firm.com"), and read instead when the
-   * back could not name the target, a profile or a scan that is gone: a generic noun takes its place, so no sentence ends
-   * on a dangling "of". Not where the target is the actor or the organization itself.
-   */
-  unnamed?: string;
-};
+type ActionLabel = { kind: Exclude<EventKind, "other"> } & (
+  | {
+      /** What the actor did, read after their name: "renamed the organization". The target is the actor or the organization. */
+      text: string;
+    }
+  | {
+      /**
+       * The sentence around the back's target label: target => `changed the role of ${target}`. An action's title is quoted,
+       * as the rest of /app quotes titles; an email or a plan's code is not.
+       */
+      text: (target: string) => string;
+      /**
+       * Read instead when the back could not name the target, a profile or a scan that is gone: a generic noun takes its
+       * place, so no sentence ends on a dangling "of".
+       */
+      unnamed: string;
+    }
+);
 
 export const ACTION_LABELS: Record<string, ActionLabel> = {
   "org.created": { kind: "organization", text: "created the organization" },
@@ -36,19 +43,22 @@ export const ACTION_LABELS: Record<string, ActionLabel> = {
   "org.deletion_requested": { kind: "organization", text: "asked ARCA to delete the organization" },
   "org.deletion_approved": { kind: "organization", text: "approved the deletion of the organization" },
   "org.deletion_rejected": { kind: "organization", text: "turned down the deletion of the organization" },
-  "analysis.claimed": { kind: "analyses", text: "saved the analysis of", unnamed: "saved an analysis" },
-  "member.invited": { kind: "members", text: "invited", unnamed: "sent an invitation" },
+  "analysis.claimed": { kind: "analyses", text: target => `saved the analysis of ${target}`, unnamed: "saved an analysis" },
+  "member.invited": { kind: "members", text: target => `invited ${target}`, unnamed: "sent an invitation" },
   // Also written when an invitation is accepted, sent again or its member removed, so it says closed rather than revoked.
-  "invitation.revoked": { kind: "members", text: "closed the invitation for", unnamed: "closed an invitation" },
+  "invitation.revoked": {
+    kind: "members", text: target => `closed the invitation for ${target}`, unnamed: "closed an invitation",
+  },
   // The member who joined is the target; see describeAction for a join someone else made.
   "member.joined": { kind: "members", text: "joined the organization" },
-  "member.role_changed": { kind: "members", text: "changed the role of", unnamed: "changed a member's role" },
-  "member.removed": { kind: "members", text: "removed", unnamed: "removed a member" },
-  "action.created": { kind: "actions", text: "added the action", unnamed: "added an action" },
-  "action.updated": { kind: "actions", text: "updated the action", unnamed: "updated an action" },
-  "action.deleted": { kind: "actions", text: "deleted the action", unnamed: "deleted an action" },
+  "member.role_changed": { kind: "members", text: target => `changed the role of ${target}`, unnamed: "changed a member's role" },
+  "member.removed": { kind: "members", text: target => `removed ${target}`, unnamed: "removed a member" },
+  "action.created": { kind: "actions", text: target => `added the action “${target}”`, unnamed: "added an action" },
+  "action.updated": { kind: "actions", text: target => `updated the action “${target}”`, unnamed: "updated an action" },
+  "action.deleted": { kind: "actions", text: target => `deleted the action “${target}”`, unnamed: "deleted an action" },
   "billing.event_applied": { kind: "billing", text: "recorded a billing update" },
-  "plan.updated": { kind: "billing", text: "changed the plan", unnamed: "changed a plan" },
+  // The back names the plan by its code, "monthly" or "annual", which reads as a frequency after "changed the plan".
+  "plan.updated": { kind: "billing", text: target => `changed the ${target} plan`, unnamed: "changed a plan" },
 };
 
 /** Who acted, as far as the words depend on it: whether a member of the organization, and their email when the back has it. */
@@ -70,11 +80,10 @@ export function describeAction(
   if (action === "member.joined" && !(actor.member && actor.email === targetLabel)) {
     return { kind: label.kind, text: `added ${targetLabel ?? "a member"} to the organization` };
   }
-  if (label.unnamed === undefined) return { kind: label.kind, text: label.text };
-  return { kind: label.kind, text: targetLabel ? `${label.text} ${targetLabel}` : label.unnamed };
+  if (!("unnamed" in label)) return { kind: label.kind, text: label.text };
+  return { kind: label.kind, text: targetLabel ? label.text(targetLabel) : label.unnamed };
 }
 
-const STATUS: Record<string, string> = { todo: "To do", in_progress: "In progress", done: "Done" };
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -92,9 +101,9 @@ export function describeChange(action: string, sent: NonNullable<ActivityEventVi
     word = value => lookup(ROLE_LABEL, value) ?? value;
   } else if (action.startsWith("org.")) {
     field = "Name";
-  } else if (values.some(value => lookup(STATUS, value))) {
+  } else if (values.some(value => lookup(ACTION_STATUS_LABEL, value))) {
     field = "Status";
-    word = value => lookup(STATUS, value) ?? value;
+    word = value => lookup(ACTION_STATUS_LABEL, value) ?? value;
   } else if (values.some(value => DAY.test(value))) {
     field = "Due date";
     word = value => (DAY.test(value) ? formatDate(value) : value);

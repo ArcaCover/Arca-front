@@ -3,17 +3,17 @@
 import { useEffect, useState } from "react";
 import type { AdminMetricsView } from "@arca/contracts";
 
-import { LoadFailed } from "@/components/app/ui";
 import { adminGetMetrics } from "@/lib/app/client";
-import { BILLING_STATUS_LABEL } from "@/lib/app/labels";
+import { ACTION_STATUS_LABEL, BILLING_STATUS_LABEL } from "@/lib/app/labels";
 
+import { ReadFailed, type Failure } from "../activity/ReadFailed";
 import { messageOf } from "./shared";
 
 // Counts only (DN-11 §4.5): the back sends no figure about money, and nothing here derives one.
 
 export function MetricsTab() {
   const [metrics, setMetrics] = useState<AdminMetricsView | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   // Bumped by Try again, so counts that failed are asked for again without leaving the tab.
   const [attempt, setAttempt] = useState(0);
 
@@ -24,19 +24,19 @@ export function MetricsTab() {
         if (!cancelled) setMetrics(next);
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(messageOf(cause));
+        if (!cancelled) setFailure({ message: messageOf(cause), cause });
       });
     return () => {
       cancelled = true;
     };
   }, [attempt]);
 
-  if (error) {
+  if (failure) {
     return (
-      <LoadFailed
-        message={error}
+      <ReadFailed
+        failure={failure}
         onRetry={() => {
-          setError(null);
+          setFailure(null);
           setAttempt(value => value + 1);
         }}
       />
@@ -78,9 +78,9 @@ export function MetricsTab() {
       <Counts
         title="Actions"
         items={[
-          ["To do", actions.todo],
-          ["In progress", actions.in_progress],
-          ["Done", actions.done],
+          [ACTION_STATUS_LABEL.todo, actions.todo],
+          [ACTION_STATUS_LABEL.in_progress, actions.in_progress],
+          [ACTION_STATUS_LABEL.done, actions.done],
         ]}
       />
     </div>

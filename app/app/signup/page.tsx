@@ -38,6 +38,9 @@ function SignupScreen() {
     );
   }
   const { claimId, email } = claim;
+  // Someone already signed in with the claim's email has an account: the sign-up only starts a new organization for them,
+  // as the button that led here said (SaveResultsCta). Anyone else is signed in as the claim's email on submit.
+  const hasAccount = loadAppSession()?.email.toLowerCase() === email.toLowerCase();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -63,7 +66,9 @@ function SignupScreen() {
 
   return (
     <section className="max-w-md">
-      <h1 className="font-heading text-2xl">Save your results and activate your account</h1>
+      <h1 className="font-heading text-2xl">
+        {hasAccount ? "Save your results to a new organization" : "Save your results and activate your account"}
+      </h1>
       <form onSubmit={submit} className="mt-6 space-y-4">
         <label className="block text-sm">
           Email

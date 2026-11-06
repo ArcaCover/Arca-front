@@ -9,6 +9,7 @@ import {
 } from "@/components/app/ui";
 import { useAccess } from "@/lib/app/access";
 import { renameOrg, requestDeletion } from "@/lib/app/client";
+import { BILLING_STATUS_LABEL, ROLE_LABEL } from "@/lib/app/labels";
 import { SAMPLE_SESSIONS } from "@/lib/app/mock/records";
 
 const SECTIONS = [
@@ -51,9 +52,15 @@ export default function SettingsPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renamed, setRenamed] = useState(false);
-  // The name the last rename saved. org.name keeps the old one until /me answers again, and the same name sent twice would
-  // only audit a second rename.
+  // The name the last rename saved. Until /me answers again org.name is still the old one, and the same name sent twice
+  // would only audit a second rename. The next name /me shows after the rename answered forgets it, so it can be sent
+  // again once someone renames the organization elsewhere.
   const [saved, setSaved] = useState<string | null>(null);
+  const [shownName, setShownName] = useState(org.name);
+  if (shownName !== org.name) {
+    setShownName(org.name);
+    setSaved(null);
+  }
 
   // Sample values for the local forms below: nothing here is read from or sent to the API.
   const [profile, setProfile] = useState({ state: "Florida", attorneys: "12", areas: ["Immigration", "Personal injury"] });
@@ -157,9 +164,9 @@ export default function SettingsPage() {
                 <dt className="text-marino/70">Domain</dt>
                 <dd>{org.domain ?? "—"}</dd>
                 <dt className="text-marino/70">Your role</dt>
-                <dd>{org.role}</dd>
+                <dd>{ROLE_LABEL[org.role]}</dd>
                 <dt className="text-marino/70">Billing</dt>
-                <dd>{org.billingStatus.replace("_", " ")}</dd>
+                <dd>{BILLING_STATUS_LABEL[org.billingStatus]}</dd>
               </dl>
               {canEdit && (
                 <form onSubmit={rename} className="mt-5 flex flex-wrap items-end gap-3 border-t border-marino/10 pt-5 text-sm">
