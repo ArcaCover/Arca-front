@@ -356,8 +356,7 @@ el sistema, solo con su tipo. Quedan los filtros por persona y por tipo de event
 
 - `alerts.ts` y `team.ts` para lo que tiene estado. Con DN-11 el plan de acción deja de ser de
   muestra.
-- `records.ts` para el resto: historial, benchmark, actividad, documentos, facturas, sesiones y
-  límites.
+- `records.ts` para el resto: historial, benchmark, documentos, facturas, sesiones y límites.
 - `dates.ts` para las fechas.
 - El índice de búsqueda se arma en la barra superior a partir de la navegación y de estos datos.
 - Datos deterministas, sin `Math.random`, para que pruebas y capturas sean estables.

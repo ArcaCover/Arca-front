@@ -8,26 +8,6 @@ export const SAMPLE_BENCHMARK = { percentile: 62, peers: "law firms of 2 to 50 a
 
 export const NEXT_RESCAN = daysAhead(12);
 
-// ---- Activity log (/app/activity)
-export type ActivityKind = "analysis" | "members" | "billing" | "settings" | "actions";
-export type SampleActivity = { id: string; actor: string; kind: ActivityKind; text: string; at: string; source: "web" | "invite" | "system" };
-
-export const ACTIVITY_KIND: Record<ActivityKind, string> = {
-  analysis: "Analyses", members: "Members", billing: "Billing", settings: "Settings", actions: "Action plan",
-};
-
-export const SAMPLE_ACTIVITY: SampleActivity[] = [
-  { id: "ev1", actor: "Dana Whitfield", kind: "actions", text: "moved “Adopt a written AI use policy” to In progress", at: daysAgo(0), source: "web" },
-  { id: "ev2", actor: "ARCA", kind: "analysis", text: "ran the monthly re-scan of the firm's website", at: daysAgo(1), source: "system" },
-  { id: "ev3", actor: "Sam Becker", kind: "actions", text: "completed “Run a one-hour AI limits session”", at: daysAgo(2), source: "web" },
-  { id: "ev4", actor: "Priya Raman", kind: "members", text: "joined the organization as member", at: daysAgo(4), source: "invite" },
-  { id: "ev5", actor: "Dana Whitfield", kind: "members", text: "invited priya@ as member", at: daysAgo(5), source: "web" },
-  { id: "ev6", actor: "Dana Whitfield", kind: "billing", text: "started the monthly plan", at: daysAgo(6), source: "web" },
-  { id: "ev7", actor: "Dana Whitfield", kind: "analysis", text: "saved the analysis to the organization", at: daysAgo(6), source: "web" },
-  { id: "ev8", actor: "Luis Ortega", kind: "settings", text: "turned on the weekly alert summary", at: daysAgo(8), source: "web" },
-  { id: "ev9", actor: "Luis Ortega", kind: "analysis", text: "completed the assessment questionnaire", at: daysAgo(9), source: "web" },
-];
-
 // ---- Documents (/app/documents)
 export type SampleDocument = { id: string; name: string; kind: "template" | "policy" | "report"; description: string; updated: string };
 
