@@ -62,6 +62,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("assessment route interactions", () => {
@@ -382,6 +383,24 @@ describe("assessment result recovery", () => {
     expect((await screen.findByRole("alert")).textContent).toContain("does not belong");
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
     expect(screen.queryByRole("img", { name: /AI Governance Score/ })).toBeNull();
+  });
+});
+
+describe("saving the results to the webapp", () => {
+  // Outside mock the back answers 501 to the webapp's routes, so the offer would lead nowhere (DN-10 §10).
+  it.each([undefined, "production", "live-debug"])("is not offered when the mode is %s", async mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    expect(screen.queryByRole("heading", { name: "Keep these results." })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Save your results/ })).toBeNull();
+  });
+
+  it("is offered in mock", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+    render(<AssessmentResultsPage />);
+    expect(await screen.findByRole("heading", { name: "Keep these results." })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
   });
 });
 

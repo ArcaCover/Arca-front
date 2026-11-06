@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "test:browser:assessment": "node scripts/assessment-browser-smoke.mjs",
-    "test:browser:modes": "node scripts/debug-modes-smoke.mjs"
+    "test:browser:modes": "node scripts/debug-modes-smoke.mjs",
+    "test:browser:webapp": "node scripts/webapp-demo-smoke.mjs"
   },
   "dependencies": {
     "@arca/contracts": "https://github.com/ArcaCover/Arca-back/releases/download/contracts-v0.3.0/arca-contracts-0.3.0.tgz",
