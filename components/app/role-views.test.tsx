@@ -193,8 +193,9 @@ describe("the debug switch", () => {
 
       inApp("/app/billing", <BillingPage />);
       expect(await screen.findByText("Only the owner can manage billing.")).toBeTruthy();
-      const pay = await screen.findByRole<HTMLButtonElement>("button", { name: "Pay with Monthly (example price)" });
-      expect(pay.disabled).toBe(true);
+      // The plans render after the note; once they are there, the owner's Pay is still not.
+      expect(await screen.findByText("Monthly (example price)")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Pay with/ })).toBeNull();
       expect(sessionStorage.getItem(SWITCH_KEY)).toBe("1");
     },
   );
