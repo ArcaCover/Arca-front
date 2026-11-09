@@ -158,7 +158,10 @@ function ScanningScreen() {
         }
         stop({
           kind: "failed",
-          message: error instanceof ApiError ? error.message : "We lost contact with the scan service.",
+          // Not the network error's own message: it ends by asking for another try, and the alert below already does.
+          message: error instanceof ApiError && error.code !== "network"
+            ? error.message
+            : "We lost contact with the scan service. Check your connection.",
         });
       }
     }

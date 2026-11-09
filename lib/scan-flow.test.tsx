@@ -68,6 +68,23 @@ function unreadableWebsite() {
       assessmentStatus: "INSUFFICIENT_EVIDENCE",
     },
     identity: null,
+    // Nobody read the site and no directory was searched, so no signal was observed at all.
+    signals: {
+      website: {
+        W1_aiPolicy: { found: null, depth: null, points: null },
+        W2_aiInServices: { found: null, tools: null, points: null },
+        W3_aiDisclosure: { found: null, points: null },
+        W4_aiBlog: { found: null, count: null, points: null },
+        W5_teamSize: null, W5a_teamPageQuality: null,
+        W6_privacyPolicy: { found: null, mentionsClientData: null, points: null },
+        W7_websiteQuality: null, W8_firmEstablished: null, W9_practiceAreas: null,
+      },
+      bar: { B1_allActive: null, B2_worstDisciplinary: null, B3_consistency: null, B4_avgExperience: null, attorneys: null },
+      avvo: {
+        A1_avgRating: null, A1_ratingLevel: null, A2_practiceAreas: null, A3_avgReviewRating: null, A3_totalReviews: null,
+        A6_hasAwards: null, A6_awardsCount: null, A6_topAward: null, A8_disciplined: null,
+      },
+    },
     multipliers: {
       practiceArea: { area: null, value: 1, known: false },
       jurisdiction: { state: null, value: 1, known: false },
@@ -97,6 +114,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   sessionStorage.clear();
   delete (window as { matchMedia?: unknown }).matchMedia;
@@ -224,6 +242,9 @@ describe("/score evidence notice", () => {
     expect(comesBefore(downloadButton(), refine)).toBe(true);
     expect(screen.getAllByText("no evidence")).toHaveLength(4);
     expect(screen.queryByText("partial evidence")).toBeNull();
+    // Nothing about the firm is shown that nobody read.
+    expect(screen.queryByText(/lawyers?$/)).toBeNull();
+    expect(screen.getByText("The scan could not confirm any individual signal for this firm.")).toBeTruthy();
   });
 
   it("does not claim the highest-risk group when the API scored the firm elsewhere", async () => {
@@ -282,6 +303,35 @@ describe("/quote/scanning", () => {
     expect(screen.getByRole("button", { name: "Try another scan" })).toBeTruthy();
     expect(recallSession("sc_fixture")).toBeNull();
     expect(navigation.router.push).not.toHaveBeenCalled();
+  });
+
+  it("asks for another try once, not twice, when the connection is lost for good", async () => {
+    vi.useFakeTimers();
+    vi.mocked(pollScan).mockRejectedValue(
+      new ApiError("network", "We could not reach the scan service. Check your connection and try again."));
+
+    render(<ScanningPage />);
+    // One failed poll is a blip: the page keeps polling.
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.queryByRole("alert")).toBeNull();
+    vi.setSystemTime(Date.now() + 11 * 60_000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+
+    expect(screen.getByRole("alert").textContent).toBe(
+      "We lost contact with the scan service. Check your connection. Please try again shortly.",
+    );
+  });
+
+  it("keeps the API's own reason when it answered with an error until the page gave up", async () => {
+    vi.useFakeTimers();
+    vi.mocked(pollScan).mockRejectedValue(new ApiError("internal_error", "The scan service failed."));
+
+    render(<ScanningPage />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    vi.setSystemTime(Date.now() + 11 * 60_000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+
+    expect(screen.getByRole("alert").textContent).toBe("The scan service failed. Please try again shortly.");
   });
 
   it.each(["PARTIAL", "COMPLETED"] as const)("sends a %s scan on to /score", async status => {
