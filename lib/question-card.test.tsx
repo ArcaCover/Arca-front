@@ -145,6 +145,25 @@ describe("QuestionCard interactions", () => {
     expect(screen.getAllByRole("link", { name: "View source" })).toHaveLength(2);
   });
 
+  it("keeps every source of a context sentence that the scan cites more than once", () => {
+    const sentence = "The public scan detected an AI policy.";
+    render(<ControlledQuestion question={fixtureQuestion({
+      context: sentence,
+      evidence: [
+        { id: "signal", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: null },
+        { id: "policy", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/policy" },
+        { id: "handbook", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/handbook" },
+        { id: "again", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/policy" },
+      ],
+    })} />);
+    expect(screen.getAllByText(sentence)).toHaveLength(1);
+    expect(screen.queryByText(/Evidence from your quick scan/)).toBeNull();
+    expect(screen.getAllByRole("link", { name: "View source" }).map(link => link.getAttribute("href"))).toEqual([
+      "https://firm.example/policy",
+      "https://firm.example/handbook",
+    ]);
+  });
+
   it.each([
     ["the bank's help already says it", "Select all that apply. “None” cannot be combined with other choices."],
     ["the bank sends no help", null],
@@ -159,6 +178,19 @@ describe("QuestionCard interactions", () => {
     expect(document.body.textContent!.match(/does not (affect|change)/g)).toHaveLength(1);
     expect(screen.getByText("Context only · does not affect your score")).toBeTruthy();
     expect(screen.getByRole("group", { name: "Is there a written AI policy?" }).getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it("drops only the repeated sentence from a follow-up's help", () => {
+    render(<ControlledQuestion question={fixtureQuestion({ scored: false, help: "Count each office separately. This follow-up adds context and does not change the demo score." })} />);
+    expect(screen.getByText("Count each office separately.")).toBeTruthy();
+    expect(document.body.textContent!.match(/does not (affect|change)/g)).toHaveLength(1);
+    expect(screen.getByRole("group", { name: "Is there a written AI policy?" }).getAttribute("aria-describedby")).toBe("question-help");
+  });
+
+  it("keeps the help of a scored question as the bank wrote it", () => {
+    const help = "Leaving this blank does not change your score.";
+    render(<ControlledQuestion question={fixtureQuestion({ help })} />);
+    expect(screen.getByText(help)).toBeTruthy();
   });
 
   it("keeps a follow-up's help when it says something else", () => {

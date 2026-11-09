@@ -5,6 +5,17 @@ import type { AnswerValue, RenderedQuestion } from "@arca/contracts";
 import DomainIndicator from "./DomainIndicator";
 import { answerLabel, safeEvidenceUrl, toggleOption } from "@/lib/assessment";
 
+// The label beside the domain already says a follow-up does not count. The bank's help can say it again.
+const SCORE_CAVEAT = /does not (change|affect) (the|your) (demo )?score/i;
+
+/** A follow-up's help without the sentence that repeats the label; null when nothing else is left. */
+function withoutScoreCaveat(help: string): string | null {
+  const rest = help
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !SCORE_CAVEAT.test(sentence));
+  return rest.length ? rest.join(" ") : null;
+}
+
 function SourceLink({ url, className }: { url: string; className: string }) {
   return (
     <a
@@ -42,24 +53,25 @@ export default function QuestionCard({
       ? answer.value
       : undefined;
   // The API's own copy can repeat what the card already prints, and each
-  // sentence should show once. The context sentence is the text of one cited
-  // evidence item, so that item leaves the list and lends the context its
-  // source link. A follow-up's help that only restates the "Context only"
-  // label is not printed under it.
+  // sentence should show once. The context sentence is the text of cited
+  // evidence, so those items leave the list and lend the context their source
+  // links. A follow-up's help loses the sentence that restates the "Context
+  // only" label.
   const evidence = question.evidence.filter(
     (item) => item.text !== question.context,
   );
-  const contextSource = safeEvidenceUrl(
-    question.evidence.find((item) => item.text === question.context)
-      ?.sourceUrl ?? null,
-  );
+  const contextSources = [
+    ...new Set(
+      question.evidence
+        .filter((item) => item.text === question.context)
+        .map((item) => safeEvidenceUrl(item.sourceUrl))
+        .filter((url) => url !== null),
+    ),
+  ];
   const help =
-    !question.scored &&
-    /does not (change|affect) (the|your) (demo )?score/i.test(
-      question.help ?? "",
-    )
-      ? null
-      : question.help;
+    question.scored || !question.help
+      ? question.help
+      : withoutScoreCaveat(question.help);
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -94,12 +106,13 @@ export default function QuestionCard({
             />
             {question.context}
           </p>
-          {contextSource && (
+          {contextSources.map((url) => (
             <SourceLink
-              url={contextSource}
+              key={url}
+              url={url}
               className="ml-6 mt-1 text-xs text-marino/70"
             />
-          )}
+          ))}
         </div>
       )}
       {evidence.length > 0 && (

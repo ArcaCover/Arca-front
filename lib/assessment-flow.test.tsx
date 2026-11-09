@@ -408,6 +408,13 @@ describe("one disclosure per assessment screen", () => {
     expect(screen.getByText(/not an assurance that all risks are addressed/)).toBeTruthy();
   });
 
+  it.each(["CRITICAL", "FORTIFIED"] as const)("shows it once on %s results that carry the website notice", async tier => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, tier, flags: ["WEBSITE_UNAVAILABLE"] }));
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("note", { name: "About this outlook" });
+    expectOneDisclosure(`Bank ${BANK} · Model ${MODEL}`);
+  });
+
   it("shows it once when the result cannot be loaded", async () => {
     vi.mocked(getAssessmentResult).mockRejectedValue(new ApiError("network", "Offline"));
     render(<AssessmentResultsPage />);
@@ -526,6 +533,21 @@ describe("notes on the results", () => {
     // The notice already says the public evidence is missing, so the notes do not say it again.
     expect(screen.queryByText(/Notes for review/)).toBeNull();
     expect(document.body.textContent).not.toMatch(/WEBSITE_UNAVAILABLE|referral/i);
+  });
+
+  // The API derives the tier from the composite alone, so strong answers can lift an unread website out of the
+  // lowest band. The notice must never say otherwise beside the badge.
+  it.each(["FORTRESS", "FORTIFIED", "GUARDED", "EXPOSED", "UNKNOWN"] as const)("keeps only the manual review in the website notice when the tier is %s", async tier => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      layer1Score: 12, layer2Score: 100, compositeScore: tier === "UNKNOWN" ? null : 73.6, tier, decision: "REFERRAL_SENIOR",
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INSUFFICIENT_EVIDENCE", "WEBSITE_UNAVAILABLE"],
+    }));
+    render(<AssessmentResultsPage />);
+    const notice = await screen.findByRole("note", { name: "About this outlook" });
+    expect(notice.textContent).toBe(
+      "We could not read your firm’s website during the scan. Until it can be read, this outlook needs a manual review, whatever your answers show. This is not a decision or a price.",
+    );
+    expect(document.body.textContent).not.toMatch(/highest-risk|WEBSITE_UNAVAILABLE|referral/i);
   });
 
   it("shows no website notice when the scan read the website", async () => {

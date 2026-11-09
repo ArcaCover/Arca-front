@@ -18,6 +18,7 @@ import AssessmentShell from "@/components/assessment/AssessmentShell";
 import {
   WEBSITE_UNAVAILABLE,
   resultNotes,
+  websiteNotice,
 } from "@/components/assessment/result-notes";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
 import {
@@ -277,12 +278,7 @@ function ResultsScreen() {
                     aria-hidden
                     className="mt-1 h-4 w-4 shrink-0 text-oro-oscuro"
                   />
-                  <span>
-                    We could not read your firm’s website during the scan. Until
-                    it can be read, this outlook stays in the highest-risk group
-                    and needs a manual review, whatever your answers show. This
-                    is not a decision or a price.
-                  </span>
+                  <span>{websiteNotice(result.tier)}</span>
                 </p>
               )}
               <div className="mt-7 grid grid-cols-2 gap-3 border-t border-marino/10 pt-6">

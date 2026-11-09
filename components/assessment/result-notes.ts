@@ -1,5 +1,19 @@
+import type { AssessmentResult } from "@arca/contracts";
+
 /** The Layer 1 flag for a firm website that could not be read; the results screen gives it its own notice. */
 export const WEBSITE_UNAVAILABLE = "WEBSITE_UNAVAILABLE";
+
+/** The notice for that flag. The manual review holds for any score; the risk group is named only when the API's own
+    tier agrees, so the sentence cannot contradict the badge beside it. It never names a decision or a price. */
+export function websiteNotice(tier: AssessmentResult["tier"]): string {
+  return [
+    "We could not read your firm’s website during the scan.",
+    tier === "CRITICAL"
+      ? "Until it can be read, this outlook stays in the highest-risk group and needs a manual review, whatever your answers show."
+      : "Until it can be read, this outlook needs a manual review, whatever your answers show.",
+    "This is not a decision or a price.",
+  ].join(" ");
+}
 
 // The whole list of flags a visitor ever reads about, each worded once. A result's flags are the API's machine codes,
 // and most are for us (provider accounting, the demo markers, identity matching), so a flag that is not here renders
