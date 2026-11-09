@@ -1,25 +1,49 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Download,
   FileCheck2,
-  Info,
   Loader2,
   RotateCcw,
 } from "lucide-react";
 import type { AssessmentResult } from "@arca/contracts";
 import SaveResultsCta from "@/components/app/SaveResultsCta";
 import AssessmentShell from "@/components/assessment/AssessmentShell";
+import {
+  WEBSITE_UNAVAILABLE,
+  resultNotes,
+} from "@/components/assessment/result-notes";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
-import { ApiError, getAssessmentResult } from "@/lib/api/client";
+import {
+  ApiError,
+  downloadAssessmentReport,
+  getAssessmentResult,
+} from "@/lib/api/client";
+import { saveFile } from "@/lib/api/download";
 import { recallSession } from "@/lib/api/session";
 import { recallAssessment } from "@/lib/api/assessment-session";
 import { assessmentHref } from "@/lib/assessment";
 import { publishDebugState } from "@/lib/debug/bridge";
+
+const SESSION_ENDED =
+  "This session has ended, so the report can no longer be downloaded here.";
+
+// The API closes every step with the same caveat. The plan's heading says it
+// once, so each step keeps only its own words.
+function nextStep(detail: string): string {
+  return detail
+    .replace(/^Illustrative next step:/, "Next step:")
+    .replace(
+      /\s*This estimate is independent of other steps and is not a pricing or coverage promise\.$/,
+      "",
+    );
+}
 
 function ResultsScreen() {
   const params = useSearchParams();
@@ -31,6 +55,43 @@ function ResultsScreen() {
   const [attempt, setAttempt] = useState(0);
   const [assessmentId, setAssessmentId] = useState<string | null>(requestedId);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  // What the load published last. The panel keeps one state per page, so the
+  // download's outcome is published beside it.
+  const published = useRef<Record<string, unknown>>({ scanId });
+
+  // The API renders the report from the stored assessment, not from this page.
+  async function saveReport() {
+    const token = scanId ? recallSession(scanId) : null;
+    if (!assessmentId || !token) {
+      setDownloadError(SESSION_ENDED);
+      return;
+    }
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const file = await downloadAssessmentReport(assessmentId, token);
+      saveFile(file);
+      publishDebugState("results", {
+        ...published.current,
+        download: { status: "saved", filename: file.filename },
+      });
+    } catch (cause) {
+      const code = cause instanceof ApiError ? cause.code : "unexpected";
+      publishDebugState("results", {
+        ...published.current,
+        download: { status: `error: ${code}` },
+      });
+      setDownloadError(
+        code === "unauthorized" || code === "expired"
+          ? SESSION_ENDED
+          : "We could not prepare your report. Please try again.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +117,7 @@ function ResultsScreen() {
             "unauthorized",
             "This result does not belong to this scan.",
           );
-        publishDebugState("results", {
+        published.current = {
           scanId: value.scanId,
           layer1Score: value.layer1Score,
           layer2Score: value.layer2Score,
@@ -65,7 +126,8 @@ function ResultsScreen() {
           flags: value.flags,
           bankVersion: value.bankVersion,
           scoringVersion: value.scoringVersion,
-        });
+        };
+        publishDebugState("results", published.current);
         setResult(value);
       })
       .catch((cause: unknown) => {
@@ -85,6 +147,8 @@ function ResultsScreen() {
       cancelled = true;
     };
   }, [scanId, requestedId, attempt]);
+
+  const notes = result ? resultNotes(result.flags) : [];
 
   return (
     <AssessmentShell
@@ -149,7 +213,7 @@ function ResultsScreen() {
             <section className="overflow-hidden rounded-[28px] border border-marino/8 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-marino/70">
                 <FileCheck2 aria-hidden className="h-4 w-4" />
-                Your demo outlook
+                Your outlook
               </div>
               <div className="mt-7 flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
                 <div className="w-full max-w-[230px] shrink-0">
@@ -170,10 +234,57 @@ function ResultsScreen() {
                   <p className="mt-3 text-xs leading-6 text-marino/70">
                     {result.compositeScore === null
                       ? "The quick scan did not support a combined score. Your questionnaire score is still available below."
-                      : "This combined score uses the demo scoring model. It is a starting point for reviewing your AI practices."}
+                      : "This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices."}
                   </p>
+                  {/* Secondary on purpose: gold stays for the primary action of a screen. */}
+                  <div className="mt-5 flex flex-col items-center sm:items-start">
+                    <button
+                      type="button"
+                      onClick={() => void saveReport()}
+                      disabled={downloading}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-marino/30 px-5 py-2.5 text-sm font-semibold text-marino transition-colors hover:border-marino hover:bg-marino/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-marino disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {downloading ? (
+                        <Loader2
+                          aria-hidden
+                          className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                        />
+                      ) : (
+                        <Download aria-hidden className="h-4 w-4" />
+                      )}
+                      {downloading
+                        ? "Preparing your report…"
+                        : "Download report (PDF)"}
+                    </button>
+                    <p className="mt-2 text-[11px] leading-5 text-marino/70">
+                      The download works during this 24-hour session.
+                    </p>
+                    {downloadError && (
+                      <p role="alert" className="mt-1 text-sm text-rojo">
+                        {downloadError}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
+              {result.flags.includes(WEBSITE_UNAVAILABLE) && (
+                <p
+                  role="note"
+                  aria-label="About this outlook"
+                  className="mt-6 flex items-start gap-2 rounded-xl bg-oro/10 px-4 py-3 text-sm leading-6 text-marino"
+                >
+                  <AlertTriangle
+                    aria-hidden
+                    className="mt-1 h-4 w-4 shrink-0 text-oro-oscuro"
+                  />
+                  <span>
+                    We could not read your firm’s website during the scan. Until
+                    it can be read, this outlook stays in the highest-risk group
+                    and needs a manual review, whatever your answers show. This
+                    is not a decision or a price.
+                  </span>
+                </p>
+              )}
               <div className="mt-7 grid grid-cols-2 gap-3 border-t border-marino/10 pt-6">
                 <div className="rounded-2xl bg-bruma/35 p-4">
                   <p className="text-[11px] text-marino/70">
@@ -200,11 +311,6 @@ function ResultsScreen() {
                   </p>
                 </div>
               </div>
-              <p className="mt-5 flex items-start gap-2 text-xs leading-6 text-marino/75">
-                <Info aria-hidden className="mt-1 h-3.5 w-3.5 shrink-0" />
-                Commercial decisions are blocked for this demo. This score does
-                not establish eligibility for insurance.
-              </p>
             </section>
             <section className="mt-7 rounded-[28px] border border-marino/8 bg-white p-6 sm:p-8">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-marino/70">
@@ -229,8 +335,8 @@ function ResultsScreen() {
                 A path forward.
               </h2>
               <p className="mt-2 text-sm leading-7 text-marino/70">
-                Suggested improvements based on your answers. Point gains
-                reflect the provisional demo model, not a promised outcome.
+                Suggested improvements based on your answers. Each point gain is
+                an estimate on its own, not a promised outcome.
               </p>
               {result.actionPlan.length ? (
                 <ol className="mt-5 space-y-3">
@@ -247,10 +353,10 @@ function ResultsScreen() {
                           {item.title}
                         </h3>
                         <p className="mt-2 text-xs leading-6 text-marino/70">
-                          {item.detail}
+                          {nextStep(item.detail)}
                         </p>
                         <span className="mt-3 inline-flex rounded-full bg-oro/20 px-2.5 py-1 text-[10px] font-semibold text-marino">
-                          Up to +{item.pointsGain} demo points
+                          Up to +{item.pointsGain} points
                         </span>
                       </div>
                     </li>
@@ -259,20 +365,20 @@ function ResultsScreen() {
               ) : (
                 <p className="mt-5 flex items-start gap-3 rounded-2xl bg-bruma/70 p-5 text-sm leading-7">
                   <CheckCircle2 aria-hidden className="mt-1 h-4 w-4 shrink-0" />
-                  No additional improvements were identified by this demo model.
+                  No additional improvements were identified from your answers.
                   This is not an assurance that all risks are addressed.
                 </p>
               )}
             </section>
-            {result.flags.length > 0 && (
+            {notes.length > 0 && (
               <details className="mt-7 rounded-2xl border border-marino/10 bg-white/60 p-5 text-xs text-marino/75">
                 <summary className="cursor-pointer font-semibold">
-                  Notes for review ({result.flags.length})
+                  Notes for review ({notes.length})
                 </summary>
                 <ul className="mt-3 space-y-2">
-                  {result.flags.map((flag) => (
-                    <li key={flag} className="leading-5">
-                      {flag.replaceAll("_", " ").toLowerCase()}
+                  {notes.map((note) => (
+                    <li key={note} className="leading-5">
+                      {note}
                     </li>
                   ))}
                 </ul>

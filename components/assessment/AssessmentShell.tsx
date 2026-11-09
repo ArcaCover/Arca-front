@@ -4,14 +4,21 @@ import type { ReactNode } from "react";
 import type { AssessmentView } from "@arca/contracts";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 
+// The one place a Layer 2 screen says it is a demo (CLAUDE.md §7). Nothing
+// inside the shell repeats it.
 export function DemoNotice() {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-oro/50 bg-oro/10 px-4 py-3 text-xs leading-relaxed text-marino">
+    <div
+      role="note"
+      aria-label="About this assessment"
+      className="flex items-start gap-3 rounded-2xl border border-oro/50 bg-oro/10 px-4 py-3 text-xs leading-relaxed text-marino"
+    >
       <ShieldCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
       <p>
-        <strong className="font-semibold">Demo assessment.</strong> Questions
-        and scoring use provisional business rules. Results are illustrative,
-        with no coverage offer, pricing, or underwriting decision.
+        <strong className="font-semibold">Demo assessment.</strong> The
+        questions and the scoring are provisional, so your results are
+        illustrative. This is not an insurance offer, a price or an
+        underwriting decision.
       </p>
     </div>
   );
@@ -69,10 +76,6 @@ export default function AssessmentShell({
           >
             <ArcaWordmark className="h-7 w-auto text-marino" />
           </Link>
-          <span className="flex items-center gap-2 rounded-full border border-marino/10 bg-white/70 px-3 py-1.5 text-[11px] font-semibold tracking-[0.1em] text-marino/75">
-            <span className="h-1.5 w-1.5 rounded-full bg-cielo" /> DEMO
-            WORKSPACE
-          </span>
         </header>
         <nav
           aria-label="Assessment stages"

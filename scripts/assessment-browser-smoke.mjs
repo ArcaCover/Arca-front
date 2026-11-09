@@ -262,7 +262,7 @@ if (
 await page.getByRole("spinbutton").fill("12");
 await page.getByRole("button", { name: "Continue", exact: true }).click();
 await page.getByRole("heading", { name: "One last look." }).waitFor();
-if (await page.getByRole("button", { name: "See my demo score" }).isEnabled())
+if (await page.getByRole("button", { name: "See my score" }).isEnabled())
   throw Error("No attestation gating");
 await page.screenshot({
   path: path.join(artifactDir, "review.png"),
@@ -289,7 +289,7 @@ await page.getByRole("button", { name: "Review", exact: true }).click();
 await page.getByRole("heading", { name: "One last look." }).waitFor();
 await page.setViewportSize({ width: 1440, height: 1050 });
 await page.getByRole("checkbox").check();
-await page.getByRole("button", { name: "See my demo score" }).dblclick();
+await page.getByRole("button", { name: "See my score" }).dblclick();
 await page.getByRole("heading", { name: "Your governance profile" }).waitFor();
 if (completeCount !== 1) throw Error("Duplicate completion " + completeCount);
 await page.screenshot({

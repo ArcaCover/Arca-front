@@ -5,6 +5,20 @@ import type { AnswerValue, RenderedQuestion } from "@arca/contracts";
 import DomainIndicator from "./DomainIndicator";
 import { answerLabel, safeEvidenceUrl, toggleOption } from "@/lib/assessment";
 
+function SourceLink({ url, className }: { url: string; className: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`${className} inline-flex items-center gap-1 font-semibold underline underline-offset-2`}
+    >
+      View source
+      <ExternalLink aria-hidden className="h-3 w-3" />
+    </a>
+  );
+}
+
 export default function QuestionCard({
   question,
   answer,
@@ -27,6 +41,25 @@ export default function QuestionCard({
     answer?.kind === "scale" || answer?.kind === "number"
       ? answer.value
       : undefined;
+  // The API's own copy can repeat what the card already prints, and each
+  // sentence should show once. The context sentence is the text of one cited
+  // evidence item, so that item leaves the list and lends the context its
+  // source link. A follow-up's help that only restates the "Context only"
+  // label is not printed under it.
+  const evidence = question.evidence.filter(
+    (item) => item.text !== question.context,
+  );
+  const contextSource = safeEvidenceUrl(
+    question.evidence.find((item) => item.text === question.context)
+      ?.sourceUrl ?? null,
+  );
+  const help =
+    !question.scored &&
+    /does not (change|affect) (the|your) (demo )?score/i.test(
+      question.help ?? "",
+    )
+      ? null
+      : question.help;
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
@@ -47,9 +80,9 @@ export default function QuestionCard({
       >
         {question.text}
       </h2>
-      {question.help && (
+      {help && (
         <p id="question-help" className="mt-3 text-sm leading-6 text-marino/70">
-          {question.help}
+          {help}
         </p>
       )}
       {question.context && (
@@ -61,29 +94,27 @@ export default function QuestionCard({
             />
             {question.context}
           </p>
+          {contextSource && (
+            <SourceLink
+              url={contextSource}
+              className="ml-6 mt-1 text-xs text-marino/70"
+            />
+          )}
         </div>
       )}
-      {question.evidence.length > 0 && (
+      {evidence.length > 0 && (
         <details className="mt-3 text-xs text-marino/70">
           <summary className="cursor-pointer rounded py-1 focus-visible:outline-2 focus-visible:outline-marino">
-            Evidence from your quick scan ({question.evidence.length})
+            Evidence from your quick scan ({evidence.length})
           </summary>
           <ul className="mt-2 space-y-2 border-l-2 border-cielo/40 pl-3">
-            {question.evidence.map((evidence) => {
-              const url = safeEvidenceUrl(evidence.sourceUrl);
+            {evidence.map((item) => {
+              const url = safeEvidenceUrl(item.sourceUrl);
               return (
-                <li key={evidence.id} className="leading-5">
-                  <p>{evidence.text}</p>
+                <li key={item.id} className="leading-5">
+                  <p>{item.text}</p>
                   {url ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-0.5 inline-flex items-center gap-1 font-semibold underline underline-offset-2"
-                    >
-                      View source
-                      <ExternalLink aria-hidden className="h-3 w-3" />
-                    </a>
+                    <SourceLink url={url} className="mt-0.5" />
                   ) : (
                     <span className="text-marino/70">
                       Recorded scan signal · no source link
@@ -119,13 +150,13 @@ export default function QuestionCard({
       )}
       <fieldset
         disabled={disabled}
-        aria-describedby={question.help ? "question-help" : undefined}
+        aria-describedby={help ? "question-help" : undefined}
         className="mt-7 disabled:opacity-70"
       >
         <legend className="sr-only">{question.text}</legend>
         {question.options && (
           <div className="space-y-2.5">
-            {isMulti && (
+            {isMulti && !/select all that apply/i.test(help ?? "") && (
               <p className="mb-3 text-xs text-marino/70">
                 Select all that apply.
               </p>
