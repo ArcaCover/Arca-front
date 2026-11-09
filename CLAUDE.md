@@ -797,9 +797,11 @@ qué la Capa 1 existe.
 ni tarifas presentadas. Las dos pantallas llevan disclaimer visible, que es lo que hoy
 cumple la §7. Antes de lanzar hay que decidir si se retiran las cifras.
 
-**Aún no conectado:** el botón "Get coverage" (falta Stripe), "Connect with a broker",
-la descarga del Full Assessment Report y todos los `TODO` de llamada a API. Las respuestas del
-cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
+**Aún no conectado:** la compra ("Get coverage", falta Stripe) y la derivación a broker
+("Connect with a broker"); los dos botones se retiraron de la pantalla con el prototipo de
+Capa 2 (octubre 2026). La descarga del informe **sí está conectada** desde noviembre de
+2026 (ver "Hechos"). El estado actual de la Capa 2 está en las dos secciones del final de
+este archivo, que sustituyen a esta.
 
 ### 9.3 Página Partners
 
@@ -1025,11 +1027,11 @@ este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview.
 
 ### Pendientes marcados en el código (TODO)
 
-Lista verificada contra los **21 `TODO`** que hay hoy en el código (última revisión:
-tras conectar la descarga del Quick Scan Report). **Al añadir un `TODO` nuevo,
-añadirlo también aquí**, o la lista vuelve a mentir sobre estar verificada. En la
-revisión de esta vez faltaban cuatro entradas: las dos descargas de PDF, el checkout de
-Stripe, la derivación a broker y la reconciliación del banco de preguntas.
+Recuento de noviembre de 2026: quedan **13 líneas `TODO`** en `app/`, `components/` y
+`lib/`. La lista se verificó por última vez contra 21, tras conectar la descarga del Quick
+Scan Report, y **no se ha vuelto a verificar entrada por entrada**: varias de abajo ya no
+tienen un `TODO` en el código (las de la Capa 2 con mock, entre otras) y siguen aquí como
+pendientes de producto. **Al añadir un `TODO` nuevo, añadirlo también aquí.**
 
 - **Conectar Supabase** — sigue sin conectar **y probablemente ya no hace falta desde el
   frontend**: el lead lo persiste la API al arrancar el scan, y §3 dice que el frontend
@@ -1081,11 +1083,11 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   backend para el PDF del Quick Scan; hasta entonces hay dos copias
   (`lib/api/adapt.ts`, `lib/signals-view.ts`) y **cualquier cambio de texto se hace en las
   dos** o el PDF y la pantalla dirán cosas distintas.
-- **Arrancar el checkout de Stripe** desde "Get coverage" en los resultados. Hoy el botón
-  no hace nada. (`app/assessment/results/page.tsx`)
-- **Enrutar la derivación a broker** desde "Connect with a broker" en los resultados —
-  es la rama REFERRAL del Flujo B de la §6.4 y todavía no existe.
-  (`app/assessment/results/page.tsx`)
+- **Arrancar el checkout de Stripe** desde los resultados. El botón "Get coverage" ya no
+  existe: salió con el prototipo de Capa 2 y vuelve cuando haya checkout.
+- **Enrutar la derivación a broker** desde los resultados — es la rama REFERRAL del
+  Flujo B de la §6.4 y todavía no existe. El botón "Connect with a broker" tampoco está
+  ya en la pantalla.
 - **Reconciliar el texto de las 10 preguntas** con el banco de preguntas del
   ARCA_DEVELOPER_HANDOFF antes de ponerlo delante de una firma real. La lógica de
   selección ya sigue el handoff; la redacción se escribió aquí y puede no coincidir.
@@ -1448,8 +1450,9 @@ Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de ar
   aparece otro. La versión del banco y del modelo se muestra una vez, en pequeño.
 - **La API todavía repite el aviso en su propio texto** (la ayuda de las preguntas de
   seguimiento y el detalle de cada paso del plan). El front imprime cada frase una vez:
-  la tarjeta de pregunta y los resultados recortan esa repetición. Si el back cambia esos
-  textos, el recorte deja de aplicar y no rompe nada, pero conviene quitarlo.
+  la tarjeta de pregunta y los resultados recortan esa repetición (solo la frase repetida;
+  el resto de la ayuda se conserva). Si el back cambia esos textos, el recorte deja de
+  aplicar y no rompe nada, pero conviene quitarlo.
 - **Los controles de PDF ya no están retirados.** `/assessment/results` lleva el botón
   "Download report (PDF)" en la tarjeta superior. El PDF lo genera la API
   (`GET /assessment/:assessmentId/report.pdf`, con el token del scan), como el Quick Scan
@@ -1459,7 +1462,11 @@ Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de ar
   de `components/assessment/result-notes.ts`; un flag que no esté ahí no se muestra. Un
   flag nuevo del back queda invisible hasta que se añada a esa lista con su frase.
 - **Web ilegible.** Si el resultado trae el flag `WEBSITE_UNAVAILABLE`, los resultados
-  muestran un único aviso junto al score: no se pudo leer la web, el resultado se queda en
-  el grupo de mayor riesgo y necesita revisión manual digan lo que digan las respuestas.
-  No nombra decisión ni precio.
+  muestran un único aviso junto al score: no se pudo leer la web y el resultado necesita
+  revisión manual digan lo que digan las respuestas. Que "se queda en el grupo de mayor
+  riesgo" solo lo dice cuando el tier que manda la API es CRITICAL, igual que el aviso de
+  `/score`: hoy la API calcula el tier de la Capa 2 solo con el score combinado, así que
+  unas respuestas fuertes pueden sacarlo de ahí, y la frase no puede contradecir la
+  insignia. Si el back llega a fijar el tier en CRITICAL para este flag, el aviso ya dice
+  lo correcto sin tocar el front. No nombra decisión ni precio.
 - Todo el copy de estas pantallas está en `docs/copy-deck.md` §11.

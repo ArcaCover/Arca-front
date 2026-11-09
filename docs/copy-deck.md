@@ -486,8 +486,8 @@ pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE
 
 | Elemento | Texto | Cuándo |
 |---|---|---|
-| Etiqueta junto al dominio | Context only · does not affect your score | Preguntas de seguimiento, que no puntúan. Si la ayuda de la API solo repite esto ("This follow-up adds context and does not change the demo score."), la ayuda no se imprime. |
-| Caja de contexto | *(frase de la API)* + enlace **View source** | El enlace sale cuando la evidencia citada tiene dirección. Esa evidencia ya no se repite en la lista de abajo. |
+| Etiqueta junto al dominio | Context only · does not affect your score | Preguntas de seguimiento, que no puntúan. La frase de la ayuda de la API que repite esto ("This follow-up adds context and does not change the demo score.") no se imprime; si la ayuda dice algo más, el resto se conserva. |
+| Caja de contexto | *(frase de la API)* + enlace **View source** | El enlace sale cuando la evidencia citada tiene dirección; si la misma frase se cita con varias direcciones, sale un enlace por cada una. Esa evidencia ya no se repite en la lista de abajo. |
 | Desplegable | Evidence from your quick scan (N) | Solo si queda evidencia distinta de la frase de contexto. N cuenta lo que se lista. |
 | Evidencia con enlace | View source | |
 | Evidencia sin enlace | Recorded scan signal · no source link | |
@@ -538,11 +538,21 @@ tarjeta superior, bajo el texto. El PDF lo genera la API con los datos guardados
 | La sesión del scan terminó | This session has ended, so the report can no longer be downloaded here. |
 
 **Aviso de web ilegible** — *bloque oro suave con icono de aviso, bajo el score. Sale solo
-cuando el resultado trae el flag `WEBSITE_UNAVAILABLE`. No nombra decisión ni precio.*
+cuando el resultado trae el flag `WEBSITE_UNAVAILABLE`. No nombra decisión ni precio. Tiene
+dos redacciones según el tier que manda la API, igual que el aviso de `/score`, para que la
+frase nunca contradiga la insignia que tiene al lado.*
+
+Si el tier es CRITICAL:
 
 > We could not read your firm’s website during the scan. Until it can be read, this outlook
 > stays in the highest-risk group and needs a manual review, whatever your answers show. This
 > is not a decision or a price.
+
+Con cualquier otro tier (hoy la API calcula el tier de la Capa 2 solo con el score
+combinado, así que unas respuestas fuertes pueden sacarlo del grupo más bajo):
+
+> We could not read your firm’s website during the scan. Until it can be read, this outlook
+> needs a manual review, whatever your answers show. This is not a decision or a price.
 
 ### `/assessment/results` — plan de acción
 
