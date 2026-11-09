@@ -113,9 +113,13 @@ function ScanningScreen() {
         }
 
         if (poll.status === "FAILED") {
-          // A failed scan carries no result, so there is nothing to show on /score.
+          // A failed scan carries no result, so there is nothing to show on /score. It is never a verdict on the
+          // firm: a site we could not read still ends PARTIAL, with a result. What fails is on our side or temporary.
           forgetSession(scanId!);
-          stop({ kind: "failed", message: "We could not read enough about your firm to score it." });
+          stop({
+            kind: "failed",
+            message: "Something went wrong on our side, or a source we rely on was temporarily unavailable.",
+          });
           return;
         }
 
@@ -207,8 +211,7 @@ function ScanningScreen() {
             We couldn&apos;t finish your scan
           </h1>
           <p role="alert" className="mt-3 text-[15px] leading-relaxed text-marino/60">
-            {phase.message} This usually means the site blocked us or a records source was
-            unavailable. You can try again, or use a different address for your firm.
+            {phase.message} Please try again shortly.
           </p>
           <button
             type="button"
