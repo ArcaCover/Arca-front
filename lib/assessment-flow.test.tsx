@@ -617,20 +617,40 @@ describe("assessment report download", () => {
 });
 
 describe("saving the results to the webapp", () => {
-  // Outside mock the back answers 501 to the webapp's routes, so the offer would lead nowhere (DN-10 §10).
-  it.each([undefined, "production", "live-debug"])("is not offered when the mode is %s", async mode => {
+  const simulation = () => screen.queryByRole("note", { name: "About this simulation" });
+
+  // In production the back answers 501 to the webapp's routes, so the offer would lead nowhere (DN-10 §10).
+  it.each([undefined, "production"])("is not offered when the mode is %s", async mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     render(<AssessmentResultsPage />);
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
     expect(screen.queryByRole("heading", { name: "Keep these results." })).toBeNull();
     expect(screen.queryByRole("button", { name: /Save your results/ })).toBeNull();
+    expect(simulation()).toBeNull();
+    expect(document.body.textContent).not.toMatch(/simulated/i);
   });
 
-  it("is offered in mock", async () => {
+  it("is offered in mock, where the strip already says nothing is real", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     render(<AssessmentResultsPage />);
     expect(await screen.findByRole("heading", { name: "Keep these results." })).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(simulation()).toBeNull();
+  });
+
+  // The scan and the assessment behind this page are real in live-debug; the account it leads to is not, and says so.
+  it("is offered in live-debug, with one line saying the account and the payment are simulated", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    render(<AssessmentResultsPage />);
+    const heading = await screen.findByRole("heading", { name: "Keep these results." });
+    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(screen.getAllByRole("note", { name: "About this simulation" })).toHaveLength(1);
+    expect(simulation()!.textContent).toBe(
+      "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.",
+    );
+    expect(heading.closest("section")!.contains(simulation())).toBe(true);
+    // The screen's one disclosure stays the shell's: this line is about the account, and repeats none of its words.
+    expect(simulation()!.textContent).not.toMatch(/demo|provisional|illustrative/i);
   });
 });
 

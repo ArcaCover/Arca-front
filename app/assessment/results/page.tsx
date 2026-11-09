@@ -380,8 +380,10 @@ function ResultsScreen() {
                 </ul>
               </details>
             )}
-            {/* The webapp is mock-only until its real adapters land: elsewhere the back answers 501 (DN-10 §10). */}
-            {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && scanId && <SaveResultsCta scanId={scanId} />}
+            {/* The webapp exists in the debug modes only, until its real adapters land: in live-debug it is simulated in the
+                back's memory, and in production the back answers 501 (DN-10 §10). Literal comparisons, as DN-09 asks. */}
+            {(process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug") &&
+              scanId && <SaveResultsCta scanId={scanId} />}
             <div className="mt-8 flex items-center justify-between gap-3 border-t border-marino/10 pt-5">
               <span className="text-[10px] leading-5 text-marino/70">
                 Completed{" "}

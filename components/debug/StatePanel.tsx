@@ -87,8 +87,8 @@ export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: P
       </dl>
       {section === "quote" && <ScenarioControls apiUrl={apiUrl} onScenarioChange={onScenarioChange} />}
       {section === "assessment" && scanId && <AssessmentControls scanId={scanId} />}
-      {/* DN-11 §6.4: on every private page, apart from SECTIONS, and in mock only. The live-debug back answers 501 to the
-          webapp, so there is nothing there to seed or sign in to. */}
+      {/* DN-11 §6.4: on every private page, apart from SECTIONS, and in mock only. The live-debug back simulates the webapp
+          but has no demo seed (it answers 404), so there are no seeded roles to sign in as. */}
       {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && pathname.startsWith("/app") && <RoleControls />}
       {/* Keyed by scan, so a new scan starts from a fresh token reading and no internal state from the last one. */}
       {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} />}

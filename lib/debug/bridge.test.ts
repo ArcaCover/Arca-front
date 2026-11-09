@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   debugPay, debugSignIn, publishDebugState, SCENARIO_STORAGE_KEY, sentDebugScenario, setShowForbidden, showForbidden,
-  subscribeShowForbidden, takeDebugScenarioHeaders,
+  simulatedWebappNotice, subscribeShowForbidden, takeDebugScenarioHeaders,
 } from "./bridge";
 import { installDebugStore } from "./store";
 
@@ -193,7 +193,7 @@ describe("debug sign-in and payment", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each([undefined, "production", "live-debug"])("does nothing, and calls nothing, when the mode is %s", async mode => {
+  it.each([undefined, "production"])("does nothing, and calls nothing, when the mode is %s", async mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
 
     await expect(debugSignIn("ana@smithlaw.com")).resolves.toBeNull();
@@ -201,6 +201,26 @@ describe("debug sign-in and payment", () => {
     await expect(debugPay("cs_1")).resolves.toBeNull();
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // DN-10 §10: the live-debug back keeps the webapp in memory, with the same simulated login and payment as mock.
+  it("signs in and pays through the same debug routes in live-debug", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    fetchMock
+      .mockResolvedValueOnce(Response.json({
+        token: "mock-jwt", user: { userId: "u_1", email: "ana@smithlaw.com" }, expiresAt: "2026-10-26T22:00:00.000Z",
+      }))
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+
+    await expect(debugSignIn("ana@smithlaw.com")).resolves.toEqual({
+      token: "mock-jwt", email: "ana@smithlaw.com", expiresAt: "2026-10-26T22:00:00.000Z",
+    });
+    await expect(debugPay("cs_1")).resolves.toBe(true);
+
+    expect(sent(0)).toMatchObject({ url: "http://api.test/__debug/auth/login", method: "POST", body: { email: "ana@smithlaw.com" } });
+    expect(sent(0).headers.get("X-Arca-Debug")).toBe("1");
+    expect(sent(1)).toMatchObject({ url: "http://api.test/__debug/billing/pay", method: "POST", body: { sessionId: "cs_1" } });
+    expect(sent(1).headers.get("X-Arca-Debug")).toBe("1");
   });
 
   it("signs in through /__debug/auth/login with the debug header, and returns what the session needs", async () => {
@@ -331,5 +351,25 @@ describe("the switch of forbidden controls", () => {
     vi.stubGlobal("sessionStorage", undefined);
     expect(showForbidden()).toBe(false);
     vi.unstubAllGlobals();
+  });
+});
+
+// DN-10 §10: live-debug reads real scans and keeps the webapp in memory, so its sign-up, sign-in and payment screens say
+// so. Mock's strip already says nothing is real, and production has no simulation to speak of.
+describe("the simulated webapp's notice", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("in live-debug, says the account and the payment are simulated, held in memory and reset with the API", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+
+    expect(simulatedWebappNotice()).toBe(
+      "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.",
+    );
+  });
+
+  it.each([undefined, "production", "mock"])("is null when the mode is %s", mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
+
+    expect(simulatedWebappNotice()).toBeNull();
   });
 });

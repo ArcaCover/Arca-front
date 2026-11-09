@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { can, type OrgView } from "@arca/contracts";
 
 import { activeOrg } from "@/components/app/AppContext";
+import SimulationNotice from "@/components/app/SimulationNotice";
 import { ApiError } from "@/lib/api/client";
 import { recallSession } from "@/lib/api/session";
 import { attachAnalysis, createClaim, getMe } from "@/lib/app/client";
@@ -98,6 +99,7 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
           : "Save your results"}
         <ArrowRight aria-hidden className="h-4 w-4" />
       </button>
+      <SimulationNotice />
       {error && (
         <p role="alert" className="mt-3 text-sm text-rojo">
           {error}

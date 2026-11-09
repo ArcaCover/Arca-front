@@ -20,10 +20,11 @@ describe("ModeBanner", () => {
     expect(style).not.toContain("#");
   });
 
-  it("shows LIVE DEBUG on solid rojo with white text", () => {
+  // Only the scans and the assessments are real in live-debug: the strip must not call the simulated webapp real.
+  it("shows LIVE DEBUG on solid rojo with white text, and says which part is real and which is simulated", () => {
     render(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} />);
 
-    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database");
+    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database for scans · simulated accounts & billing");
     expect(banner().className).toContain("bg-rojo");
     expect(banner().className).toContain("text-white");
     expect(banner().getAttribute("style")).toBeNull();
@@ -63,7 +64,7 @@ describe("ModeBanner", () => {
     expect(banner().textContent).toBe("Checking the back's mode · front=live-debug · next scan injects: Bar apify_quota, Avvo apify_quota");
 
     rerender(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} armed={[]} />);
-    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database");
+    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database for scans · simulated accounts & billing");
   });
 
   it("carries the sentinel the production leak check looks for", () => {

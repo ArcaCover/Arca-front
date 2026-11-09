@@ -4,7 +4,8 @@ import type { DebugMode, ModeCheck } from "@/lib/debug/mode-check";
 
 const LABELS: Record<DebugMode, string> = {
   mock: "MOCK · no real APIs · in-memory data",
-  "live-debug": "LIVE DEBUG · real APIs & real database",
+  // Only the scans and the assessments are real there: the webapp runs in the back's memory (DN-10 §10).
+  "live-debug": "LIVE DEBUG · real APIs & real database for scans · simulated accounts & billing",
 };
 
 // Each state differs in shape as well as colour (DN-09 §6.2): stripes for mock, solid rojo for live-debug, inverted

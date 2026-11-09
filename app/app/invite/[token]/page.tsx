@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { SIGN_IN_NOT_AVAILABLE, useBrowser } from "@/components/app/AppContext";
+import SimulationNotice from "@/components/app/SimulationNotice";
 import { ApiError } from "@/lib/api/client";
 import { signIn, signOut } from "@/lib/app/auth";
 import { acceptInvitation } from "@/lib/app/client";
@@ -45,6 +46,7 @@ export default function InvitePage() {
     <section className="max-w-md">
       <h1 className="font-heading text-2xl">Join an organization</h1>
       <p className="mt-3 text-sm text-marino/70">Sign in with the email the invitation was sent to.</p>
+      <SimulationNotice />
       <form onSubmit={accept} className="mt-6 space-y-4">
         {session ? (
           <p className="text-sm">

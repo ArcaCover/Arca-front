@@ -6,6 +6,7 @@ import { CreditCard, Download } from "lucide-react";
 import type { PlanView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
+import SimulationNotice from "@/components/app/SimulationNotice";
 import { Badge, Card, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
 import { seesSampleInvoices, useAccess } from "@/lib/app/access";
 import { checkout, getPlans, portal } from "@/lib/app/client";
@@ -57,8 +58,8 @@ export default function BillingPage() {
     setError(null);
     try {
       const { url } = await page();
-      // The provider's checkout or portal is another page (in mock, /app/billing/mock-checkout or this page again),
-      // reached by a full navigation.
+      // The provider's checkout or portal is another page (in the debug modes, /app/billing/mock-checkout or this page
+      // again), reached by a full navigation.
       window.location.assign(url);
     } catch (cause) {
       setError(fail(cause));
@@ -74,6 +75,7 @@ export default function BillingPage() {
   return (
     <>
       <PageHeader eyebrow="Organization" title="Billing" description={description} />
+      <SimulationNotice className="mb-6" />
       {!canPay && <ReadOnlyNotice>Only the owner can manage billing.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">

@@ -35,7 +35,8 @@ describe('findDebugLeaks', () => {
   it.each([
     ['the sentinel', 'data-arca-debug="arca-debug-sentinel-7f3c"'],
     ['a debug route', 'fetch(`${base}/__debug/mode`)'],
-    ['the live-debug label', 'LIVE DEBUG · real APIs & real database'],
+    ['the live-debug label', 'LIVE DEBUG · real APIs & real database for scans'],
+    ['what the live-debug label says of the webapp', 'real database for scans · simulated accounts & billing'],
     ['the mismatch label', 'MODE MISMATCH · front=mock'],
   ])('reports a source map that carries %s, which only debug-only modules hold', (_name, source) => {
     const map = join(dir, 'server', 'chunks', 'ssr', 'page.js.map');
@@ -53,10 +54,19 @@ describe('findDebugLeaks', () => {
       JSON.stringify({ sourcesContent: [
         'window.__arcaDebug?.publish(s, d); return { "X-Arca-Debug-Scenario": s };',
         'return sessionStorage.getItem("arca.debug.showForbidden") === "1";',
+        'return "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.";',
       ] }),
     );
 
     expect(findDebugLeaks(dir)).toEqual([]);
+  });
+
+  // DN-10 §10: the line the live-debug screens show sits past the bridge's guard, so it must fold away like the rest.
+  it('reports a shipped chunk that still carries the live-debug simulation notice', () => {
+    const chunk = join(dir, 'static', 'chunks', 'app.js');
+    writeFileSync(chunk, 'function n(){return"Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts."}');
+
+    expect(findDebugLeaks(dir)).toEqual([chunk]);
   });
 
   // DN-11 §6.4: the switch's storage key is the bridge's, so it flags only code that ships; the panel's role tools and the

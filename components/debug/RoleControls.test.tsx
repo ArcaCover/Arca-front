@@ -111,7 +111,8 @@ describe("the debug panel's webapp block", () => {
     expect(screen.queryByRole("switch")).toBeNull();
   });
 
-  // The live-debug back answers 501 to the webapp; a production build never loads the panel at all.
+  // The live-debug back simulates the webapp but has no demo seed (it answers 404), so the seed, the sign-ins as a role
+  // and the switch stay mock's alone; a production build never loads the panel at all.
   it.each([["live-debug"], [undefined]])("is not rendered when the mode is %s", mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     panel();
