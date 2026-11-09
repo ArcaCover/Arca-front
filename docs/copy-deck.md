@@ -354,7 +354,8 @@ señales, cuestionario y resultados) sigue sin transcribir.*
 |---|---|
 | El scan termina `FAILED` | Something went wrong on our side, or a source we rely on was temporarily unavailable. |
 | Pasan 11 minutos sin resultado | The scan is taking longer than expected. |
-| Se pierde el contacto con la API | El mensaje de la API, o "We lost contact with the scan service." |
+| Se pierde el contacto con la API (sin red, o la API no responde) | We lost contact with the scan service. Check your connection. |
+| La API responde con un error hasta agotar la espera | El mensaje de la API |
 
 **Botón**
 - Try another scan → `/quote`
