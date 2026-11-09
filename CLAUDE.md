@@ -1076,9 +1076,6 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
 - **`SignalCard` pinta las señales negativas en rojo**, y la §5 reserva el rojo para
   errores y alertas. `/assessment/results` usa oro oscuro para lo mismo citando esa
   regla. Es incoherencia previa a esta sesión; decidir cuál de las dos manda.
-- **Generar el Full Assessment Report** de `/assessment/results`. El botón existe y no
-  descarga nada; depende de la Capa 2, que no existe en el backend.
-  (`app/assessment/results/page.tsx`)
 - **Pasar `/score` a las vistas de `@arca/contracts`** cuando se publique la versión de
   los contratos que las trae. `adaptScore` y `signalsToCards` se copiaron tal cual al
   backend para el PDF del Quick Scan; hasta entonces hay dos copias
@@ -1118,6 +1115,11 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   usa para rastrear webs; decidido así por el fundador (septiembre 2026) frente a imprimir
   desde el navegador o una librería de PDF en el front. Una página A4 con score, tier, las
   4 categorías, las señales y las fuentes. El texto sale del mismo código que `/score`.
+- ~~Descargar el informe desde `/assessment/results`~~ — el botón "Download report (PDF)"
+  de la tarjeta superior descarga el PDF que genera la API
+  (`GET /assessment/:assessmentId/report.pdf`, con el token del scan, como las demás rutas
+  del assessment). Mismo camino que el Quick Scan Report; funciona mientras dura la sesión
+  de 24 horas del scan (noviembre 2026).
 - ~~Alinear el aviso de email de `/quote` con el backend~~ — decía "We'll get better
   results with your firm's email", pero la API **no puntúa el email** (solo identifica el
   lead), así que prometía algo que no pasa (§7). Ahora dice que un email personal sirve.
@@ -1428,7 +1430,36 @@ This section applies only to this isolated implementation checkout and supersede
 - Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.4.0`, which also carries the debug, webapp and role-view contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
 - `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
 - `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
-- Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial/PDF controls were removed.
+- Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial controls were removed.
 - Answers save on Continue or Save change. Resume is limited to the current tab and the 24-hour scan session. No tab-close, magic-link or cross-tab recovery is implemented or promised.
 - The frontend keeps only UI state; eligibility, hidden-answer invalidation, answer validation, scoring and audit behavior belong to the API.
 - Full local setup, scope and verification commands: `docs/implementation/layer2-isolated-demo.md`.
+
+### Actualización — noviembre 2026 (hallazgos del primer scan real)
+
+Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de arriba.
+
+- **Un solo aviso de demo por pantalla.** Vive en el shell (`DemoNotice` en
+  `components/assessment/AssessmentShell.tsx`) y es lo que cumple la §7: el banco de
+  preguntas y el scoring son provisionales, los resultados son ilustrativos y nada es una
+  oferta de seguro, un precio ni una decisión de suscripción. Antes la misma idea salía de
+  3 a 24 veces por pantalla. **Al añadir texto a la Capa 2, no repetir "demo",
+  "provisional" ni "illustrative"**: un test cuenta el aviso en cada pantalla y falla si
+  aparece otro. La versión del banco y del modelo se muestra una vez, en pequeño.
+- **La API todavía repite el aviso en su propio texto** (la ayuda de las preguntas de
+  seguimiento y el detalle de cada paso del plan). El front imprime cada frase una vez:
+  la tarjeta de pregunta y los resultados recortan esa repetición. Si el back cambia esos
+  textos, el recorte deja de aplicar y no rompe nada, pero conviene quitarlo.
+- **Los controles de PDF ya no están retirados.** `/assessment/results` lleva el botón
+  "Download report (PDF)" en la tarjeta superior. El PDF lo genera la API
+  (`GET /assessment/:assessmentId/report.pdf`, con el token del scan), como el Quick Scan
+  Report de `/score`, y solo se puede descargar durante la sesión de 24 horas. Los
+  controles comerciales (comprar, cotizar, broker) siguen fuera.
+- **"Notes for review" ya no imprime flags internos.** Solo redacta los flags de la lista
+  de `components/assessment/result-notes.ts`; un flag que no esté ahí no se muestra. Un
+  flag nuevo del back queda invisible hasta que se añada a esa lista con su frase.
+- **Web ilegible.** Si el resultado trae el flag `WEBSITE_UNAVAILABLE`, los resultados
+  muestran un único aviso junto al score: no se pudo leer la web, el resultado se queda en
+  el grupo de mayor riesgo y necesita revisión manual digan lo que digan las respuestas.
+  No nombra decisión ni precio.
+- Todo el copy de estas pantallas está en `docs/copy-deck.md` §11.

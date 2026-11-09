@@ -3,8 +3,8 @@
 Transcripción literal de la landing tal como está hoy en el código. Nada reescrito, nada corregido.
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
-- **Última actualización:** 9 noviembre 2026 (se añade la sección 10: el fallo de `/quote/scanning`, y el aviso de evidencia y el botón del PDF de `/score`)
-- **Secciones:** 11 — las 10 de la landing, en orden de lectura, y una del embudo de cotización
+- **Última actualización:** 9 noviembre 2026 (se añaden la sección 10: el fallo de `/quote/scanning`, y el aviso de evidencia y el botón del PDF de `/score`; y la sección 11: el aviso único de demo, la tarjeta de pregunta, las notas y el botón del PDF de la Capa 2)
+- **Secciones:** 12 — las 10 de la landing, en orden de lectura, una del embudo de cotización y una de la Capa 2
 - **Estado:** pre-lanzamiento
 
 > Si cambias un texto en el código, **actualízalo también aquí**. Este archivo está
@@ -337,8 +337,8 @@ Feed en bucle 🔴 *(eventos inventados)*:
 
 *Fuera de la landing. Aquí solo están los textos que se reescribieron en noviembre de 2026
 tras el primer scan real del fundador: el fallo del scan, el aviso de evidencia y la descarga
-del informe. El resto del embudo (formulario de `/quote`, mensajes de espera, tarjetas de
-señales, cuestionario y resultados) sigue sin transcribir.*
+del informe. El cuestionario y sus resultados están en la sección 11. El resto del embudo
+(formulario de `/quote`, mensajes de espera, tarjetas de señales) sigue sin transcribir.*
 
 ### `/quote/scanning` — cuando el scan falla
 
@@ -443,6 +443,154 @@ bloque del score. El dorado queda para "Refine your score".*
 
 ---
 
+## 11 · Capa 2 — `/assessment` y `/assessment/results`
+
+*Fuera de la landing. Textos de las pantallas del cuestionario y de sus resultados tal como
+quedaron en noviembre de 2026, tras el primer scan real del fundador. Las preguntas, sus
+opciones, las ayudas y el texto de cada paso del plan los manda la API (banco de preguntas
+provisional) y no se transcriben aquí.*
+
+### Aviso de demo — uno solo por pantalla
+
+*Bloque dorado suave con icono de escudo, arriba de la columna principal, en **todas** las
+pantallas de Capa 2 (carga, pregunta, repaso, error, resultados). Es el único sitio donde la
+pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE.md §7).*
+
+> **Demo assessment.** The questions and the scoring are provisional, so your results are
+> illustrative. This is not an insurance offer, a price or an underwriting decision.
+
+> **Qué cambió.** La misma idea salía 3-4 veces en cada pregunta, 6 en el repaso y entre 14 y
+> 24 en los resultados. Se retiraron las repeticiones:
+>
+> | Antes | Ahora |
+> |---|---|
+> | Etiqueta "DEMO WORKSPACE" junto al logo | *(retirada)* |
+> | Demo question bank 0.1.0-demo.1 · 8 scored questions · Follow-ups add context | Question bank 0.1.0-demo.1 |
+> | Review your answers before we calculate your demo score. | Review your answers before we calculate your score. |
+> | …I understand this uses provisional demo rules and is not an insurance application or coverage decision. | …I understand this is not an insurance application or a coverage decision. |
+> | See my demo score | See my score |
+> | Your demo outlook | Your outlook |
+> | This combined score uses the demo scoring model. It is a starting point… | This score combines the public evidence with your answers. It is a starting point… |
+> | Commercial decisions are blocked for this demo. This score does not establish eligibility for insurance. | *(retirada: lo dice el aviso)* |
+> | Point gains reflect the provisional demo model, not a promised outcome. | Each point gain is an estimate on its own, not a promised outcome. |
+> | Illustrative next step: X. This estimate is independent of other steps and is not a pricing or coverage promise. *(en cada paso)* | Next step: X. |
+> | Up to +N demo points | Up to +N points |
+> | No additional improvements were identified by this demo model. | No additional improvements were identified from your answers. |
+>
+> Las versiones del banco y del modelo llevan la palabra "demo" dentro de su identificador
+> (`0.1.0-demo.1`). Esa línea se conserva una vez por pantalla, en pequeño.
+
+### `/assessment` — tarjeta de pregunta
+
+*Cada frase sale una sola vez, aunque la API la mande repetida.*
+
+| Elemento | Texto | Cuándo |
+|---|---|---|
+| Etiqueta junto al dominio | Context only · does not affect your score | Preguntas de seguimiento, que no puntúan. Si la ayuda de la API solo repite esto ("This follow-up adds context and does not change the demo score."), la ayuda no se imprime. |
+| Caja de contexto | *(frase de la API)* + enlace **View source** | El enlace sale cuando la evidencia citada tiene dirección. Esa evidencia ya no se repite en la lista de abajo. |
+| Desplegable | Evidence from your quick scan (N) | Solo si queda evidencia distinta de la frase de contexto. N cuenta lo que se lista. |
+| Evidencia con enlace | View source | |
+| Evidencia sin enlace | Recorded scan signal · no source link | |
+| Selección múltiple | Select all that apply. | Solo si la ayuda de la API no lo dice ya. |
+| Sugerencia | A suggestion to review · Public evidence may be incomplete. Confirm this yourself, or choose a different answer below. · Use this answer | *(sin cambios)* |
+| Bajo la tarjeta | Question bank *[versión]* | Una vez, en pequeño. |
+
+### `/assessment` — repaso final
+
+**Titular**
+
+> One last look.
+
+**Texto**
+
+> Review your answers before we calculate your score. You can still change anything.
+
+**Casilla de confirmación**
+
+> I confirm these answers are accurate to the best of my knowledge. I understand this is not
+> an insurance application or a coverage decision.
+
+**Botón**
+- See my score *(mientras calcula: Calculating…)*
+
+### `/assessment/results` — tarjeta superior
+
+**Etiqueta**
+
+> Your outlook
+
+**Titular y texto**
+
+| Caso | Titular | Texto |
+|---|---|---|
+| Hay score combinado | Your practices, in perspective. | This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices. |
+| No hay score combinado | More evidence is needed. | The quick scan did not support a combined score. Your questionnaire score is still available below. |
+
+**Descarga del informe** — *botón secundario (contorno marino, icono de descarga) dentro de la
+tarjeta superior, bajo el texto. El PDF lo genera la API con los datos guardados.*
+
+| Estado | Texto |
+|---|---|
+| Normal | Download report (PDF) |
+| Generando | Preparing your report… |
+| Bajo el botón, siempre | The download works during this 24-hour session. |
+| Error (junto al botón) | We could not prepare your report. Please try again. |
+| La sesión del scan terminó | This session has ended, so the report can no longer be downloaded here. |
+
+**Aviso de web ilegible** — *bloque oro suave con icono de aviso, bajo el score. Sale solo
+cuando el resultado trae el flag `WEBSITE_UNAVAILABLE`. No nombra decisión ni precio.*
+
+> We could not read your firm’s website during the scan. Until it can be read, this outlook
+> stays in the highest-risk group and needs a manual review, whatever your answers show. This
+> is not a decision or a price.
+
+### `/assessment/results` — plan de acción
+
+**Titular**
+
+> A path forward.
+
+**Texto** — *la única advertencia del plan; antes se repetía en cada paso*
+
+> Suggested improvements based on your answers. Each point gain is an estimate on its own, not
+> a promised outcome.
+
+**Cada paso:** el título (la pregunta), **Next step:** *[opción siguiente, de la API]* y la
+etiqueta **Up to +N points**.
+
+**Sin pasos**
+
+> No additional improvements were identified from your answers. This is not an assurance that
+> all risks are addressed.
+
+### `/assessment/results` — Notes for review
+
+*Desplegable "Notes for review (N)". Antes imprimía todos los flags internos del resultado en
+minúsculas ("provider cost unknown", "demo bank not approved"…). Ahora solo redacta los flags de
+esta lista, en este orden; cualquier otro flag, conocido o nuevo, no imprime nada, y si no
+aplica ninguno el bloque no aparece.*
+
+| Flag | Frase |
+|---|---|
+| `NO_AI_POLICY` | Your answers say the firm has no AI policy yet. |
+| `CONSUMER_AI_IN_CLIENT_WORK` | Free or personal AI accounts are used for client work. |
+| `NO_HUMAN_REVIEW` | AI-assisted work reaches clients without a lawyer’s review. |
+| `NO_CITATION_REVIEW` | AI-generated citations are not checked consistently. |
+| `NO_DATA_SAFEGUARDS` | No consistent safeguards protect client information in AI tools. |
+| `ANSWER_CONTRADICTS_WEBSITE` | One answer does not match what the scan read on the firm’s website. |
+| `INCOMPLETE_SCORED_COVERAGE` | Some areas were scored on fewer answers than planned. |
+| `INCOMPLETE_SOURCES`, `INCOMPLETE_EVIDENCE` o `INSUFFICIENT_EVIDENCE` *(una sola frase)* | The quick scan could not gather all the public evidence, so that part of the score rests on less than usual. |
+
+*La última frase no sale cuando está el aviso de web ilegible, que ya lo dice.*
+
+**Pie**
+
+> Completed *[fecha]*
+>
+> Bank *[versión]* · Model *[versión]*
+
+---
+
 ## ⌦ Apéndice — texto retirado de la landing
 
 Sigue en el código, ya no se ve en la página. Se guarda aquí porque el destino previsto es
@@ -532,7 +680,7 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
   la cinta vieja y las sustituyen 8 escenarios de riesgo, que describen el problema, no la
   póliza. El detalle vive ahora en `/coverage`, a donde lleva el menú "Coverages" del
   navbar. Ese copy no está transcrito aquí: fuera de la landing, este documento solo
-  recoge los avisos del embudo de la sección 10.
+  recoge los avisos del embudo (sección 10) y las pantallas de la Capa 2 (sección 11).
 - **La aclaración de Lloyd's salió de la landing** junto con "How we operate" (ver apéndice).
 
 ### Resuelto en revisiones anteriores
