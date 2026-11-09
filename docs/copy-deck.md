@@ -599,6 +599,17 @@ aplica ninguno el bloque no aparece.*
 >
 > Bank *[versión]* · Model *[versión]*
 
+### `/assessment/results` — guardar los resultados (solo en los modos de depuración)
+
+*Bloque "Keep these results." entre las notas y el pie. **No sale en producción**: solo en
+`mock` y en `live-debug`, porque la webapp privada todavía no tiene adaptadores reales. En
+`live-debug` (scan real, cuenta simulada) lleva debajo del botón una línea más, la misma que
+muestran `/app/login`, `/app/signup`, la invitación, `/app/billing` y el checkout simulado:*
+
+> Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.
+
+*En `mock` esa línea no sale: la franja ya dice que nada es real.*
+
 ---
 
 ## ⌦ Apéndice — texto retirado de la landing

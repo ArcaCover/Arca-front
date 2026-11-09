@@ -1470,3 +1470,36 @@ Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de ar
   insignia. Si el back llega a fijar el tier en CRITICAL para este flag, el aviso ya dice
   lo correcto sin tocar el front. No nombra decisión ni precio.
 - Todo el copy de estas pantallas está en `docs/copy-deck.md` §11.
+
+### Actualización — noviembre 2026 (registro en live-debug)
+
+Decisión del fundador tras su primer scan real: al terminar la Capa 2 en `live-debug` no
+había botón para registrarse, porque la webapp privada (cuentas, organizaciones, cobro:
+DN-10 y DN-11 en Arca-back) solo existía en `mock`. Revierte para ese modo lo que decía
+DN-10 §10.
+
+- **En `live-debug` la webapp funciona, simulada.** `/assessment/results` muestra "Keep
+  these results" y funcionan `/app/signup`, `/app/login`, `/app/billing` y el checkout
+  simulado, igual que en `mock`. Los scans y los assessments son reales (APIs reales y la
+  base compartida con producción); **las cuentas, las organizaciones y el cobro viven en la
+  memoria de la API** y se pierden cuando se reinicia. Guardar un scan no escribe nada en
+  Supabase.
+- **Se dice en pantalla (§7).** Donde alguien se registra, entra o paga en `live-debug`
+  sale una sola línea: la cuenta y el pago son simulados, están en memoria durante esta
+  sesión de depuración y se reinician con la API. El texto vive en `lib/debug/bridge.ts` y
+  lo pinta `components/app/SimulationNotice.tsx`. La franja de `live-debug` ya no dice que
+  todo es real: "real APIs & real database for scans · simulated accounts & billing".
+- **Sigue solo en `mock`:** la organización de demo sembrada, los botones "Sign in as
+  <rol>" y el interruptor "Show forbidden actions" del panel de depuración, y la casilla de
+  platform admin del login. El back responde 404 a la siembra en `live-debug`.
+- **Producción no cambia.** No hay botón de registro, el login dice que todavía no está
+  disponible, el checkout simulado es un 404 y la API responde 501 a la webapp. El botón de
+  registro real llega con Supabase Auth y Stripe (pendiente; §3 sigue diciendo "no
+  conectado").
+- **Regla para tocar estas puertas:** cada una compara `process.env.NEXT_PUBLIC_ARCA_MODE`
+  con un literal (`=== "mock" || === "live-debug"`) en el sitio, sin pasar por una
+  constante ni una función compartida. Así el build de producción elimina el código, y
+  `scripts/check-no-debug.mjs` lo comprueba. Un texto nuevo que solo deba existir en los
+  modos de depuración se añade también a los marcadores de `scripts/debug-leaks.mjs`.
+- Detalle y tabla por modo: `docs/implementation/webapp.md` y
+  `docs/implementation/arca-modes.md`.
