@@ -3,8 +3,8 @@
 Transcripción literal de la landing tal como está hoy en el código. Nada reescrito, nada corregido.
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
-- **Última actualización:** 28 agosto 2026 ("Start a conversation" ya abre Calendly)
-- **Secciones:** 10, en orden de lectura
+- **Última actualización:** 9 noviembre 2026 (se añade la sección 10: el fallo de `/quote/scanning`, y el aviso de evidencia y el botón del PDF de `/score`)
+- **Secciones:** 11 — las 10 de la landing, en orden de lectura, y una del embudo de cotización
 - **Estado:** pre-lanzamiento
 
 > Si cambias un texto en el código, **actualízalo también aquí**. Este archivo está
@@ -333,6 +333,115 @@ Feed en bucle 🔴 *(eventos inventados)*:
 
 ---
 
+## 10 · Embudo de cotización — `/quote/scanning` y `/score`
+
+*Fuera de la landing. Aquí solo están los textos que se reescribieron en noviembre de 2026
+tras el primer scan real del fundador: el fallo del scan, el aviso de evidencia y la descarga
+del informe. El resto del embudo (formulario de `/quote`, mensajes de espera, tarjetas de
+señales, cuestionario y resultados) sigue sin transcribir.*
+
+### `/quote/scanning` — cuando el scan falla
+
+**Titular**
+
+> We couldn't finish your scan
+
+**Texto** — el motivo y, siempre, la misma frase final:
+
+> *[motivo]* Please try again shortly.
+
+| Cuándo | Motivo |
+|---|---|
+| El scan termina `FAILED` | Something went wrong on our side, or a source we rely on was temporarily unavailable. |
+| Pasan 11 minutos sin resultado | The scan is taking longer than expected. |
+| Se pierde el contacto con la API | El mensaje de la API, o "We lost contact with the scan service." |
+
+**Botón**
+- Try another scan → `/quote`
+
+> **Qué cambió.** Antes decía "We could not read enough about your firm to score it. This
+> usually means the site blocked us…". Ya no es verdad: una web que no se deja leer por una
+> causa definitiva (el `robots.txt` lo prohíbe, o responde 401/403 o una página de
+> verificación) ya **no** hace fallar el scan. Termina con resultado y pasa a `/score` (ver
+> abajo). `FAILED` queda para fallos nuestros o temporales, y por eso el texto pide
+> reintentar y no sugiere usar otra dirección.
+
+### `/score` — aviso de evidencia
+
+*Un solo bloque, siempre visible, encima del nombre de la firma. Dice cuál de los tres casos
+aplica. Nunca imprime flags ni códigos internos, y nunca nombra una decisión ni un precio.*
+
+**Caso 1 — respondieron las tres fuentes** *(fondo bruma, icono de información)*
+
+> All three public sources answered: your website, the Florida Bar register and Avvo.
+
+Si aun así la evidencia no alcanza para suscribir, se añade:
+
+> What they show is not enough for a coverage decision on its own.
+
+*(Esta segunda frase antes no salía cuando todas las fuentes habían respondido: el aviso
+entero solo aparecía si faltaba alguna fuente.)*
+
+**Caso 2 — faltó alguna fuente** *(fondo oro suave, icono de aviso)*
+
+Una frase por tipo de hueco, en este orden, y después el cierre:
+
+| Qué pasó | Frase |
+|---|---|
+| La web se leyó solo en parte | We could only read part of your website. |
+| Un directorio no respondió (error o tiempo agotado) | The Florida Bar register did not answer. · Avvo did not answer. · The Florida Bar register and Avvo did not answer. |
+| Un directorio respondió a medias | The Florida Bar register answered only in part. · Avvo answered only in part. |
+| Un directorio no se llegó a consultar (no había datos suficientes de la firma para buscarla) | We could not look your firm up in the Florida Bar register. · …on Avvo. · …in the Florida Bar register or on Avvo. |
+
+**Cierre**
+
+> This score rests on less evidence than usual.
+
+Y, si la evidencia no alcanza para suscribir:
+
+> It is not enough for a coverage decision on its own.
+
+Si el scan quedó parcial pero ninguna fuente lo explica, la frase es una sola:
+
+> Part of the public evidence could not be read, so this score rests on less evidence than usual.
+
+**Caso 3 — no se pudo leer la web de la firma** *(fondo oro suave, icono de aviso)*
+
+*Sale cuando el resultado trae el flag `WEBSITE_UNAVAILABLE` o cuando la fuente web no se pudo
+usar. En este caso la tarjeta "Refine your score" sube y queda justo debajo del score: el
+cuestionario es la acción principal.*
+
+> We could not read your firm's website, so everything we could not verify counts as unknown.
+> That places your firm in the highest-risk group until you complete the assessment below.
+> This is not a coverage decision.
+
+La frase del medio solo sale si el tier que manda la API es `CRITICAL`. Con cualquier otro
+tier dice:
+
+> Complete the assessment below so your own answers count.
+
+### `/score` — descarga del informe
+
+*Botón secundario (contorno marino, icono de descarga) debajo del nombre de la firma, en el
+bloque del score. El dorado queda para "Refine your score".*
+
+| Estado | Texto |
+|---|---|
+| Normal | Download report (PDF) |
+| Generando | Preparing your report… |
+| Error (junto al botón) | We could not prepare your report. Please try again. |
+
+*Antes era el enlace gris "Download Quick Scan Report", al final de la página.*
+
+### `/score` — otros textos retocados
+
+- **Confianza:** Confidence: high · Confidence: medium · Confidence: low *(antes el valor
+  salía en mayúsculas, tal cual llega de la API)*
+- **Barras de categoría:** "partial evidence" cuando la categoría se puntuó a medias y
+  "no evidence" cuando no se pudo puntuar *(antes las dos decían "partial evidence")*
+
+---
+
 ## ⌦ Apéndice — texto retirado de la landing
 
 Sigue en el código, ya no se ve en la página. Se guarda aquí porque el destino previsto es
@@ -421,7 +530,8 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 - **La landing sigue sin decir qué cubre**, y es deliberado: las 8 coberturas salieron con
   la cinta vieja y las sustituyen 8 escenarios de riesgo, que describen el problema, no la
   póliza. El detalle vive ahora en `/coverage`, a donde lleva el menú "Coverages" del
-  navbar. Ese copy no está transcrito aquí: este documento es solo de la landing.
+  navbar. Ese copy no está transcrito aquí: fuera de la landing, este documento solo
+  recoge los avisos del embudo de la sección 10.
 - **La aclaración de Lloyd's salió de la landing** junto con "How we operate" (ver apéndice).
 
 ### Resuelto en revisiones anteriores
