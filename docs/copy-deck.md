@@ -412,14 +412,24 @@ Si el scan quedó parcial pero ninguna fuente lo explica, la frase es una sola:
 usar. En este caso la tarjeta "Refine your score" sube y queda justo debajo del score: el
 cuestionario es la acción principal.*
 
-> We could not read your firm's website, so everything we could not verify counts as unknown.
-> That places your firm in the highest-risk group until you complete the assessment below.
-> This is not a coverage decision.
+> We could not read your firm's website during the scan. What we could not verify counts as
+> unknown, which places your firm in the highest-risk group for now. Your answers in the
+> assessment below also count, and because the website could not be read, the case will need a
+> manual review. This is not a coverage decision.
 
-La frase del medio solo sale si el tier que manda la API es `CRITICAL`. Con cualquier otro
-tier dice:
+"Which places your firm in the highest-risk group for now" solo sale si el tier que manda la
+API es `CRITICAL` (en la práctica siempre lo es con este flag). Con cualquier otro tier la
+segunda frase se queda en:
 
-> Complete the assessment below so your own answers count.
+> What we could not verify counts as unknown.
+
+> **Qué cambió (hallazgo 23 de la segunda revisión).** Antes decía que la firma quedaba en el
+> grupo de mayor riesgo "until you complete the assessment below". Era una promesa de
+> resultado: tras el cuestionario el tier sale del score combinado (Capa 1 × 0,3 + Capa 2 × 0,7;
+> con la web ilegible la Capa 1 es 0), así que unas respuestas flojas lo dejan en CRITICAL y
+> unas buenas lo sacan. Ahora dice "for now", que las respuestas también cuentan y que lo único
+> que se mantiene digan lo que digan es la revisión manual. El PDF del Quick Scan dice lo mismo
+> en tercera persona y con la misma condición de tier (DN-12 §8 en Arca-back).
 
 ### `/score` — descarga del informe
 
@@ -465,7 +475,7 @@ pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE
 > | Antes | Ahora |
 > |---|---|
 > | Etiqueta "DEMO WORKSPACE" junto al logo | *(retirada)* |
-> | Demo question bank 0.1.0-demo.1 · 8 scored questions · Follow-ups add context | Question bank 0.1.0-demo.1 |
+> | Demo question bank 0.1.0-demo.1 · 8 scored questions · Follow-ups add context | *(retirada; un tiempo quedó "Question bank 0.1.0-demo.1")* |
 > | Review your answers before we calculate your demo score. | Review your answers before we calculate your score. |
 > | …I understand this uses provisional demo rules and is not an insurance application or coverage decision. | …I understand this is not an insurance application or a coverage decision. |
 > | See my demo score | See my score |
@@ -478,7 +488,11 @@ pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE
 > | No additional improvements were identified by this demo model. | No additional improvements were identified from your answers. |
 >
 > Las versiones del banco y del modelo llevan la palabra "demo" dentro de su identificador
-> (`0.1.0-demo.1`). Esa línea se conserva una vez por pantalla, en pequeño.
+> (`0.1.0-demo.1`, `layer2-demo-fixed-coverage-0.1.0`). Desde la segunda revisión (hallazgo 13)
+> las preguntas y el repaso **ya no muestran la versión del banco**, y los resultados la dejan
+> en una sola línea pequeña del pie con el número y sin la palabra: "Question bank 0.1.0 ·
+> Scoring model 0.1.0". Los identificadores completos siguen en el PDF y en el panel State de
+> depuración.
 
 ### `/assessment` — tarjeta de pregunta
 
@@ -493,7 +507,8 @@ pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE
 | Evidencia sin enlace | Recorded scan signal · no source link | |
 | Selección múltiple | Select all that apply. | Solo si la ayuda de la API no lo dice ya. |
 | Sugerencia | A suggestion to review · Public evidence may be incomplete. Confirm this yourself, or choose a different answer below. · Use this answer | *(sin cambios)* |
-| Bajo la tarjeta | Question bank *[versión]* | Una vez, en pequeño. |
+
+*Bajo la tarjeta ya no hay nada: la línea "Question bank [versión]" se retiró.*
 
 ### `/assessment` — repaso final
 
@@ -527,7 +542,10 @@ pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE
 | No hay score combinado | More evidence is needed. | The quick scan did not support a combined score. Your questionnaire score is still available below. |
 
 **Descarga del informe** — *botón secundario (contorno marino, icono de descarga) dentro de la
-tarjeta superior, bajo el texto. El PDF lo genera la API con los datos guardados.*
+tarjeta superior. Desde sm, a la derecha del score y bajo el texto; en un móvil, justo debajo
+de la insignia del tier y antes del texto, para que quepa en la primera pantalla como en
+`/score` (en 390×844 queda a 672-714 px; antes a ~910). En móvil los resultados ocultan además
+la descripción de la columna lateral. El PDF lo genera la API con los datos guardados.*
 
 | Estado | Texto |
 |---|---|
@@ -538,21 +556,28 @@ tarjeta superior, bajo el texto. El PDF lo genera la API con los datos guardados
 | La sesión del scan terminó | This session has ended, so the report can no longer be downloaded here. |
 
 **Aviso de web ilegible** — *bloque oro suave con icono de aviso, bajo el score. Sale solo
-cuando el resultado trae el flag `WEBSITE_UNAVAILABLE`. No nombra decisión ni precio. Tiene
-dos redacciones según el tier que manda la API, igual que el aviso de `/score`, para que la
-frase nunca contradiga la insignia que tiene al lado.*
+cuando el resultado trae el flag `WEBSITE_UNAVAILABLE`. Tiene dos redacciones según el tier
+que manda la API, igual que el aviso de `/score`, para que la frase nunca contradiga la
+insignia que tiene al lado. El grupo de riesgo sigue al score combinado; lo único que se
+mantiene digan lo que digan las respuestas es la revisión manual. El PDF de la Capa 2 imprime
+las mismas frases (DN-12 §8 en Arca-back).*
 
 Si el tier es CRITICAL:
 
-> We could not read your firm’s website during the scan. Until it can be read, this outlook
-> stays in the highest-risk group and needs a manual review, whatever your answers show. This
-> is not a decision or a price.
+> We could not read your firm's website during the scan. This outlook is in the highest-risk
+> group, and because the website could not be read, it needs a manual review whatever your
+> answers show. This is not a coverage decision or a price.
 
-Con cualquier otro tier (hoy la API calcula el tier de la Capa 2 solo con el score
-combinado, así que unas respuestas fuertes pueden sacarlo del grupo más bajo):
+Con cualquier otro tier (la API calcula el tier de la Capa 2 solo con el score combinado, así
+que unas respuestas fuertes pueden sacarlo del grupo más bajo):
 
-> We could not read your firm’s website during the scan. Until it can be read, this outlook
-> needs a manual review, whatever your answers show. This is not a decision or a price.
+> We could not read your firm's website during the scan. Until it can be read, this outlook
+> needs a manual review, whatever your answers show. This is not a coverage decision or a price.
+
+> **Qué cambió (hallazgo 23).** La versión CRITICAL decía que el resultado "stays in the
+> highest-risk group … whatever your answers show". Era falso: con mejores respuestas el tier
+> habría subido. Y las dos terminaban "This is not a decision or a price" justo después de
+> hablar de una revisión; ahora dicen "coverage decision", como `/score`.
 
 ### `/assessment/results` — plan de acción
 
@@ -589,15 +614,25 @@ aplica ninguno el bloque no aparece.*
 | `NO_DATA_SAFEGUARDS` | No consistent safeguards protect client information in AI tools. |
 | `ANSWER_CONTRADICTS_WEBSITE` | One answer does not match what the scan read on the firm’s website. |
 | `INCOMPLETE_SCORED_COVERAGE` | Some areas were scored on fewer answers than planned. |
-| `INCOMPLETE_SOURCES`, `INCOMPLETE_EVIDENCE` o `INSUFFICIENT_EVIDENCE` *(una sola frase)* | The quick scan could not gather all the public evidence, so that part of the score rests on less than usual. |
+| `INCOMPLETE_SOURCES` | The quick scan could not gather all the public evidence, so that part of the score rests on less than usual. |
+| `INCOMPLETE_EVIDENCE` o `INSUFFICIENT_EVIDENCE`, sin `INCOMPLETE_SOURCES` | The public evidence about the firm was limited, so that part of the score rests on less than usual. |
 
-*La última frase no sale cuando está el aviso de web ilegible, que ya lo dice.*
+*De las dos últimas sale como mucho una: si falta una fuente, la primera; si todas
+respondieron pero la evidencia fue escasa (el perfil `minimal`), la segunda, que cuadra con lo
+que dice `/score` en ese caso ("All three public sources answered… not enough for a coverage
+decision on its own"). Antes las tres flags compartían la primera frase, que daba a entender un
+fallo de recogida que no había ocurrido (hallazgo 12). Ninguna de las dos sale cuando está el
+aviso de web ilegible, que ya lo dice.*
 
-**Pie**
+**Pie** — *dos líneas pequeñas*
 
 > Completed *[fecha]*
 >
-> Bank *[versión]* · Model *[versión]*
+> Question bank *[versión]* · Scoring model *[versión]*
+
+*La fecha va en la zona horaria del visitante, no en UTC: una firma de Florida que termina por
+la noche ya no lee la fecha de mañana. Las versiones son solo el número (`0.1.0`), sin la
+palabra "demo", que ya dice el aviso.*
 
 ### `/assessment/results` — guardar los resultados (solo en los modos de depuración)
 

@@ -791,19 +791,27 @@ para operar el sistema, no para el visitante.
 **Una web que no se deja leer ya no hace fallar el scan.** Si la causa es definitiva (el
 `robots.txt` lo prohíbe, o la web responde 401/403 o una página de verificación), la API
 termina el scan como `PARTIAL` con resultado y el flag `WEBSITE_UNAVAILABLE`. `/score` lo
-explica — lo no verificado cuenta como desconocido y la firma queda en el grupo de mayor
-riesgo hasta completar el cuestionario — y sube la tarjeta "Refine your score" justo debajo
-del score, porque ahí el cuestionario es la acción principal. La frase del "grupo de mayor
-riesgo" solo sale si el tier que manda la API es `CRITICAL`, para no contradecir al badge.
+explica — lo no verificado cuenta como desconocido y deja a la firma en el grupo de mayor
+riesgo "por ahora"; las respuestas del cuestionario también cuentan, y el caso necesitará
+revisión manual — y sube la tarjeta "Refine your score" justo debajo del score, porque ahí el
+cuestionario es la acción principal. La frase del "grupo de mayor riesgo" solo sale si el tier
+que manda la API es `CRITICAL`, para no contradecir al badge. **No se promete ningún
+resultado:** tras el cuestionario el tier sale del score combinado (con la web ilegible, Capa 2
+× 0,7), así que unas respuestas flojas lo dejan en CRITICAL y unas buenas lo sacan. Lo único que
+se mantiene digan lo que digan las respuestas es la revisión manual (el override
+`REFERRAL_SENIOR`). Nunca escribir "hasta completar el cuestionario" ni que el grupo se mantiene
+"whatever your answers show" (hallazgo 23 de la segunda revisión; DN-12 §3.3 y §8 en Arca-back).
 Consecuencia: **un scan `FAILED` es ahora un fallo nuestro o temporal**, y `/quote/scanning`
 pide reintentar en un rato en vez de decir que la web nos bloqueó.
 
 **El informe en PDF es un botón secundario arriba**, "Download report (PDF)", debajo del
 nombre de la firma y con su error al lado. Era un enlace gris al final de la página, por
-debajo del CTA dorado, a unos 1.900px del borde superior. Medido sobre un render estático de
-la página (fuentes del sistema, sin la franja de debug): el botón termina a 400-425px en
-1440×900 y a 355-415px en un móvil de 390×844; **falta mirarlo en la app real**. El dorado
-sigue reservado a "Refine your score". `saveFile` (`lib/api/download.ts`) hace el paso de
+debajo del CTA dorado, a unos 1.900px del borde superior. Medido en la app real, en Chromium
+contra el stack mock (API en 8081): a 1280×900 el botón ocupa y 361-403 (DN-12 §10, recorrido
+de integración del 9 de noviembre de 2026); a 390×844, en la segunda revisión, y 313-355 para
+`robust`, 353-395 para `minimal` y 376-418 para `blocked`, siempre dentro de la primera
+pantalla. Capturas en el scratchpad de esa sesión, no en el repo. El dorado sigue reservado a
+"Refine your score". `saveFile` (`lib/api/download.ts`) hace el paso de
 blob a archivo para las dos pantallas con informe, y `downloadAssessmentReport` ya llama a
 `GET /assessment/:assessmentId/report.pdf` con el token del scan.
 
@@ -1484,28 +1492,45 @@ Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de ar
   oferta de seguro, un precio ni una decisión de suscripción. Antes la misma idea salía de
   3 a 24 veces por pantalla. **Al añadir texto a la Capa 2, no repetir "demo",
   "provisional" ni "illustrative"**: un test cuenta el aviso en cada pantalla y falla si
-  aparece otro. La versión del banco y del modelo se muestra una vez, en pequeño.
-- **La API todavía repite el aviso en su propio texto** (la ayuda de las preguntas de
-  seguimiento y el detalle de cada paso del plan). El front imprime cada frase una vez:
-  la tarjeta de pregunta y los resultados recortan esa repetición (solo la frase repetida;
-  el resto de la ayuda se conserva). Si el back cambia esos textos, el recorte deja de
-  aplicar y no rompe nada, pero conviene quitarlo.
+  aparece otro. **Las preguntas y el repaso no muestran la versión del banco**; los
+  resultados la dan en una sola línea pequeña del pie, solo con el número y sin la palabra
+  "demo" ("Question bank 0.1.0 · Scoring model 0.1.0", `components/assessment/result-meta.ts`).
+  Los identificadores completos siguen en el PDF y en el panel State. El fundador pidió menos
+  mensajes en pantalla: no añadir líneas de versión ni de "demo" fuera del aviso.
+- **La API ya solo repite el aviso en la ayuda de las preguntas de seguimiento.** La
+  tarjeta de pregunta recorta esa frase repetida (solo esa; el resto de la ayuda se conserva).
+  El detalle de cada paso del plan ya llega como "Next step: X." desde el back (commit
+  `dd8e9fe` de Arca-back, DN-12 §6.3); `nextStep()` en los resultados sigue para los planes
+  guardados antes de ese cambio y no hace nada con los nuevos.
 - **Los controles de PDF ya no están retirados.** `/assessment/results` lleva el botón
-  "Download report (PDF)" en la tarjeta superior. El PDF lo genera la API
+  "Download report (PDF)" en la tarjeta superior: desde sm junto al texto, a la derecha del
+  score; en un móvil justo debajo de la insignia del tier y antes del texto, y la columna
+  lateral oculta su descripción, para que el botón quepa en la primera pantalla como en
+  `/score`. Medido en Chromium contra el stack mock: a 390×844 el botón ocupa y 672-714
+  (antes ~910, fuera de pantalla) y a 1280×900 y 463-505; `npm run test:browser:assessment`
+  falla si en 390×844 se sale de la primera pantalla. El PDF lo genera la API
   (`GET /assessment/:assessmentId/report.pdf`, con el token del scan), como el Quick Scan
   Report de `/score`, y solo se puede descargar durante la sesión de 24 horas. Los
   controles comerciales (comprar, cotizar, broker) siguen fuera.
 - **"Notes for review" ya no imprime flags internos.** Solo redacta los flags de la lista
   de `components/assessment/result-notes.ts`; un flag que no esté ahí no se muestra. Un
-  flag nuevo del back queda invisible hasta que se añada a esa lista con su frase.
+  flag nuevo del back queda invisible hasta que se añada a esa lista con su frase. Una
+  fuente que no respondió (`INCOMPLETE_SOURCES`) y una evidencia escasa con todas las fuentes
+  respondiendo (`INCOMPLETE_EVIDENCE`/`INSUFFICIENT_EVIDENCE`, el perfil `minimal`) tienen
+  frases distintas y solo sale una, para cuadrar con `/score`.
 - **Web ilegible.** Si el resultado trae el flag `WEBSITE_UNAVAILABLE`, los resultados
   muestran un único aviso junto al score: no se pudo leer la web y el resultado necesita
-  revisión manual digan lo que digan las respuestas. Que "se queda en el grupo de mayor
-  riesgo" solo lo dice cuando el tier que manda la API es CRITICAL, igual que el aviso de
-  `/score`: hoy la API calcula el tier de la Capa 2 solo con el score combinado, así que
-  unas respuestas fuertes pueden sacarlo de ahí, y la frase no puede contradecir la
-  insignia. Si el back llega a fijar el tier en CRITICAL para este flag, el aviso ya dice
-  lo correcto sin tocar el front. No nombra decisión ni precio.
+  revisión manual digan lo que digan las respuestas. Que el resultado "está en el grupo de
+  mayor riesgo" solo lo dice cuando el tier que manda la API es CRITICAL, igual que el aviso
+  de `/score`, y nunca que el grupo se mantenga digan lo que digan las respuestas: la API
+  calcula el tier de la Capa 2 solo con el score combinado, así que unas respuestas fuertes
+  pueden sacarlo de ahí. Las dos redacciones terminan "This is not a coverage decision or a
+  price." y el PDF de la Capa 2 imprime las mismas frases (hallazgo 23; DN-12 §8 en
+  Arca-back). Si el back llega a fijar el tier en CRITICAL para este flag, hay que revisar
+  el aviso.
+- **La fecha del pie va en la zona horaria del visitante** ("Completed Nov 9, 2026" para
+  quien termina a las 21:30 en Florida), no en UTC. El resultado se carga en el cliente
+  después de montar la página, así que no hay desajuste de hidratación.
 - Todo el copy de estas pantallas está en `docs/copy-deck.md` §11.
 
 ### Actualización — noviembre 2026 (registro en live-debug)
@@ -1525,7 +1550,17 @@ DN-10 §10.
   sale una sola línea: la cuenta y el pago son simulados, están en memoria durante esta
   sesión de depuración y se reinician con la API. El texto vive en `lib/debug/bridge.ts` y
   lo pinta `components/app/SimulationNotice.tsx`. La franja de `live-debug` ya no dice que
-  todo es real: "real APIs & real database for scans · simulated accounts & billing".
+  todo es real: "LIVE DEBUG · real scans · simulated accounts & billing".
+- **Por qué la franja cambió pese a D8** (D8 pedía dejarla como estaba; D7, que lo simulado
+  se dijera con claridad). Decir "real APIs & real database" a secas habría llamado reales a
+  la cuenta y al cobro simulados, así que manda D7. La primera versión larga ("real APIs &
+  real database for scans · simulated accounts & billing", 80 caracteres) partía en dos o tres
+  líneas en un móvil y tapaba la cabecera de `/app`, que reserva exactamente 1.5rem (`pt-6`)
+  para una línea. La actual cabe en una: medida en Chromium a 390×844 sobre `/app/login` (stack
+  mock, con el texto de `live-debug` puesto en la franja), la franja mide 24px y termina justo donde empieza la cabecera; por debajo de sm el texto baja a
+  11px y el padding a `px-2` (la etiqueta ocupa ~278px de los ~316 que deja el botón State).
+  Un test de `ModeBanner` impide alargarla. El detalle (memoria de la API, se reinicia) queda
+  en la línea de `SimulationNotice`.
 - **Sigue solo en `mock`:** la organización de demo sembrada, los botones "Sign in as
   <rol>" y el interruptor "Show forbidden actions" del panel de depuración, y la casilla de
   platform admin del login. El back responde 404 a la siembra en `live-debug`.
