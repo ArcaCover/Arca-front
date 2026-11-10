@@ -16,7 +16,7 @@ Because the scan behind the screen is real there and the account is not, live-de
 
 > Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.
 
-It shows under the "Keep these results" button on `/assessment/results`, on `/app/login`, `/app/signup`, `/app/invite/[token]`, `/app/billing` and the simulated checkout. Mock does not show it (its strip already says nothing is real) and production has nothing to say it about. The text lives in `lib/debug/bridge.ts` behind the literal mode guard and is rendered by `components/app/SimulationNotice.tsx`; it is one of the strings `scripts/debug-leaks.mjs` looks for in a production build.
+It shows under the "Keep these results" button on `/assessment/results`, on `/app/login`, `/app/signup`, `/app/invite/[token]`, `/app/billing` and the simulated checkout. Mock does not show it (its strip already says nothing is real) and production has nothing to say it about. The text lives in `lib/debug/bridge.ts` behind the literal mode guard and is rendered by `components/app/SimulationNotice.tsx`, which carries the same guard for its own label ("About this simulation"); both are among the strings `scripts/debug-leaks.mjs` looks for in a production build.
 
 | Route | What it is |
 |---|---|
