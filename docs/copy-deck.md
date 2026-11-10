@@ -426,7 +426,8 @@ segunda frase se queda en:
 > **Qué cambió (hallazgo 23 de la segunda revisión).** Antes decía que la firma quedaba en el
 > grupo de mayor riesgo "until you complete the assessment below". Era una promesa de
 > resultado: tras el cuestionario el tier sale del score combinado (Capa 1 × 0,3 + Capa 2 × 0,7;
-> con la web ilegible la Capa 1 es 0), así que unas respuestas flojas lo dejan en CRITICAL y
+> con la web ilegible la Capa 1 es en la práctica 0, porque sin la web no se identifica a la firma
+> y los directorios no se consultan), así que unas respuestas flojas lo dejan en CRITICAL y
 > unas buenas lo sacan. Ahora dice "for now", que las respuestas también cuentan y que lo único
 > que se mantiene digan lo que digan es la revisión manual. El PDF del Quick Scan dice lo mismo
 > en tercera persona y con la misma condición de tier (DN-12 §8 en Arca-back).
