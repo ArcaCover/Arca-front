@@ -17,11 +17,14 @@ import { publishDebugState } from "@/lib/debug/bridge";
 function evidenceNotice({ evidence, decisionWithheld, tier }: ScoreView): string {
   if (evidence.kind === "website_unavailable") {
     return [
-      "We could not read your firm's website, so everything we could not verify counts as unknown.",
-      // Said only when the API's own tier agrees, so the notice cannot contradict the badge beside it.
+      "We could not read your firm's website during the scan.",
+      // The group is named only when the API's own tier agrees, so the notice cannot contradict the badge beside it.
+      // It is "for now": the tier after the assessment follows the combined score, so no outcome is promised either
+      // way. Only the manual review holds whatever the answers are. The Quick Scan PDF says the same (DN-12 §8).
       tier === "CRITICAL"
-        ? "That places your firm in the highest-risk group until you complete the assessment below."
-        : "Complete the assessment below so your own answers count.",
+        ? "What we could not verify counts as unknown, which places your firm in the highest-risk group for now."
+        : "What we could not verify counts as unknown.",
+      "Your answers in the assessment below also count, and because the website could not be read, the case will need a manual review.",
       "This is not a coverage decision.",
     ].join(" ");
   }

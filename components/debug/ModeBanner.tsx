@@ -4,8 +4,9 @@ import type { DebugMode, ModeCheck } from "@/lib/debug/mode-check";
 
 const LABELS: Record<DebugMode, string> = {
   mock: "MOCK · no real APIs · in-memory data",
-  // Only the scans and the assessments are real there: the webapp runs in the back's memory (DN-10 §10).
-  "live-debug": "LIVE DEBUG · real APIs & real database for scans · simulated accounts & billing",
+  // Only the scans and the assessments are real there: the webapp runs in the back's memory (DN-10 §10). Short enough
+  // for one line beside the State button on a 390 px phone; SimulationNotice says the rest where it matters.
+  "live-debug": "LIVE DEBUG · real scans · simulated accounts & billing",
 };
 
 // Each state differs in shape as well as colour (DN-09 §6.2): stripes for mock, solid rojo for live-debug, inverted
@@ -46,7 +47,9 @@ export default function ModeBanner({
     <div
       data-arca-debug="arca-debug-sentinel-7f3c"
       role="status"
-      className={`flex items-center justify-center gap-2 px-4 py-1 text-center font-body text-xs font-semibold ${tone}`}
+      // One 16px line plus py-1 is the 1.5rem /app reserves for the strip (app/app/layout.tsx). On a 390px phone the
+      // State button leaves about 316px, so the text and padding shrink below sm to keep the live-debug label on it.
+      className={`flex items-center justify-center gap-2 px-2 py-1 text-center font-body text-[11px] leading-4 font-semibold sm:px-4 sm:text-xs ${tone}`}
       style={striped ? MOCK_STRIPES : undefined}
     >
       {mismatch && <AlertTriangle className="size-4 shrink-0" />}

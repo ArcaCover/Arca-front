@@ -24,10 +24,20 @@ describe("ModeBanner", () => {
   it("shows LIVE DEBUG on solid rojo with white text, and says which part is real and which is simulated", () => {
     render(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} />);
 
-    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database for scans · simulated accounts & billing");
+    expect(banner().textContent).toBe("LIVE DEBUG · real scans · simulated accounts & billing");
     expect(banner().className).toContain("bg-rojo");
     expect(banner().className).toContain("text-white");
     expect(banner().getAttribute("style")).toBeNull();
+  });
+
+  // Measured in Chromium at 390x844: this label is 278px wide at the phone size and fits one line beside the State
+  // button, so the strip stays inside the 1.5rem /app reserves for it. A longer label wraps and covers the /app header.
+  it("keeps the live-debug label short enough for one line on a phone", () => {
+    render(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} />);
+
+    expect(banner().textContent!.length).toBeLessThanOrEqual(54);
+    expect(banner().className).toContain("text-[11px]");
+    expect(banner().className).toContain("leading-4");
   });
 
   it("shows the mismatch label on marino with oro text and an alert icon", () => {
@@ -64,7 +74,7 @@ describe("ModeBanner", () => {
     expect(banner().textContent).toBe("Checking the back's mode · front=live-debug · next scan injects: Bar apify_quota, Avvo apify_quota");
 
     rerender(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} armed={[]} />);
-    expect(banner().textContent).toBe("LIVE DEBUG · real APIs & real database for scans · simulated accounts & billing");
+    expect(banner().textContent).toBe("LIVE DEBUG · real scans · simulated accounts & billing");
   });
 
   it("carries the sentinel the production leak check looks for", () => {

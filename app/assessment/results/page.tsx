@@ -15,6 +15,7 @@ import {
 import type { AssessmentResult } from "@arca/contracts";
 import SaveResultsCta from "@/components/app/SaveResultsCta";
 import AssessmentShell from "@/components/assessment/AssessmentShell";
+import { completedOn, versionLine } from "@/components/assessment/result-meta";
 import {
   WEBSITE_UNAVAILABLE,
   resultNotes,
@@ -216,8 +217,12 @@ function ResultsScreen() {
                 <FileCheck2 aria-hidden className="h-4 w-4" />
                 Your outlook
               </div>
-              <div className="mt-7 flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
-                <div className="w-full max-w-[230px] shrink-0">
+              {/* On a phone the report button sits right under the badge, inside the first screen as on /score, and the
+                  explanation follows it; from sm up the gauge spans both rows beside the explanation and the button. */}
+              <div className="mt-7 grid justify-items-center gap-5 sm:grid-cols-[230px_minmax(0,1fr)] sm:items-center sm:justify-items-start sm:gap-x-8">
+                <div
+                  className="w-full max-w-[230px] sm:row-span-2"
+                >
                   <ScoreGauge
                     score={result.compositeScore}
                     tier={result.tier}
@@ -226,7 +231,9 @@ function ResultsScreen() {
                     <TierBadge tier={result.tier} />
                   </div>
                 </div>
-                <div className="text-center sm:text-left">
+                <div
+                  className="order-last text-center sm:order-none sm:self-end sm:text-left"
+                >
                   <h2 className="font-heading text-xl font-medium tracking-tight text-marino">
                     {result.compositeScore === null
                       ? "More evidence is needed."
@@ -237,8 +244,11 @@ function ResultsScreen() {
                       ? "The quick scan did not support a combined score. Your questionnaire score is still available below."
                       : "This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices."}
                   </p>
-                  {/* Secondary on purpose: gold stays for the primary action of a screen. */}
-                  <div className="mt-5 flex flex-col items-center sm:items-start">
+                </div>
+                {/* Secondary on purpose: gold stays for the primary action of a screen. */}
+                <div
+                  className="flex flex-col items-center sm:items-start sm:self-start"
+                >
                     <button
                       type="button"
                       onClick={() => void saveReport()}
@@ -265,7 +275,6 @@ function ResultsScreen() {
                         {downloadError}
                       </p>
                     )}
-                  </div>
                 </div>
               </div>
               {result.flags.includes(WEBSITE_UNAVAILABLE) && (
@@ -386,15 +395,9 @@ function ResultsScreen() {
               scanId && <SaveResultsCta scanId={scanId} />}
             <div className="mt-8 flex items-center justify-between gap-3 border-t border-marino/10 pt-5">
               <span className="text-[10px] leading-5 text-marino/70">
-                Completed{" "}
-                {new Date(result.completedAt).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                  timeZone: "UTC",
-                })}
+                Completed {completedOn(result.completedAt)}
                 <br />
-                Bank {result.bankVersion} · Model {result.scoringVersion}
+                {versionLine(result.bankVersion, result.scoringVersion)}
               </span>
               <Link
                 href="/quote"

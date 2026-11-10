@@ -43,13 +43,15 @@ const attestation = () => screen.getByRole<HTMLInputElement>("checkbox", { name:
 // The versions as the back sends them today: both ids carry the word "demo".
 const BANK = "0.1.0-demo.1";
 const MODEL = "layer2-demo-fixed-coverage-0.1.0";
+// The one small line the results print for them: the numbers only, since the notice already says "demo".
+const VERSION_LINE = "Question bank 0.1.0 · Scoring model 0.1.0";
 // The back's own copy, which repeats the disclosure on every follow-up and on every action.
 const FOLLOW_UP_HELP = "This follow-up adds context and does not change the demo score.";
 const actionDetail = (step: string) =>
   `Illustrative next step: ${step}. This estimate is independent of other steps and is not a pricing or coverage promise.`;
 
-/** One disclosure per screen: the shell's notice. `versionLine` is the only other text allowed to carry the word, inside
-    a version id, and it has to appear exactly once. */
+/** One disclosure per screen: the shell's notice. `versionLine`, the results' small version line, has to appear exactly
+    once; nothing else may carry the word, the version line included. */
 function expectOneDisclosure(versionLine: string | null) {
   const notices = screen.getAllByRole("note", { name: "About this assessment" });
   expect(notices).toHaveLength(1);
@@ -57,11 +59,8 @@ function expectOneDisclosure(versionLine: string | null) {
   expect(notices[0].textContent).toMatch(/not an insurance offer, a price or an underwriting decision/);
   const page = document.body.cloneNode(true) as HTMLElement;
   page.querySelector('[aria-label="About this assessment"]')!.remove();
-  let rest = page.textContent ?? "";
-  if (versionLine) {
-    expect(rest.split(versionLine)).toHaveLength(2);
-    rest = rest.replace(versionLine, "");
-  }
+  const rest = page.textContent ?? "";
+  if (versionLine) expect(rest.split(versionLine)).toHaveLength(2);
   expect(rest).not.toMatch(/demo|provisional|illustrative/i);
 }
 
@@ -353,25 +352,28 @@ describe("one disclosure per assessment screen", () => {
     expectOneDisclosure(null);
   });
 
-  it("shows it once on a scored question, with the bank version once", async () => {
+  it("shows it once on a scored question, with no bank version", async () => {
     vi.mocked(getAssessment).mockResolvedValue(assessment({ bankVersion: BANK, questions: [fixtureQuestion({ help: "Use the typical answer for your team." })] }));
     render(<AssessmentPage />);
     await screen.findByRole("heading", { name: "Is there a written AI policy?" });
-    expectOneDisclosure(`Question bank ${BANK}`);
+    expectOneDisclosure(null);
+    expect(document.body.textContent).not.toContain("Question bank");
   });
 
   it("shows it once on a follow-up, although the bank's help repeats it", async () => {
     vi.mocked(getAssessment).mockResolvedValue(assessment({ bankVersion: BANK, questions: [fixtureQuestion({ scored: false, help: FOLLOW_UP_HELP })] }));
     render(<AssessmentPage />);
     await screen.findByRole("heading", { name: "Is there a written AI policy?" });
-    expectOneDisclosure(`Question bank ${BANK}`);
+    expectOneDisclosure(null);
+    expect(document.body.textContent).not.toContain("Question bank");
   });
 
   it("shows it once on the review step, where the acknowledgement stays", async () => {
     vi.mocked(getAssessment).mockResolvedValue(assessment({ bankVersion: BANK, answers: { "governance.policy": yes }, progress: { answered: 1, total: 1 } }));
     render(<AssessmentPage />);
     await screen.findByRole("heading", { name: "One last look." });
-    expectOneDisclosure(`Question bank ${BANK}`);
+    expectOneDisclosure(null);
+    expect(document.body.textContent).not.toContain("Question bank");
     expect(attestation().parentElement?.textContent).toMatch(/not an insurance application or a coverage decision/);
   });
 
@@ -393,7 +395,7 @@ describe("one disclosure per assessment screen", () => {
     }));
     render(<AssessmentResultsPage />);
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
-    expectOneDisclosure(`Bank ${BANK} · Model ${MODEL}`);
+    expectOneDisclosure(VERSION_LINE);
     // The step survives without its repeated caveat, and the gain keeps its number.
     expect(screen.getByText("Next step: Written and shared with everyone.")).toBeTruthy();
     expect(screen.getByText("Up to +2.5 points")).toBeTruthy();
@@ -404,7 +406,7 @@ describe("one disclosure per assessment screen", () => {
     vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, actionPlan: [] }));
     render(<AssessmentResultsPage />);
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
-    expectOneDisclosure(`Bank ${BANK} · Model ${MODEL}`);
+    expectOneDisclosure(VERSION_LINE);
     expect(screen.getByText(/not an assurance that all risks are addressed/)).toBeTruthy();
   });
 
@@ -412,7 +414,20 @@ describe("one disclosure per assessment screen", () => {
     vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, tier, flags: ["WEBSITE_UNAVAILABLE"] }));
     render(<AssessmentResultsPage />);
     await screen.findByRole("note", { name: "About this outlook" });
-    expectOneDisclosure(`Bank ${BANK} · Model ${MODEL}`);
+    expectOneDisclosure(VERSION_LINE);
+  });
+
+  it("dates the result in the visitor's time zone and prints the versions on one line", async () => {
+    vi.stubEnv("TZ", "America/New_York");
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      bankVersion: BANK, scoringVersion: MODEL, completedAt: "2026-11-10T02:30:00.000Z",
+    }));
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    const footer = screen.getByText(/^Completed /);
+    // Still Nov 9 in Florida, although it is already Nov 10 in UTC.
+    expect(footer.textContent).toBe(`Completed Nov 9, 2026${VERSION_LINE}`);
+    expect(footer.querySelectorAll("br")).toHaveLength(1);
   });
 
   it("shows it once when the result cannot be loaded", async () => {
@@ -527,7 +542,7 @@ describe("notes on the results", () => {
     const gauge = await screen.findByRole("img", { name: "AI Governance Score: 21 out of 100" });
     const notice = screen.getByRole("note", { name: "About this outlook" });
     expect(notice.textContent).toBe(
-      "We could not read your firm’s website during the scan. Until it can be read, this outlook stays in the highest-risk group and needs a manual review, whatever your answers show. This is not a decision or a price.",
+      "We could not read your firm's website during the scan. This outlook is in the highest-risk group, and because the website could not be read, it needs a manual review whatever your answers show. This is not a coverage decision or a price.",
     );
     expect(gauge.closest("section")!.contains(notice)).toBe(true);
     // The notice already says the public evidence is missing, so the notes do not say it again.
@@ -545,9 +560,24 @@ describe("notes on the results", () => {
     render(<AssessmentResultsPage />);
     const notice = await screen.findByRole("note", { name: "About this outlook" });
     expect(notice.textContent).toBe(
-      "We could not read your firm’s website during the scan. Until it can be read, this outlook needs a manual review, whatever your answers show. This is not a decision or a price.",
+      "We could not read your firm's website during the scan. Until it can be read, this outlook needs a manual review, whatever your answers show. This is not a coverage decision or a price.",
     );
     expect(document.body.textContent).not.toMatch(/highest-risk|WEBSITE_UNAVAILABLE|referral/i);
+  });
+
+  // The minimal profile: every source answered, the evidence was thin. /score says all three answered, so the note
+  // must not say the scan failed to gather it.
+  it("says the public evidence was limited when every source answered", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INCOMPLETE_EVIDENCE", "INSUFFICIENT_EVIDENCE"],
+    }));
+    render(<AssessmentResultsPage />);
+    await ready();
+    const notes = screen.getByText("Notes for review (1)").closest("details")!;
+    expect(notes.querySelector("li")!.textContent).toBe(
+      "The public evidence about the firm was limited, so that part of the score rests on less than usual.",
+    );
+    expect(document.body.textContent).not.toMatch(/could not gather/);
   });
 
   it("shows no website notice when the scan read the website", async () => {
@@ -565,6 +595,9 @@ describe("assessment report download", () => {
     render(<AssessmentResultsPage />);
     const card = (await ready()).closest("section")!;
     expect(card.contains(download())).toBe(true);
+    // It sits with the score, not inside the explanation, so a phone can show it right under the badge.
+    const explanation = screen.getByRole("heading", { name: "Your practices, in perspective." }).parentElement!;
+    expect(explanation.contains(download())).toBe(false);
     // Gold stays for the primary action.
     expect(download().className).not.toContain("bg-oro");
     expect(card.textContent).toContain("The download works during this 24-hour session.");

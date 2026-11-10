@@ -304,6 +304,22 @@ if (
   await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
 )
   throw Error("Mobile overflow");
+// The report button belongs in the first screen on a phone, right under the score and its badge, as on /score.
+{
+  const button = await page
+    .getByRole("button", { name: "Download report (PDF)" })
+    .boundingBox();
+  const gauge = await page
+    .getByRole("img", { name: /^AI Governance Score: / })
+    .boundingBox();
+  const explanation = await page
+    .getByRole("heading", { name: "Your practices, in perspective." })
+    .boundingBox();
+  if (!button || button.y + button.height > 844)
+    throw Error(`Mobile report button below the first screen: ${JSON.stringify(button)}`);
+  if (!gauge || !explanation || button.y < gauge.y + gauge.height || button.y > explanation.y)
+    throw Error("Mobile report button is not between the score and its explanation");
+}
 await page.screenshot({
   path: path.join(artifactDir, "results-mobile.png"),
   fullPage: true,

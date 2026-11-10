@@ -37,8 +37,6 @@ export type ScoreView = {
   confidence: string;
   categories: CategoryView[];
   signals: SignalView[];
-  /** The scan finished without every source answering, so the score rests on less evidence. */
-  incomplete: boolean;
   evidence: EvidenceView;
   /** Layer 1 could not underwrite on this evidence, so no commercial decision is shown
       (CLAUDE.md §7: an insurer does not imply a decision it has not made). */
@@ -86,6 +84,7 @@ function adaptEvidence(result: Layer1Result, incomplete: boolean): EvidenceView 
 
 export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"): ScoreView {
   const { preScore, identity, signals, multipliers, sources } = result;
+  // The scan finished without every source answering, so the score rests on less evidence: it picks evidence.kind.
   const incomplete = status === "PARTIAL"
     || Object.values(sources).some(source => source.status !== "ok")
     || preScore.flags.includes("INCOMPLETE_SOURCES");
@@ -108,7 +107,6 @@ export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"
       return { key, label, score: category.score, max: category.max, status: category.status };
     }),
     signals: signalsToCards(result),
-    incomplete,
     evidence: adaptEvidence(result, incomplete),
     decisionWithheld: preScore.assessmentStatus === "INSUFFICIENT_EVIDENCE" || preScore.decision === "UNKNOWN",
   };

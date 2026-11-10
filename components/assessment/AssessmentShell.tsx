@@ -112,7 +112,10 @@ export default function AssessmentShell({
             <h1 className="mt-3 max-w-[390px] font-heading text-[32px] font-medium leading-[1.12] tracking-[-0.045em] text-marino sm:text-[40px] lg:text-[46px]">
               {title}
             </h1>
-            <p className="mt-4 max-w-[350px] text-sm leading-7 text-marino/70 sm:text-[15px]">
+            {/* On a phone the results drop this line, so the score and its report button fit the first screen. */}
+            <p
+              className={`mt-4 max-w-[350px] text-sm leading-7 text-marino/70 sm:text-[15px]${results ? " hidden sm:block" : ""}`}
+            >
               {description}
             </p>
             {domains.length > 0 && (

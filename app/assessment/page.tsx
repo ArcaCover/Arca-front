@@ -576,9 +576,6 @@ function AssessmentScreen({
               </div>
             )}
           </div>
-          <p className="mt-4 text-center text-[10px] text-marino/70">
-            Question bank {view.bankVersion}
-          </p>
         </>
       )}
     </AssessmentShell>

@@ -35,8 +35,8 @@ describe('findDebugLeaks', () => {
   it.each([
     ['the sentinel', 'data-arca-debug="arca-debug-sentinel-7f3c"'],
     ['a debug route', 'fetch(`${base}/__debug/mode`)'],
-    ['the live-debug label', 'LIVE DEBUG · real APIs & real database for scans'],
-    ['what the live-debug label says of the webapp', 'real database for scans · simulated accounts & billing'],
+    ['the live-debug label', 'LIVE DEBUG · real scans · simulated accounts & billing'],
+    ['what the live-debug label says of the webapp', 'real scans · simulated accounts & billing'],
     ['the mismatch label', 'MODE MISMATCH · front=mock'],
   ])('reports a source map that carries %s, which only debug-only modules hold', (_name, source) => {
     const map = join(dir, 'server', 'chunks', 'ssr', 'page.js.map');

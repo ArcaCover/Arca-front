@@ -230,10 +230,12 @@ describe("/score evidence notice", () => {
     const notice = await showScore(unreadableWebsite(), "PARTIAL");
 
     expect(notice.textContent).toBe(
-      "We could not read your firm's website, so everything we could not verify counts as unknown. "
-      + "That places your firm in the highest-risk group until you complete the assessment below. "
-      + "This is not a coverage decision.",
+      "We could not read your firm's website during the scan. What we could not verify counts as unknown, which places "
+      + "your firm in the highest-risk group for now. Your answers in the assessment below also count, and because the "
+      + "website could not be read, the case will need a manual review. This is not a coverage decision.",
     );
+    // The tier after the assessment follows the combined score: nothing promises the assessment moves the firm out.
+    expect(notice.textContent).not.toMatch(/until you complete|whatever your answers/);
     expect(screen.getAllByRole("note")).toHaveLength(1);
     // The domain stands in for the firm name nobody could read.
     expect(screen.getByRole("heading", { level: 1, name: "blocked.arca.example" })).toBeTruthy();
@@ -253,8 +255,9 @@ describe("/score evidence notice", () => {
       fixtureResult({ ...result, preScore: { ...result.preScore, total: null, tier: "UNKNOWN" } }), "PARTIAL");
 
     expect(notice.textContent).toBe(
-      "We could not read your firm's website, so everything we could not verify counts as unknown. "
-      + "Complete the assessment below so your own answers count. This is not a coverage decision.",
+      "We could not read your firm's website during the scan. What we could not verify counts as unknown. "
+      + "Your answers in the assessment below also count, and because the website could not be read, the case will "
+      + "need a manual review. This is not a coverage decision.",
     );
   });
 

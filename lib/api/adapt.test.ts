@@ -59,10 +59,10 @@ describe("adaptScore", () => {
     expect(view.firm.practice).toBeNull();
     expect(view.firm.state).toBeNull();
     expect(view.decisionWithheld).toBe(true);
-    expect(view.incomplete).toBe(true);
+    expect(view.evidence.kind).toBe("limited");
   });
 
-  it("marks a completed scan as incomplete when a source did not answer", () => {
+  it("marks a completed scan's evidence as limited when a source did not answer", () => {
     const result = fixtureResult();
     const view = adaptScore(
       fixtureResult({
@@ -74,7 +74,9 @@ describe("adaptScore", () => {
       "COMPLETED",
     );
 
-    expect(view.incomplete).toBe(true);
+    expect(view.evidence.kind).toBe("limited");
+    // The page reads the evidence, not a separate flag.
+    expect(view).not.toHaveProperty("incomplete");
     // Evidence was thin, but the engine still underwrote it, so nothing is withheld.
     expect(view.decisionWithheld).toBe(false);
   });
@@ -139,6 +141,5 @@ describe("adaptScore evidence", () => {
     // The directories were skipped only because the website was not read: one cause, one sentence.
     expect(adaptScore(blocked, "PARTIAL").evidence).toEqual({ kind: "website_unavailable", gaps: [] });
     expect(adaptScore(withSources({ website: { ...failed, status: "timeout" } }), "PARTIAL").evidence.kind).toBe("website_unavailable");
-    expect(adaptScore(blocked, "PARTIAL").incomplete).toBe(true);
   });
 });
