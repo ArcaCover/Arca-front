@@ -743,8 +743,8 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 | Ruta | Qué hace | Backend |
 |---|---|---|
 | `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. Entra desde los CTA "Get a quote" del hero y del navbar. | **real** (`POST /scan`) |
-| `/quote/scanning` | Espera del scan de Capa 1 con polling real, mensajes rotando y orbe latiendo. | **real** (`GET /scan/:id`) |
-| `/score` | Pre-Score: gauge, tier, las **4 categorías** de Capa 1 y las señales detectadas. | **real** |
+| `/quote/scanning` | Espera del scan de Capa 1 con polling real, mensajes rotando y orbe latiendo. Si el scan falla, pide reintentar en un rato. | **real** (`GET /scan/:id`) |
+| `/score` | Pre-Score: aviso de evidencia, gauge, tier, botón del informe en PDF, las **4 categorías** de Capa 1 y las señales detectadas. | **real** |
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. | mock |
 | `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. | mock |
 
@@ -762,8 +762,8 @@ Toda pantalla que lea `useSearchParams` necesita un `<Suspense>` por encima o la
 no se puede prerenderizar. El patrón está en las cinco.
 
 **Capa 1 (real):** `lib/api/client.ts` (cliente y errores tipados), `lib/api/session.ts`
-(token), `lib/api/adapt.ts` (payload → pantalla) y `lib/signals-view.ts` (señales →
-tarjetas). Los tipos y la validación en runtime vienen de **`@arca/contracts`**, el
+(token), `lib/api/adapt.ts` (payload → pantalla), `lib/api/download.ts` (entrega un PDF de
+la API al navegador) y `lib/signals-view.ts` (señales → tarjetas). Los tipos y la validación en runtime vienen de **`@arca/contracts`**, el
 paquete del backend: no se reescriben aquí (§3).
 
 **Capa 2 (mock):** `lib/mock/assessment-questions.ts` (las 10 preguntas) y
@@ -778,6 +778,34 @@ Professional Standing (30), Reputation (20) y Firm Maturity (15). Los 6 dominios
 son de Capa 2 y siguen en `/assessment/results`. La pantalla los pintaba antes de
 conectar la API, sobre datos que la Capa 1 nunca produjo: no observa oversight, training
 ni incident preparedness, así que derivarlos habría sido inventar tres de seis (§7).
+
+**`/score` abre con un único aviso de evidencia** (noviembre 2026, tras el primer scan real
+del fundador). Siempre se ve y dice cuál de tres casos aplica: respondieron las tres fuentes;
+faltó alguna (dice cuál y qué pasó, en palabras llanas); o no se pudo leer la web de la firma.
+La frase "not enough for a coverage decision" ya no depende de que falte una fuente: antes se
+escondía cuando todas respondían pero la evidencia no alcanzaba. El caso lo decide
+`adaptScore` (`evidence`) y los textos están en `docs/copy-deck.md` §10. **La pantalla nunca
+imprime flags ni códigos de la API** (`INCOMPLETE_SOURCES`, `ACCESS_BLOCKED`…): están escritos
+para operar el sistema, no para el visitante.
+
+**Una web que no se deja leer ya no hace fallar el scan.** Si la causa es definitiva (el
+`robots.txt` lo prohíbe, o la web responde 401/403 o una página de verificación), la API
+termina el scan como `PARTIAL` con resultado y el flag `WEBSITE_UNAVAILABLE`. `/score` lo
+explica — lo no verificado cuenta como desconocido y la firma queda en el grupo de mayor
+riesgo hasta completar el cuestionario — y sube la tarjeta "Refine your score" justo debajo
+del score, porque ahí el cuestionario es la acción principal. La frase del "grupo de mayor
+riesgo" solo sale si el tier que manda la API es `CRITICAL`, para no contradecir al badge.
+Consecuencia: **un scan `FAILED` es ahora un fallo nuestro o temporal**, y `/quote/scanning`
+pide reintentar en un rato en vez de decir que la web nos bloqueó.
+
+**El informe en PDF es un botón secundario arriba**, "Download report (PDF)", debajo del
+nombre de la firma y con su error al lado. Era un enlace gris al final de la página, por
+debajo del CTA dorado, a unos 1.900px del borde superior. Medido sobre un render estático de
+la página (fuentes del sistema, sin la franja de debug): el botón termina a 400-425px en
+1440×900 y a 355-415px en un móvil de 390×844; **falta mirarlo en la app real**. El dorado
+sigue reservado a "Refine your score". `saveFile` (`lib/api/download.ts`) hace el paso de
+blob a archivo para las dos pantallas con informe, y `downloadAssessmentReport` ya llama a
+`GET /assessment/:assessmentId/report.pdf` con el token del scan.
 
 **`ScoreGauge` y `TierBadge` los comparten `/score` y `/assessment/results`.** Los dos
 reciben el tier como prop, por nombre. `/score` pasa el que manda la API;
@@ -1082,7 +1110,9 @@ pendientes de producto. **Al añadir un `TODO` nuevo, añadirlo también aquí.*
   los contratos que las trae. `adaptScore` y `signalsToCards` se copiaron tal cual al
   backend para el PDF del Quick Scan; hasta entonces hay dos copias
   (`lib/api/adapt.ts`, `lib/signals-view.ts`) y **cualquier cambio de texto se hace en las
-  dos** o el PDF y la pantalla dirán cosas distintas.
+  dos** o el PDF y la pantalla dirán cosas distintas. Ojo: el aviso de evidencia de
+  noviembre 2026 (`evidence` en `adaptScore`) existe **solo en la copia del front**; las
+  notas del PDF las escribe la API por su cuenta.
 - **Arrancar el checkout de Stripe** desde los resultados. El botón "Get coverage" ya no
   existe: salió con el prototipo de Capa 2 y vuelve cuando haya checkout.
 - **Enrutar la derivación a broker** desde los resultados — es la rama REFERRAL del
@@ -1117,6 +1147,8 @@ pendientes de producto. **Al añadir un `TODO` nuevo, añadirlo también aquí.*
   usa para rastrear webs; decidido así por el fundador (septiembre 2026) frente a imprimir
   desde el navegador o una librería de PDF en el front. Una página A4 con score, tier, las
   4 categorías, las señales y las fuentes. El texto sale del mismo código que `/score`.
+  En noviembre de 2026 el control pasó de enlace gris al final de la página a botón
+  "Download report (PDF)" en el bloque del score (§9.2).
 - ~~Descargar el informe desde `/assessment/results`~~ — el botón "Download report (PDF)"
   de la tarjeta superior descarga el PDF que genera la API
   (`GET /assessment/:assessmentId/report.pdf`, con el token del scan, como las demás rutas
@@ -1424,6 +1456,11 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   rastrear, no una librería en el frontend (septiembre 2026). Los PDF futuros (Full
   Assessment, informe con marca del broker) deberían seguir el mismo camino.
 - *(pendiente)* Librerías de charts y formularios para la plataforma.
+- **`/score` y `/quote/scanning` tras el primer scan real** (noviembre 2026, §9.2): un único
+  aviso de evidencia con tres casos y sin códigos internos; el PDF como botón secundario
+  visible arriba; una web ilegible por causa definitiva ya no falla el scan (flag
+  `WEBSITE_UNAVAILABLE`, el cuestionario pasa a ser la acción principal); y `FAILED` significa
+  un fallo nuestro o temporal, así que la pantalla pide reintentar.
 
 ## Isolated Layer 2 prototype — October 13, 2026
 
