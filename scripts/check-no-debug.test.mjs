@@ -55,6 +55,7 @@ describe('findDebugLeaks', () => {
         'window.__arcaDebug?.publish(s, d); return { "X-Arca-Debug-Scenario": s };',
         'return sessionStorage.getItem("arca.debug.showForbidden") === "1";',
         'return "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.";',
+        '<p role="note" aria-label="About this simulation">',
       ] }),
     );
 
@@ -65,6 +66,14 @@ describe('findDebugLeaks', () => {
   it('reports a shipped chunk that still carries the live-debug simulation notice', () => {
     const chunk = join(dir, 'static', 'chunks', 'app.js');
     writeFileSync(chunk, 'function n(){return"Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts."}');
+
+    expect(findDebugLeaks(dir)).toEqual([chunk]);
+  });
+
+  // The note that shows that line has a label of its own, in a component production pages import: it must fold away too.
+  it('reports a shipped chunk that still carries the label of the simulation notice', () => {
+    const chunk = join(dir, 'static', 'chunks', 'app.js');
+    writeFileSync(chunk, 'return t?(0,s.jsx)("p",{role:"note","aria-label":"About this simulation",children:t}):null');
 
     expect(findDebugLeaks(dir)).toEqual([chunk]);
   });

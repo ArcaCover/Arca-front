@@ -17,8 +17,10 @@ const DEBUG_ONLY_MARKERS = [
 // build, but server source maps keep the module's original source, so in maps they would flag the bridge itself.
 // They are searched in everything else, which is the code that ships. Header names may reach the bundle lowercased.
 // After them come the storage key of the switch that shows forbidden controls again (DN-11 §6.4) and the line the
-// live-debug screens show where someone signs up, signs in or pays (DN-10 §10).
-const BRIDGE_MARKERS = [/__arcaDebug/, /X-Arca-Debug-Scenario/i, /arca\.debug\.showForbidden/, /Simulated in live-debug/];
+// live-debug screens show where someone signs up, signs in or pays (DN-10 §10), with the label of the note that carries
+// it: that label is in components/app/SimulationNotice.tsx, a production module with its own literal guard.
+const BRIDGE_MARKERS = [/__arcaDebug/, /X-Arca-Debug-Scenario/i, /arca\.debug\.showForbidden/, /Simulated in live-debug/,
+  /About this simulation/];
 
 export function findDebugLeaks(dir) {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
