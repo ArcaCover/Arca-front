@@ -1,9 +1,9 @@
 // Runs a command with NEXT_PUBLIC_ARCA_MODE set (DN-09 4). Variables set here win over .env.local, which is never edited.
-// Usage: node scripts/with-mode.mjs <production|live-debug|mock> <command…>
+// Usage: node scripts/with-mode.mjs <production|live-debug|mock|demo> <command…>
 import { spawn } from 'node:child_process';
 
 // The same list as lib/arca-mode.ts; next.config.ts refuses anything else on start anyway.
-const MODES = ['production', 'live-debug', 'mock'];
+const MODES = ['production', 'live-debug', 'mock', 'demo'];
 const [mode, ...command] = process.argv.slice(2);
 if (!MODES.includes(mode) || command.length === 0) {
   console.error(`Usage: node scripts/with-mode.mjs <${MODES.join('|')}> <command…>`);

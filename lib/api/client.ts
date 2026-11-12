@@ -117,6 +117,12 @@ export async function apiFailure(response: Response): Promise<ApiError> {
 
 /** `timeoutMs` is for the rare route that is slow by design, such as the mock seed, which runs a whole scan. */
 export async function apiSend(path: string, init: RequestInit, timeoutMs = 15000): Promise<Response> {
+  // The demo answers from a recording in the browser (lib/demo/replay.ts). Literal comparison, as DN-09 asks: in any other
+  // build it folds to false and the recording is never bundled.
+  if (process.env.NEXT_PUBLIC_ARCA_MODE === "demo") {
+    const { demoFetch } = await import("@/lib/demo/replay");
+    return demoFetch(path, init);
+  }
   try {
     return await fetch(`${baseUrl()}${path}`, {
       ...init,

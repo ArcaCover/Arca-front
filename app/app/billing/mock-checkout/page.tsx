@@ -10,7 +10,7 @@ let MockCheckout: ComponentType | undefined;
 // A server component, so outside mock the route is a real 404 from the build on, like the back's debug routes: the
 // comparison against the inlined literal decides it (DN-09 literal guard).
 export default function MockCheckoutPage() {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE === "mock") {
+  if (process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "demo") {
     MockCheckout ??= dynamic(() => import("./MockCheckout"));
     return (
       <Suspense fallback={null}>

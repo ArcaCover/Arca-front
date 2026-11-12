@@ -1433,12 +1433,26 @@ This section applies only to this isolated implementation checkout and supersede
 - The frontend keeps only UI state; eligibility, hidden-answer invalidation, answer validation, scoring and audit behavior belong to the API.
 - Full local setup, scope and verification commands: `docs/implementation/layer2-isolated-demo.md`.
 
-## Branch `Dev` (November 2026)
+## Branch `Dev` and the demo mode (November 2026)
 
-`Dev` exists so the founder can iterate on the UX without touching production or entering real data.
-Its Vercel preview shows the public site; the quote flow and `/app` need an API behind them, so on
-that preview they fail until a front-only demo mode exists (pending decision). The full app runs
-locally in mock mode with Arca-back alongside (`docs/implementation/arca-modes.md`). In mock, the
-quote flow only accepts the fixture domains (`robust.arca.example`, `minimal.arca.example`,
-`sanctioned.arca.example`, `partial.arca.example`, `failed.arca.example`), and the demo
-organization's users are `owner|admin|member|viewer@demo.arca.example`.
+`Dev` is the founder's long-lived branch for UI/UX work: it never touches production and never needs real data. Its
+Vercel preview builds in **`demo`** mode on its own (no variable to set): every API call is answered in the browser from
+a recording of the mock back, so the whole product can be clicked through with no back at all — quote → scanning →
+Pre-Score (PDF included) → assessment → results → sign-up → simulated payment → every `/app` page.
+
+- **Where it lives:** `lib/demo/replay.ts` (the stand-in for the API, hooked into `apiSend` in `lib/api/client.ts`),
+  `lib/demo/recording.json` (276 recorded exchanges) and `components/debug/DemoBar.tsx` (a floating pill at the bottom
+  centre with "View as" — Visitor, Owner, Admin, Member, Viewer, ARCA admin — and "Start over"). It is a pill and not a
+  strip at the top on purpose: a strip would sit over the navbar of the pages being redesigned.
+- **How it replays:** the recording is read in chapters split by each write, so pages show the right state whatever order
+  they are visited in. Any email and any website work; the answers are always the recorded firm ("Robust Law", Pre-Score
+  82). A write the recording does not know (inviting someone, editing an action) answers "Not available in the demo:
+  nothing is saved here". It is for looking at the UX, not for testing business logic.
+- **Mode rules (`lib/arca-mode.ts`, mirrored in `scripts/check-no-debug.mjs`):** `demo` is the default only for a Vercel
+  *preview* of the branch named `Dev`; an explicit `NEXT_PUBLIC_ARCA_MODE` wins over it. `demo` refuses to build for
+  Vercel production. The replay is loaded behind literal comparisons, so a production build carries none of it —
+  verified with `npm run build` (0 leaks, no demo chunk). Merging `Dev` into `main` is therefore safe.
+- **Locally, with no back:** `npm run dev:demo`.
+- **When the back changes, record again:** run the mock stack (`npm run stack -- mock` in Arca-back), then
+  `npm run demo:record` here, and commit the new `recording.json`. The recorder resets the back's limits, walks the
+  funnel and every role, and needs the Playwright that Arca-back installs (as the other browser scripts do).

@@ -47,7 +47,7 @@ export default function LoginPage() {
           />
         </label>
         {/* DN-10 §4.6: in mock, the simulated sign-in is also how someone at ARCA becomes a platform admin. */}
-        {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && (
+        {(process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "demo") && (
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={platformAdmin} onChange={event => setPlatformAdmin(event.target.checked)} />
             Sign in as an ARCA platform admin (mock)

@@ -7,8 +7,9 @@ The design, the security rules and the verification record live in the backend r
 | production | unset or `production` | whatever `.env.local` configures | none |
 | live-debug | `live-debug` | real APIs and the Supabase shared with production | `LIVE DEBUG · real APIs & real database` |
 | mock | `mock` | fixtures and in-memory storage, no external API | `MOCK · no real APIs · in-memory data` |
+| demo (front only) | `demo`; the default on the `Dev` branch's Vercel previews | a recording of the mock back, replayed in the browser (`lib/demo/`); no back at all | `DEMO` pill at the bottom |
 
-An unknown value stops `next dev` and `next build`. A Vercel build (`VERCEL` set) fails in any mode except production. The debug code is only loaded when the mode is not production, and `npm run build` fails if a production build ships any of it (`scripts/check-no-debug.mjs`).
+An unknown value stops `next dev` and `next build`. A Vercel build (`VERCEL` set) fails in mock and live-debug; demo builds only on a Vercel preview, never on the production deployment. The debug code is only loaded when the mode is not production, and `npm run build` fails if a production build ships any of it (`scripts/check-no-debug.mjs`).
 
 ## Run (Windows PowerShell)
 
@@ -57,3 +58,9 @@ npm run test:browser:modes -- mismatch
 ## Back to local production
 
 Stop the debug processes. Then run `npm run stack -- production` from Arca-back, or `npm run dev -- --webpack` here with `npm run dev` in Arca-back. No banner appears, and `/__debug/mode` answers 404.
+
+## Demo (front only)
+
+No back needed: `npm run dev:demo`. On Vercel, every preview of the `Dev` branch builds in demo by itself. To refresh the
+recording after the back changes, run `npm run stack -- mock` in Arca-back and then `npm run demo:record` here. See the
+"Branch `Dev` and the demo mode" section of `CLAUDE.md`.

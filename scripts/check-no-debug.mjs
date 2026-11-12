@@ -9,11 +9,14 @@ import { fileURLToPath } from 'node:url';
 import { findDebugLeaks } from './debug-leaks.mjs';
 
 // The same rule as lib/arca-mode.ts, which a plain Node script cannot import.
-const MODES = ['production', 'live-debug', 'mock'];
+const MODES = ['production', 'live-debug', 'mock', 'demo'];
+const DEMO_BRANCH = 'Dev';
 function resolveArcaMode(env) {
-  const mode = env.NEXT_PUBLIC_ARCA_MODE || 'production';
+  const onDemoPreview = env.VERCEL_ENV === 'preview' && env.VERCEL_GIT_COMMIT_REF === DEMO_BRANCH;
+  const mode = env.NEXT_PUBLIC_ARCA_MODE || (onDemoPreview ? 'demo' : 'production');
   if (!MODES.includes(mode)) throw new Error(`NEXT_PUBLIC_ARCA_MODE="${mode}" is not a mode; use one of ${MODES.join(', ')}`);
-  if (mode !== 'production' && env.VERCEL !== undefined) throw new Error(`NEXT_PUBLIC_ARCA_MODE=${mode} is local-only and cannot build on Vercel`);
+  if ((mode === 'mock' || mode === 'live-debug') && env.VERCEL !== undefined) throw new Error(`NEXT_PUBLIC_ARCA_MODE=${mode} is local-only and cannot build on Vercel`);
+  if (mode === 'demo' && env.VERCEL !== undefined && env.VERCEL_ENV !== 'preview') throw new Error('NEXT_PUBLIC_ARCA_MODE=demo builds only on a Vercel preview, never for production');
   return mode;
 }
 
