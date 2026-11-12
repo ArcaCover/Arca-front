@@ -1432,3 +1432,13 @@ This section applies only to this isolated implementation checkout and supersede
 - Answers save on Continue or Save change. Resume is limited to the current tab and the 24-hour scan session. No tab-close, magic-link or cross-tab recovery is implemented or promised.
 - The frontend keeps only UI state; eligibility, hidden-answer invalidation, answer validation, scoring and audit behavior belong to the API.
 - Full local setup, scope and verification commands: `docs/implementation/layer2-isolated-demo.md`.
+
+## Branch `Dev` (November 2026)
+
+`Dev` exists so the founder can iterate on the UX without touching production or entering real data.
+Its Vercel preview shows the public site; the quote flow and `/app` need an API behind them, so on
+that preview they fail until a front-only demo mode exists (pending decision). The full app runs
+locally in mock mode with Arca-back alongside (`docs/implementation/arca-modes.md`). In mock, the
+quote flow only accepts the fixture domains (`robust.arca.example`, `minimal.arca.example`,
+`sanctioned.arca.example`, `partial.arca.example`, `failed.arca.example`), and the demo
+organization's users are `owner|admin|member|viewer@demo.arca.example`.
