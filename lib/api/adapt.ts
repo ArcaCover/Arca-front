@@ -41,7 +41,38 @@ export type ScoreView = {
   /** Layer 1 could not underwrite on this evidence, so no commercial decision is shown
       (CLAUDE.md §7: an insurer does not imply a decision it has not made). */
   decisionWithheld: boolean;
+  /** Set when the evidence is too thin to rate the firm: the number and the tier are not shown, only how many of the
+      four areas could be evaluated. Null when the firm is rated, and always null for an unreadable website, which keeps
+      its own notice. */
+  notRated: { evaluated: number } | null;
 };
+
+type PreScore = Pick<Layer1Result["preScore"], "confidence" | "categories" | "flags">;
+
+/** How many of the four Layer 1 categories the scan could evaluate, in full or in part. */
+export function evaluatedAreas(preScore: PreScore): number {
+  return Object.values(preScore.categories).filter(category => category.status !== "UNKNOWN").length;
+}
+
+/**
+ * Too little evidence to present the score and tier as a judgement of the firm: low confidence and fewer than half of
+ * the four categories evaluated. The live scan of hklaw.com printed 3 / 100, CRITICAL, from one partial category; that
+ * was a gap in what we could see, not a verdict. An unreadable website (WEBSITE_UNAVAILABLE) is excluded on purpose: it
+ * is shown as the highest-risk group with a manual review (DN-12 §3.3). The Quick Scan PDF applies the same rule
+ * (apps/api/src/report/quick-scan.ts in Arca-back).
+ */
+export function hasInsufficientEvidence(preScore: PreScore): boolean {
+  return preScore.confidence === "LOW"
+    && evaluatedAreas(preScore) < 2
+    && !preScore.flags.includes("WEBSITE_UNAVAILABLE");
+}
+
+/** The sentence that stands in for the score when it is not shown. The PDF prints the same words. */
+export function notRatedSentence(evaluated: number): string {
+  return evaluated === 0
+    ? "We could not evaluate any of the 4 areas from public sources, so we are not showing a score."
+    : `We could evaluate only ${evaluated} of 4 areas from public sources, so we are not showing a score.`;
+}
 
 // The four categories Layer 1 measures, with the weight each carries. These are not the six
 // Layer 2 domains: Layer 1 never observes oversight, training or incident preparedness.
@@ -89,6 +120,8 @@ export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"
     || Object.values(sources).some(source => source.status !== "ok")
     || preScore.flags.includes("INCOMPLETE_SOURCES");
 
+  const evidence = adaptEvidence(result, incomplete);
+
   return {
     firm: {
       // Falling back to the domain keeps the header honest when identity extraction failed:
@@ -107,7 +140,11 @@ export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"
       return { key, label, score: category.score, max: category.max, status: category.status };
     }),
     signals: signalsToCards(result),
-    evidence: adaptEvidence(result, incomplete),
+    evidence,
     decisionWithheld: preScore.assessmentStatus === "INSUFFICIENT_EVIDENCE" || preScore.decision === "UNKNOWN",
+    // The website notice also covers a website that failed without the flag; it names the risk group, so it wins.
+    notRated: hasInsufficientEvidence(preScore) && evidence.kind !== "website_unavailable"
+      ? { evaluated: evaluatedAreas(preScore) }
+      : null,
   };
 }

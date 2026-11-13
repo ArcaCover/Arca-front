@@ -10,6 +10,7 @@ import { ApiError, downloadReport, pollScan, startAssessment } from "@/lib/api/c
 import { saveFile } from "@/lib/api/download";
 import { fixtureResult } from "@/lib/api/fixture";
 import { recallSession, rememberSession } from "@/lib/api/session";
+import { thinEvidenceResult } from "@/lib/test-fixtures/layer1";
 
 // What a visitor reads on the two screens around the Layer 1 result: the evidence notice and the report button on
 // /score, and what /quote/scanning says when a scan fails.
@@ -284,6 +285,87 @@ describe("/score evidence notice", () => {
     expect(text).not.toMatch(/[A-Z]{2,}_[A-Z]/);
     expect(text).not.toMatch(/website unavailable|incomplete sources|access blocked|provider cost|robots/i);
     expect(text).not.toMatch(/\$|premium|price/i);
+  });
+});
+
+describe("/score with too little evidence to rate", () => {
+  const gauge = () => screen.queryByRole("img", { name: /AI Governance Score/ });
+  const unrated = "Not enough evidence to rate";
+
+  it("shows an explicit state instead of the number and the tier for the hklaw.com shape", async () => {
+    const notice = await showScore(thinEvidenceResult(), "PARTIAL");
+
+    const heading = screen.getByRole("heading", { level: 2, name: unrated });
+    expect(heading.parentElement?.textContent).toContain(
+      "We could evaluate only 1 of 4 areas from public sources, so we are not showing a score. "
+      + "The assessment below fills in what public sources cannot show.",
+    );
+    expect(gauge()).toBeNull();
+    expect(screen.queryByText("CRITICAL")).toBeNull();
+    expect(screen.queryByText(/Confidence:/)).toBeNull();
+    // One message each: the notice names the sources that fell short, the state says why there is no score.
+    expect(notice.textContent).toBe(
+      "We could only read part of your website. We could not look your firm up on Avvo. This is not a coverage decision.",
+    );
+    expect(screen.getAllByRole("note")).toHaveLength(1);
+    expect(notice.textContent).not.toMatch(/score|rate/i);
+  });
+
+  it("keeps the breakdown, the signals and the report, and makes the assessment the primary action", async () => {
+    await showScore(thinEvidenceResult(), "PARTIAL");
+
+    expect(screen.getAllByText("no evidence")).toHaveLength(3);
+    expect(screen.getAllByText("partial evidence")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Signals detected" })).toBeTruthy();
+    const refine = screen.getByRole("button", { name: "Refine your score" });
+    expect(screen.getAllByRole("button", { name: "Refine your score" })).toHaveLength(1);
+    expect(comesBefore(screen.getByRole("heading", { name: unrated }), refine)).toBe(true);
+    expect(comesBefore(refine, screen.getByRole("heading", { name: "Score breakdown" }))).toBe(true);
+    expect(comesBefore(downloadButton(), refine)).toBe(true);
+  });
+
+  it("says no area could be evaluated when none was, and keeps the notice of a fully answered scan short", async () => {
+    const thin = thinEvidenceResult();
+    const none = thinEvidenceResult({
+      preScore: { ...thin.preScore, total: 0, flags: ["INCOMPLETE_EVIDENCE", "COMMERCIAL_DECISION_BLOCKED"],
+        categories: { ...thin.preScore.categories,
+        professionalStanding: { ...thin.preScore.categories.reputation, max: 30 } } },
+      sources: base.sources,
+    });
+    const notice = await showScore(none, "COMPLETED");
+
+    expect(screen.getByRole("heading", { name: unrated }).parentElement?.textContent).toContain(
+      "We could not evaluate any of the 4 areas from public sources, so we are not showing a score.",
+    );
+    expect(notice.textContent).toBe(
+      "All three public sources answered: your website, the Florida Bar register and Avvo. This is not a coverage decision.",
+    );
+  });
+
+  it("never prints a machine flag or an internal code", async () => {
+    await showScore(thinEvidenceResult(), "PARTIAL");
+
+    expect(document.body.textContent ?? "").not.toMatch(/[A-Z]{2,}_[A-Z]|\bLOW\b|\bUNKNOWN\b|\bPARTIAL\b/);
+  });
+
+  it("rates the firm as before once two categories could be evaluated", async () => {
+    const thin = thinEvidenceResult();
+    const two = thinEvidenceResult({ preScore: { ...thin.preScore, categories: { ...thin.preScore.categories,
+      reputation: { ...thin.preScore.categories.reputation, score: 10, status: "KNOWN" } } } });
+    await showScore(two, "PARTIAL");
+
+    expect(screen.queryByRole("heading", { name: unrated })).toBeNull();
+    expect(gauge()).toBeTruthy();
+    expect(screen.getByText("CRITICAL")).toBeTruthy();
+    expect(screen.getByText("Confidence: low")).toBeTruthy();
+  });
+
+  it("keeps the highest-risk treatment of an unreadable website", async () => {
+    await showScore(unreadableWebsite(), "PARTIAL");
+
+    expect(screen.queryByRole("heading", { name: unrated })).toBeNull();
+    expect(gauge()).toBeTruthy();
+    expect(screen.getByText("CRITICAL")).toBeTruthy();
   });
 });
 

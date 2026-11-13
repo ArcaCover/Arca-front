@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { adaptScore } from "@/lib/api/adapt";
+import { adaptScore, evaluatedAreas, hasInsufficientEvidence } from "@/lib/api/adapt";
 import { fixtureResult } from "@/lib/api/fixture";
+import { thinEvidenceResult } from "@/lib/test-fixtures/layer1";
 
 describe("adaptScore", () => {
   it("shows the four categories Layer 1 measures, against their own ceilings", () => {
@@ -141,5 +142,63 @@ describe("adaptScore evidence", () => {
     // The directories were skipped only because the website was not read: one cause, one sentence.
     expect(adaptScore(blocked, "PARTIAL").evidence).toEqual({ kind: "website_unavailable", gaps: [] });
     expect(adaptScore(withSources({ website: { ...failed, status: "timeout" } }), "PARTIAL").evidence.kind).toBe("website_unavailable");
+  });
+});
+
+describe("hasInsufficientEvidence", () => {
+  const thin = thinEvidenceResult();
+  const known = { ...thin.preScore.categories.reputation, score: 14, status: "KNOWN" as const };
+
+  it("is true for the hklaw.com shape: low confidence and only one category, partly, evaluated", () => {
+    expect(evaluatedAreas(thin.preScore)).toBe(1);
+    expect(hasInsufficientEvidence(thin.preScore)).toBe(true);
+  });
+
+  it("is true when no category could be evaluated at all", () => {
+    const none = { ...thin.preScore, categories: { ...thin.preScore.categories,
+      professionalStanding: { ...thin.preScore.categories.reputation, max: 30 } } };
+    expect(evaluatedAreas(none)).toBe(0);
+    expect(hasInsufficientEvidence(none)).toBe(true);
+  });
+
+  it("is false once two categories are known or partial, even with low confidence", () => {
+    const two = { ...thin.preScore, categories: { ...thin.preScore.categories, reputation: known } };
+    expect(evaluatedAreas(two)).toBe(2);
+    expect(hasInsufficientEvidence(two)).toBe(false);
+  });
+
+  it("is false when confidence is not low, however few categories were evaluated", () => {
+    expect(hasInsufficientEvidence({ ...thin.preScore, confidence: "MEDIUM" })).toBe(false);
+  });
+
+  it("is false with the website-unavailable flag, which keeps its own highest-risk treatment", () => {
+    expect(hasInsufficientEvidence({ ...thin.preScore, flags: [...thin.preScore.flags, "WEBSITE_UNAVAILABLE"] })).toBe(false);
+  });
+
+  it("is false for a fully read firm", () => {
+    expect(hasInsufficientEvidence(fixtureResult().preScore)).toBe(false);
+  });
+});
+
+describe("adaptScore with too little evidence to rate", () => {
+  it("withholds the rating and counts the areas it could evaluate", () => {
+    const view = adaptScore(thinEvidenceResult(), "PARTIAL");
+
+    expect(view.notRated).toEqual({ evaluated: 1 });
+    // The breakdown still shows what was and was not seen.
+    expect(view.categories.map(category => category.status)).toEqual(["UNKNOWN", "PARTIAL", "UNKNOWN", "UNKNOWN"]);
+  });
+
+  it("rates a firm as before when the evidence is enough", () => {
+    expect(adaptScore(fixtureResult(), "COMPLETED").notRated).toBeNull();
+  });
+
+  it("leaves an unreadable website to its own notice, even when the website failed without the flag", () => {
+    const thin = thinEvidenceResult();
+    const failed = { status: "error", dataStatus: "UNKNOWN", durationMs: 40, code: "NO_READABLE_EVIDENCE" };
+    const unread = thinEvidenceResult({ sources: { ...thin.sources, website: failed } });
+
+    expect(adaptScore(unread, "PARTIAL").evidence.kind).toBe("website_unavailable");
+    expect(adaptScore(unread, "PARTIAL").notRated).toBeNull();
   });
 });

@@ -2,19 +2,27 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Download, Info, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, HelpCircle, Info, Loader2 } from "lucide-react";
 
 import RefineCta from "@/components/assessment/RefineCta";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score";
-import { adaptScore, type ScoreView } from "@/lib/api/adapt";
+import { adaptScore, notRatedSentence, type ScoreView } from "@/lib/api/adapt";
 import { ApiError, downloadReport, pollScan } from "@/lib/api/client";
 import { saveFile } from "@/lib/api/download";
 import { forgetSession, recallSession } from "@/lib/api/session";
 import { publishDebugState } from "@/lib/debug/bridge";
 
 // One notice, three cases. The sentences never name a decision: Layer 1 makes none here (CLAUDE.md §7).
-function evidenceNotice({ evidence, decisionWithheld, tier }: ScoreView): string {
+function evidenceNotice({ evidence, decisionWithheld, tier, notRated }: ScoreView): string {
+  // With no score on the page, the notice only says which sources fell short; why there is no score is said once, in
+  // the place of the score.
+  if (notRated) {
+    const sources = evidence.kind === "complete"
+      ? "All three public sources answered: your website, the Florida Bar register and Avvo."
+      : evidence.gaps.length ? evidence.gaps.join(" ") : "Part of the public evidence could not be read.";
+    return `${sources} This is not a coverage decision.`;
+  }
   if (evidence.kind === "website_unavailable") {
     return [
       "We could not read your firm's website during the scan.",
@@ -185,8 +193,10 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
     );
   }
 
-  const { firm, score, tier, confidence, categories, signals, evidence } = state.view;
+  const { firm, score, tier, confidence, categories, signals, evidence, notRated } = state.view;
   const websiteUnavailable = evidence.kind === "website_unavailable";
+  // Either way there is little below to look at, so the assessment comes first.
+  const assessmentFirst = websiteUnavailable || notRated !== null;
   const location = [firm.city, firm.state].filter(Boolean).join(", ");
   const details = [location, firm.practice].filter(Boolean).join(" · ");
 
@@ -246,18 +256,32 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
             </div>
           </div>
 
-          <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center">
-            {/* Both take the tier the API sent, so they cannot disagree. */}
-            <ScoreGauge score={score} tier={tier} />
-            <div className="mt-5">
-              <TierBadge tier={tier} />
+          {notRated ? (
+            // Too little evidence to rate: a number and a tier here would read as a judgement of the firm.
+            <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center rounded-2xl bg-bruma/50 px-6 py-7 text-center">
+              <HelpCircle aria-hidden className="h-8 w-8 text-marino/50" />
+              <h2 className="mt-4 font-heading text-lg font-semibold tracking-tight text-marino">
+                Not enough evidence to rate
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-marino/70">
+                {notRatedSentence(notRated.evaluated)} The assessment below fills in what public sources cannot show.
+              </p>
             </div>
-            <p className="mt-3 text-xs text-marino/50">Confidence: {confidence.toLowerCase()}</p>
-          </div>
+          ) : (
+            <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center">
+              {/* Both take the tier the API sent, so they cannot disagree. */}
+              <ScoreGauge score={score} tier={tier} />
+              <div className="mt-5">
+                <TierBadge tier={tier} />
+              </div>
+              <p className="mt-3 text-xs text-marino/50">Confidence: {confidence.toLowerCase()}</p>
+            </div>
+          )}
         </section>
 
-        {/* With no website to read there is little below to look at, so the assessment comes first. */}
-        {websiteUnavailable && (
+        {/* With no website to read, or too little evidence to rate, there is little below to look at, so the
+            assessment comes first. */}
+        {assessmentFirst && (
           <section className="mt-12 flex flex-col items-center">
             <RefineCta key={scanId} scanId={scanId} />
           </section>
@@ -308,7 +332,7 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
           )}
         </section>
 
-        {!websiteUnavailable && (
+        {!assessmentFirst && (
           <section className="mt-16 flex flex-col items-center">
             <RefineCta key={scanId} scanId={scanId} />
           </section>

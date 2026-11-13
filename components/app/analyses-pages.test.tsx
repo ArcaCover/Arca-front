@@ -13,6 +13,7 @@ import { fixtureResult } from "@/lib/api/fixture";
 import { getMe, listAnalyses, listMembers } from "@/lib/app/client";
 import { saveAppSession } from "@/lib/app/session";
 import { fixtureAssessmentResult } from "@/lib/test-fixtures/assessment";
+import { thinEvidenceResult } from "@/lib/test-fixtures/layer1";
 
 const navigation = vi.hoisted(() => ({
   pathname: "/app/analyses",
@@ -54,6 +55,14 @@ function scanOnly(): AnalysisView {
   return {
     scanId: "sc_branch", domain: "branch.smithlaw.com", scanStatus: "COMPLETED", claimedAt: "2026-10-20T10:00:00.000Z",
     layer1: fixtureResult({ scanId: "sc_branch", domain: "branch.smithlaw.com" }), assessment: null,
+  };
+}
+
+// A scan-only analysis of the hklaw.com shape: 3 / 100, CRITICAL, with only one category partly evaluated.
+function thinScanOnly(): AnalysisView {
+  return {
+    scanId: "sc_thin", domain: "hklaw.example", scanStatus: "PARTIAL", claimedAt: "2026-10-22T10:00:00.000Z",
+    layer1: thinEvidenceResult({ scanId: "sc_thin" }), assessment: null,
   };
 }
 
@@ -139,6 +148,38 @@ describe("the analyses list", () => {
     vi.mocked(listAnalyses).mockRejectedValue(new ApiError("payment_required", "This organization has no active subscription"));
     inApp("/app/analyses", <AnalysesPage />);
     await waitFor(() => expect(navigation.router.replace).toHaveBeenCalledWith("/app/billing"));
+  });
+});
+
+describe("a scan-only analysis with too little evidence to rate", () => {
+  it("shows no score and no risk tier in the list or the comparison", async () => {
+    signedIn(org());
+    vi.mocked(listAnalyses).mockResolvedValue([assessed(), thinScanOnly()]);
+    inApp("/app/analyses", <AnalysesPage />);
+    const row = within(await table()).getAllByRole("row").find(item => within(item).queryByText("hklaw.example"));
+    expect(row).toBeTruthy();
+    expect(within(row!).getByText("—")).toBeTruthy();
+    expect(within(row!).getByText("NOT SCORED")).toBeTruthy();
+    expect(within(row!).queryByText("CRITICAL")).toBeNull();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /^Compare smithlaw.com/ }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /^Compare hklaw.example/ }));
+    const compared = screen.getByRole("region", { name: /^hklaw.example, saved/ });
+    expect(within(compared).getByText("NOT SCORED")).toBeTruthy();
+    expect(within(compared).queryByText("CRITICAL")).toBeNull();
+  });
+
+  it("says on its card how many areas could be evaluated, instead of the number and the tier", async () => {
+    signedIn(org());
+    vi.mocked(listAnalyses).mockResolvedValue([thinScanOnly()]);
+    navigation.params = { scanId: "sc_thin" };
+    inApp("/app/analyses/sc_thin", <AnalysisDetailPage />);
+    expect(await screen.findByRole("img", { name: "AI Governance Score: not enough evidence to score" })).toBeTruthy();
+    expect(screen.getByText("NOT SCORED")).toBeTruthy();
+    expect(screen.queryByText("CRITICAL")).toBeNull();
+    expect(screen.getByText("We could evaluate only 1 of 4 areas from public sources, so we are not showing a score.")).toBeTruthy();
+    // One message: the sentence above replaces the card's line about a coverage decision.
+    expect(screen.queryByText(/not enough evidence in this scan for a coverage decision/i)).toBeNull();
   });
 });
 

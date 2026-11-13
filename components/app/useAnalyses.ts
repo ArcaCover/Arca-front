@@ -41,5 +41,7 @@ export function headline(analysis: AnalysisView): { score: number | null; tier: 
     return { score: analysis.assessment.compositeScore, tier: analysis.assessment.tier, kind: "Scan and assessment" };
   }
   const scan = adaptScore(analysis.layer1, analysis.scanStatus);
+  // Too little evidence to rate: no number and no risk tier, as on /score (AnalysisCard does the same).
+  if (scan.notRated) return { score: null, tier: "UNKNOWN", kind: "Scan only" };
   return { score: scan.score, tier: scan.tier, kind: "Scan only" };
 }
