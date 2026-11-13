@@ -370,7 +370,7 @@ del informe. El cuestionario y sus resultados están en la sección 11. El resto
 ### `/score` — aviso de evidencia
 
 *Un solo bloque, siempre visible, encima del nombre de la firma. Dice cuál de los tres casos
-aplica. Nunca imprime flags ni códigos internos, y nunca nombra una decisión ni un precio.*
+aplica (con evidencia insuficiente para puntuar cambia su cierre; ver la subsección siguiente). Nunca imprime flags ni códigos internos, y nunca nombra una decisión ni un precio.*
 
 **Caso 1 — respondieron las tres fuentes** *(fondo bruma, icono de información)*
 
@@ -431,6 +431,54 @@ segunda frase se queda en:
 > unas buenas lo sacan. Ahora dice "for now", que las respuestas también cuentan y que lo único
 > que se mantiene digan lo que digan es la revisión manual. El PDF del Quick Scan dice lo mismo
 > en tercera persona y con la misma condición de tier (DN-12 §8 en Arca-back).
+
+### `/score` — sin evidencia suficiente para puntuar
+
+*Sale cuando la confianza es baja (`LOW`) y la Capa 1 pudo evaluar menos de 2 de sus 4
+categorías (cuenta toda categoría que no esté `UNKNOWN`, también las parciales). No sale con
+la web ilegible (caso 3): ese caso se muestra a propósito como grupo de mayor riesgo con
+revisión manual. La regla vive en `hasInsufficientEvidence` (`lib/api/adapt.ts`) y el PDF del
+Quick Scan aplica la misma (DN-12 §12 en Arca-back).*
+
+En lugar del gauge, el tier y la línea de confianza, un bloque bruma con icono de ayuda:
+
+**Titular**
+
+> Not enough evidence to rate
+
+**Texto**
+
+> We could evaluate only *{n}* of 4 areas from public sources, so we are not showing a score.
+> The assessment below fills in what public sources cannot show.
+
+Si no se pudo evaluar ninguna, la primera frase es:
+
+> We could not evaluate any of the 4 areas from public sources, so we are not showing a score.
+
+*"Refine your score" sube justo debajo, como en el caso 3: es la acción principal. Las barras
+de categoría, las señales y el botón del PDF no cambian.*
+
+**Aviso de evidencia en este caso.** Solo dice qué fuentes fallaron y cierra con la frase de
+decisión; no habla de "this score", porque no hay score en pantalla:
+
+> *[frases de hueco del caso 2]* This is not a coverage decision.
+
+Con las tres fuentes respondiendo:
+
+> All three public sources answered: your website, the Florida Bar register and Avvo. This is
+> not a coverage decision.
+
+Si ninguna fuente explica el hueco: "Part of the public evidence could not be read. This is not
+a coverage decision."
+
+**Webapp (`/app`).** Un análisis guardado solo con scan que cumple la regla no muestra número
+ni tier de riesgo: la lista y la comparación dicen "—" y "NOT SCORED", y la tarjeta muestra el
+gauge vacío con "NOT SCORED" y, en lugar de la línea de decisión, la primera frase de arriba
+("We could evaluate only *{n}* of 4 areas from public sources, so we are not showing a score.").
+
+> **Por qué (noviembre 2026).** Un scan real de hklaw.com mostró "3 / 100 CRITICAL" cuando solo
+> se pudo evaluar una de las cuatro categorías (Professional Standing, parcial) y la confianza
+> era baja. Se leía como un juicio sobre la firma y era un hueco en lo que pudimos ver.
 
 ### `/score` — descarga del informe
 

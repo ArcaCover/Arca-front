@@ -804,6 +804,24 @@ se mantiene digan lo que digan las respuestas es la revisión manual (el overrid
 Consecuencia: **un scan `FAILED` es ahora un fallo nuestro o temporal**, y `/quote/scanning`
 pide reintentar en un rato en vez de decir que la web nos bloqueó.
 
+**Con muy poca evidencia, `/score` no muestra número ni tier** (noviembre 2026, decisión del
+fundador). Un scan real de hklaw.com dio "3 / 100 CRITICAL" con una sola categoría evaluada, y
+a medias, y confianza baja: se leía como un veredicto sobre la firma y era un hueco en lo que
+pudimos ver. **Regla** (`hasInsufficientEvidence` en `lib/api/adapt.ts`, la misma que aplica el
+PDF del Quick Scan en Arca-back, DN-12 §12): confianza `LOW` **y** menos de 2 de las 4
+categorías con estado distinto de `UNKNOWN`. **Excepción:** con el flag `WEBSITE_UNAVAILABLE`
+no se aplica, porque ese caso se muestra a propósito como grupo de mayor riesgo con revisión
+manual; `adaptScore` además deja fuera cualquier caso que pinte el aviso de web ilegible
+(también la web caída sin flag), para que la pantalla no oculte el tier que ese aviso nombra.
+En su lugar sale "Not enough evidence to rate" con cuántas áreas se pudieron evaluar, "Refine
+your score" sube como en el caso de la web, y el aviso de evidencia solo dice qué fuentes
+fallaron y "This is not a coverage decision." (no habla de "this score"). Las barras, las
+señales y el PDF siguen. En la webapp, un análisis solo de scan que cumple la regla sale con
+"—" y "NOT SCORED" (`headline` y `summary` de `components/app/`). `/assessment/results` no
+cambia: su tier es el del compuesto, y la Capa 1 solo aparece como número en "Public evidence ·
+Layer 1" (el resultado de la Capa 2 no trae la confianza ni las categorías para aplicar la
+regla). Textos en `docs/copy-deck.md` §10.
+
 **El informe en PDF es un botón secundario arriba**, "Download report (PDF)", debajo del
 nombre de la firma y con su error al lado. Era un enlace gris al final de la página, por
 debajo del CTA dorado, a unos 1.900px del borde superior. Medido en la app real, en Chromium
@@ -1469,6 +1487,9 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   visible arriba; una web ilegible por causa definitiva ya no falla el scan (flag
   `WEBSITE_UNAVAILABLE`, el cuestionario pasa a ser la acción principal); y `FAILED` significa
   un fallo nuestro o temporal, así que la pantalla pide reintentar.
+- **Sin número ni tier con muy poca evidencia** (noviembre 2026, §9.2): confianza baja y menos de
+  2 de 4 categorías evaluadas → "Not enough evidence to rate" en `/score`, en el PDF del Quick
+  Scan y en las tarjetas de la webapp. La web ilegible queda fuera de la regla.
 
 ## Isolated Layer 2 prototype — October 13, 2026
 
