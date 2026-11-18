@@ -1,21 +1,18 @@
 import type { AssessmentResult } from "@arca/contracts";
 
-/** The Layer 1 flag for a firm website that could not be read; the results screen gives it its own notice. */
+/** The Layer 1 flag for a firm website that could not be read at all. */
 export const WEBSITE_UNAVAILABLE = "WEBSITE_UNAVAILABLE";
 
-/** The notice for that flag. The API takes the tier from the combined score, so better answers can move the outlook
-    out of the highest-risk group: only the manual review holds whatever the answers show. The group is named only when
-    the API's own tier is CRITICAL, so the sentence cannot contradict the badge beside it. The back's assessment PDF
-    prints the same sentences (DN-12 §8). */
-export function websiteNotice(tier: AssessmentResult["tier"]): string {
-  return [
-    "We could not read your firm's website during the scan.",
-    tier === "CRITICAL"
-      ? "This outlook is in the highest-risk group, and because the website could not be read, it needs a manual review whatever your answers show."
-      : "Until it can be read, this outlook needs a manual review, whatever your answers show.",
-    "This is not a coverage decision or a price.",
-  ].join(" ");
-}
+/** The assessment flag of a result scored on the answers alone: the website could not be read, so Layer 1 had no
+    evidence, `layer1Score` is null and the combined score is the Layer 2 score (DN-12 §14). */
+export const LAYER1_UNAVAILABLE = "LAYER1_UNAVAILABLE";
+
+/** The line the results screen and the webapp card show for such a result: low confidence, not high risk. The back's
+    assessment PDF prints it in the third person ("the firm's answers"). */
+export const ANSWERS_ONLY_LINE = "Based only on your answers; no public evidence could be verified (low confidence).";
+
+/** Whether the combined score is the answers alone. */
+export const answersOnly = (result: Pick<AssessmentResult, "flags">): boolean => result.flags.includes(LAYER1_UNAVAILABLE);
 
 // The whole list of flags a visitor ever reads about, each worded once. A result's flags are the API's machine codes,
 // and most are for us (provider accounting, the demo markers, identity matching), so a flag that is not here renders
@@ -44,7 +41,7 @@ export function resultNotes(flags: readonly string[]): string[] {
   return NOTES.filter(
     ([codes]) =>
       has(codes) &&
-      // The website notice already says the public evidence is missing.
+      // The answers-only line already says the public evidence is missing.
       !(isEvidence(codes) && flags.includes(WEBSITE_UNAVAILABLE)) &&
       // A missing source already explains why the evidence is thin.
       !(codes === THIN_EVIDENCE && has(MISSING_SOURCES)),

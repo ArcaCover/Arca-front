@@ -4,7 +4,6 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Download,
@@ -17,9 +16,9 @@ import SaveResultsCta from "@/components/app/SaveResultsCta";
 import AssessmentShell from "@/components/assessment/AssessmentShell";
 import { completedOn, versionLine } from "@/components/assessment/result-meta";
 import {
-  WEBSITE_UNAVAILABLE,
+  ANSWERS_ONLY_LINE,
+  answersOnly,
   resultNotes,
-  websiteNotice,
 } from "@/components/assessment/result-notes";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
 import {
@@ -240,9 +239,13 @@ function ResultsScreen() {
                       : "Your practices, in perspective."}
                   </h2>
                   <p className="mt-3 text-xs leading-6 text-marino/70">
-                    {result.compositeScore === null
-                      ? "The quick scan did not support a combined score. Your questionnaire score is still available below."
-                      : "This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices."}
+                    {/* The website could not be read: the score is the answers alone, said plainly in one line, as low
+                        confidence and never as a risk group (DN-12 §14). */}
+                    {answersOnly(result)
+                      ? ANSWERS_ONLY_LINE
+                      : result.compositeScore === null
+                        ? "The quick scan did not support a combined score. Your questionnaire score is still available below."
+                        : "This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices."}
                   </p>
                 </div>
                 {/* Secondary on purpose: gold stays for the primary action of a screen. */}
@@ -277,19 +280,6 @@ function ResultsScreen() {
                     )}
                 </div>
               </div>
-              {result.flags.includes(WEBSITE_UNAVAILABLE) && (
-                <p
-                  role="note"
-                  aria-label="About this outlook"
-                  className="mt-6 flex items-start gap-2 rounded-xl bg-oro/10 px-4 py-3 text-sm leading-6 text-marino"
-                >
-                  <AlertTriangle
-                    aria-hidden
-                    className="mt-1 h-4 w-4 shrink-0 text-oro-oscuro"
-                  />
-                  <span>{websiteNotice(result.tier)}</span>
-                </p>
-              )}
               <div className="mt-7 grid grid-cols-2 gap-3 border-t border-marino/10 pt-6">
                 <div className="rounded-2xl bg-bruma/35 p-4">
                   <p className="text-[11px] text-marino/70">

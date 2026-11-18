@@ -7,14 +7,17 @@ import { AlertTriangle, Download, HelpCircle, Info, Loader2 } from "lucide-react
 import RefineCta from "@/components/assessment/RefineCta";
 import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { DomainBar, ScoreGauge, SignalCard, TierBadge } from "@/components/score";
-import { adaptScore, notRatedSentence, type ScoreView } from "@/lib/api/adapt";
+import { WEBSITE_UNREAD_NOTICE, adaptScore, notRatedSentence, type ScoreView } from "@/lib/api/adapt";
 import { ApiError, downloadReport, pollScan } from "@/lib/api/client";
 import { saveFile } from "@/lib/api/download";
 import { forgetSession, recallSession } from "@/lib/api/session";
 import { publishDebugState } from "@/lib/debug/bridge";
 
 // One notice, three cases. The sentences never name a decision: Layer 1 makes none here (CLAUDE.md §7).
-function evidenceNotice({ evidence, decisionWithheld, tier, notRated }: ScoreView): string {
+function evidenceNotice({ evidence, decisionWithheld, notRated }: ScoreView): string {
+  // The website could not be read at all: no public evidence, so no score from it. One notice says so and points to the
+  // assessment, which scores the answers alone. Low confidence, not high risk: no risk group, no manual review (DN-12 §14).
+  if (evidence.kind === "website_unavailable") return `${WEBSITE_UNREAD_NOTICE} This is not a coverage decision.`;
   // With no score on the page, the notice only says which sources fell short; why there is no score is said once, in
   // the place of the score.
   if (notRated) {
@@ -22,19 +25,6 @@ function evidenceNotice({ evidence, decisionWithheld, tier, notRated }: ScoreVie
       ? "All three public sources answered: your website, the Florida Bar register and Avvo."
       : evidence.gaps.length ? evidence.gaps.join(" ") : "Part of the public evidence could not be read.";
     return `${sources} This is not a coverage decision.`;
-  }
-  if (evidence.kind === "website_unavailable") {
-    return [
-      "We could not read your firm's website during the scan.",
-      // The group is named only when the API's own tier agrees, so the notice cannot contradict the badge beside it.
-      // It is "for now": the tier after the assessment follows the combined score, so no outcome is promised either
-      // way. Only the manual review holds whatever the answers are. The Quick Scan PDF says the same (DN-12 §8).
-      tier === "CRITICAL"
-        ? "What we could not verify counts as unknown, which places your firm in the highest-risk group for now."
-        : "What we could not verify counts as unknown.",
-      "Your answers in the assessment below also count, and because the website could not be read, the case will need a manual review.",
-      "This is not a coverage decision.",
-    ].join(" ");
   }
   if (evidence.kind === "complete") {
     return `All three public sources answered: your website, the Florida Bar register and Avvo.${
@@ -194,9 +184,8 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
   }
 
   const { firm, score, tier, confidence, categories, signals, evidence, notRated } = state.view;
-  const websiteUnavailable = evidence.kind === "website_unavailable";
-  // Either way there is little below to look at, so the assessment comes first.
-  const assessmentFirst = websiteUnavailable || notRated !== null;
+  // With no score to show there is little below to look at, so the assessment comes first.
+  const assessmentFirst = notRated !== null;
   const location = [firm.city, firm.state].filter(Boolean).join(", ");
   const details = [location, firm.practice].filter(Boolean).join(" · ");
 
@@ -256,7 +245,17 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
             </div>
           </div>
 
-          {notRated ? (
+          {notRated?.reason === "website_unavailable" ? (
+            // No public evidence at all: a 0 and CRITICAL here would read as a verdict on a firm nobody could see. The
+            // notice above says why, once; this only marks the place of the score as low confidence.
+            <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center rounded-2xl bg-bruma/50 px-6 py-7 text-center">
+              <HelpCircle aria-hidden className="h-8 w-8 text-marino/50" />
+              <h2 className="mt-4 font-heading text-lg font-semibold tracking-tight text-marino">
+                No score from public evidence
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-marino/70">Confidence: low</p>
+            </div>
+          ) : notRated ? (
             // Too little evidence to rate: a number and a tier here would read as a judgement of the firm.
             <div className="flex w-full max-w-[300px] shrink-0 flex-col items-center rounded-2xl bg-bruma/50 px-6 py-7 text-center">
               <HelpCircle aria-hidden className="h-8 w-8 text-marino/50" />

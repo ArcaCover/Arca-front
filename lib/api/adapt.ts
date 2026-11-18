@@ -24,6 +24,11 @@ export type EvidenceView = {
   gaps: string[];
 };
 
+/** Why /score shows no number and no tier. `website_unavailable`: the firm website could not be read at all, so there is
+    no public evidence and the assessment scores the answers alone (DN-12 §14). `thin_evidence`: too little was seen to
+    rate the firm (DN-12 §12). */
+export type NotRatedView = { reason: "website_unavailable" } | { reason: "thin_evidence"; evaluated: number };
+
 export type ScoreView = {
   firm: {
     name: string | null;
@@ -41,10 +46,8 @@ export type ScoreView = {
   /** Layer 1 could not underwrite on this evidence, so no commercial decision is shown
       (CLAUDE.md §7: an insurer does not imply a decision it has not made). */
   decisionWithheld: boolean;
-  /** Set when the evidence is too thin to rate the firm: the number and the tier are not shown, only how many of the
-      four areas could be evaluated. Null when the firm is rated, and always null for an unreadable website, which keeps
-      its own notice. */
-  notRated: { evaluated: number } | null;
+  /** Set when the score is withheld: the number and the tier are not shown, only why. Null when the firm is rated. */
+  notRated: NotRatedView | null;
 };
 
 type PreScore = Pick<Layer1Result["preScore"], "confidence" | "categories" | "flags">;
@@ -57,8 +60,8 @@ export function evaluatedAreas(preScore: PreScore): number {
 /**
  * Too little evidence to present the score and tier as a judgement of the firm: low confidence and fewer than half of
  * the four categories evaluated. The live scan of hklaw.com printed 3 / 100, CRITICAL, from one partial category; that
- * was a gap in what we could see, not a verdict. An unreadable website (WEBSITE_UNAVAILABLE) is excluded on purpose: it
- * is shown as the highest-risk group with a manual review (DN-12 §3.3). The Quick Scan PDF applies the same rule
+ * was a gap in what we could see, not a verdict. An unreadable website (WEBSITE_UNAVAILABLE) is left to its sibling
+ * state, which has its own words (`notRated.reason`). The Quick Scan PDF applies the same rule
  * (apps/api/src/report/quick-scan.ts in Arca-back).
  */
 export function hasInsufficientEvidence(preScore: PreScore): boolean {
@@ -72,6 +75,18 @@ export function notRatedSentence(evaluated: number): string {
   return evaluated === 0
     ? "We could not evaluate any of the 4 areas from public sources, so we are not showing a score."
     : `We could evaluate only ${evaluated} of 4 areas from public sources, so we are not showing a score.`;
+}
+
+/** The one notice /score shows when the firm website could not be read at all: low confidence, not high risk (DN-12 §14).
+    The Quick Scan PDF says the same in the third person. */
+export const WEBSITE_UNREAD_NOTICE = "We could not read your firm's website, so we have no public evidence to score. "
+  + "The assessment below gives you a score based on your answers, marked as low confidence.";
+
+/** Why there is no score, in one sentence: what the webapp cards print in the place of the number. */
+export function notRatedText(notRated: NotRatedView): string {
+  return notRated.reason === "website_unavailable"
+    ? "We could not read your firm's website, so we have no public evidence to score."
+    : notRatedSentence(notRated.evaluated);
 }
 
 // The four categories Layer 1 measures, with the weight each carries. These are not the six
@@ -142,9 +157,11 @@ export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"
     signals: signalsToCards(result),
     evidence,
     decisionWithheld: preScore.assessmentStatus === "INSUFFICIENT_EVIDENCE" || preScore.decision === "UNKNOWN",
-    // The website notice also covers a website that failed without the flag; it names the risk group, so it wins.
-    notRated: hasInsufficientEvidence(preScore) && evidence.kind !== "website_unavailable"
-      ? { evaluated: evaluatedAreas(preScore) }
-      : null,
+    // An unreadable website comes first, also one that failed without the flag: there is no public evidence at all.
+    notRated: evidence.kind === "website_unavailable"
+      ? { reason: "website_unavailable" }
+      : hasInsufficientEvidence(preScore)
+        ? { reason: "thin_evidence", evaluated: evaluatedAreas(preScore) }
+        : null,
   };
 }

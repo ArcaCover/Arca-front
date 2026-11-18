@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { adaptScore, evaluatedAreas, hasInsufficientEvidence } from "@/lib/api/adapt";
+import { WEBSITE_UNREAD_NOTICE, adaptScore, evaluatedAreas, hasInsufficientEvidence, notRatedText } from "@/lib/api/adapt";
 import { fixtureResult } from "@/lib/api/fixture";
 import { thinEvidenceResult } from "@/lib/test-fixtures/layer1";
 
@@ -171,7 +171,7 @@ describe("hasInsufficientEvidence", () => {
     expect(hasInsufficientEvidence({ ...thin.preScore, confidence: "MEDIUM" })).toBe(false);
   });
 
-  it("is false with the website-unavailable flag, which keeps its own highest-risk treatment", () => {
+  it("is false with the website-unavailable flag, which has its own withheld state", () => {
     expect(hasInsufficientEvidence({ ...thin.preScore, flags: [...thin.preScore.flags, "WEBSITE_UNAVAILABLE"] })).toBe(false);
   });
 
@@ -184,7 +184,7 @@ describe("adaptScore with too little evidence to rate", () => {
   it("withholds the rating and counts the areas it could evaluate", () => {
     const view = adaptScore(thinEvidenceResult(), "PARTIAL");
 
-    expect(view.notRated).toEqual({ evaluated: 1 });
+    expect(view.notRated).toEqual({ reason: "thin_evidence", evaluated: 1 });
     // The breakdown still shows what was and was not seen.
     expect(view.categories.map(category => category.status)).toEqual(["UNKNOWN", "PARTIAL", "UNKNOWN", "UNKNOWN"]);
   });
@@ -193,12 +193,36 @@ describe("adaptScore with too little evidence to rate", () => {
     expect(adaptScore(fixtureResult(), "COMPLETED").notRated).toBeNull();
   });
 
-  it("leaves an unreadable website to its own notice, even when the website failed without the flag", () => {
+  it("withholds the score of an unreadable website as its own low-confidence state, even without the flag", () => {
     const thin = thinEvidenceResult();
     const failed = { status: "error", dataStatus: "UNKNOWN", durationMs: 40, code: "NO_READABLE_EVIDENCE" };
     const unread = thinEvidenceResult({ sources: { ...thin.sources, website: failed } });
 
     expect(adaptScore(unread, "PARTIAL").evidence.kind).toBe("website_unavailable");
-    expect(adaptScore(unread, "PARTIAL").notRated).toBeNull();
+    expect(adaptScore(unread, "PARTIAL").notRated).toEqual({ reason: "website_unavailable" });
+  });
+
+  it("withholds the score of a website the API flagged unreadable, whatever the tier and the other sources (DN-12 §14)", () => {
+    // What the API now sends for blocked.arca.example and down.arca.example: 0, CRITICAL, low confidence, the flag.
+    const unread = fixtureResult({
+      preScore: { ...fixtureResult().preScore, total: 0, tier: "CRITICAL", confidence: "LOW",
+        flags: ["INCOMPLETE_SOURCES", "WEBSITE_UNAVAILABLE", "INCOMPLETE_EVIDENCE", "COMMERCIAL_DECISION_BLOCKED"] },
+    });
+    expect(adaptScore(unread, "PARTIAL").notRated).toEqual({ reason: "website_unavailable" });
+  });
+});
+
+describe("notRatedText", () => {
+  it("says why there is no score, in one sentence per state", () => {
+    expect(notRatedText({ reason: "website_unavailable" }))
+      .toBe("We could not read your firm's website, so we have no public evidence to score.");
+    expect(notRatedText({ reason: "thin_evidence", evaluated: 1 }))
+      .toBe("We could evaluate only 1 of 4 areas from public sources, so we are not showing a score.");
+  });
+
+  it("words the /score notice for an unreadable website as low confidence, never as a risk group or a manual review", () => {
+    expect(WEBSITE_UNREAD_NOTICE).toBe("We could not read your firm's website, so we have no public evidence to score. "
+      + "The assessment below gives you a score based on your answers, marked as low confidence.");
+    expect(WEBSITE_UNREAD_NOTICE).not.toMatch(/highest-risk|manual review/);
   });
 });

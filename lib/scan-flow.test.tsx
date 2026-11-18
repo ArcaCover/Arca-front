@@ -44,8 +44,9 @@ function withSources(sources: Record<string, unknown>, overrides: Record<string,
   return fixtureResult({ sources: { ...base.sources, ...sources } as Sources, ...overrides });
 }
 
-// The result the API stores for a firm whose website it could not read for a definitive reason: nothing verified,
-// directories never searched, and the flag that names the case.
+// The result the API stores for a firm whose website it could not read at all, for any cause on the site's side (DN-12
+// §14): nothing verified, directories never searched, low confidence and the flag that names the case. The engine still
+// sends 0 and CRITICAL; the screen must not show them.
 function unreadableWebsite() {
   const unknown = (max: number, rules: string[]) => ({
     score: null, max, status: "UNKNOWN",
@@ -62,10 +63,10 @@ function unreadableWebsite() {
         firmMaturity: unknown(15, ["W7", "W6", "W5a", "W8", "W9_A2"]),
       },
       tier: "CRITICAL",
-      decision: "REFERRAL_SENIOR",
+      decision: "UNKNOWN",
       confidence: "LOW",
-      overrides: [{ id: "WEBSITE_UNAVAILABLE", decision: "REFERRAL_SENIOR", reason: "The firm website could not be read" }],
-      flags: ["INCOMPLETE_SOURCES", "INCOMPLETE_EVIDENCE", "COMMERCIAL_DECISION_BLOCKED", "WEBSITE_UNAVAILABLE"],
+      overrides: [],
+      flags: ["INCOMPLETE_SOURCES", "WEBSITE_UNAVAILABLE", "INCOMPLETE_EVIDENCE", "COMMERCIAL_DECISION_BLOCKED"],
       assessmentStatus: "INSUFFICIENT_EVIDENCE",
     },
     identity: null,
@@ -227,16 +228,15 @@ describe("/score evidence notice", () => {
     expect(notice.textContent).toBe("Part of the public evidence could not be read, so this score rests on less evidence than usual.");
   });
 
-  it("explains an unreadable website and puts the assessment first", async () => {
+  it("explains an unreadable website once, as low confidence, and puts the assessment first", async () => {
     const notice = await showScore(unreadableWebsite(), "PARTIAL");
 
     expect(notice.textContent).toBe(
-      "We could not read your firm's website during the scan. What we could not verify counts as unknown, which places "
-      + "your firm in the highest-risk group for now. Your answers in the assessment below also count, and because the "
-      + "website could not be read, the case will need a manual review. This is not a coverage decision.",
+      "We could not read your firm's website, so we have no public evidence to score. The assessment below gives you a "
+      + "score based on your answers, marked as low confidence. This is not a coverage decision.",
     );
-    // The tier after the assessment follows the combined score: nothing promises the assessment moves the firm out.
-    expect(notice.textContent).not.toMatch(/until you complete|whatever your answers/);
+    // Low confidence, not high risk (DN-12 §14 replaces the highest-risk group and the manual review).
+    expect(document.body.textContent).not.toMatch(/highest-risk|manual review|until you complete|whatever your answers/);
     expect(screen.getAllByRole("note")).toHaveLength(1);
     // The domain stands in for the firm name nobody could read.
     expect(screen.getByRole("heading", { level: 1, name: "blocked.arca.example" })).toBeTruthy();
@@ -250,15 +250,14 @@ describe("/score evidence notice", () => {
     expect(screen.getByText("The scan could not confirm any individual signal for this firm.")).toBeTruthy();
   });
 
-  it("does not claim the highest-risk group when the API scored the firm elsewhere", async () => {
+  it("says the same whatever score and tier the API sent", async () => {
     const result = unreadableWebsite();
     const notice = await showScore(
       fixtureResult({ ...result, preScore: { ...result.preScore, total: null, tier: "UNKNOWN" } }), "PARTIAL");
 
     expect(notice.textContent).toBe(
-      "We could not read your firm's website during the scan. What we could not verify counts as unknown. "
-      + "Your answers in the assessment below also count, and because the website could not be read, the case will "
-      + "need a manual review. This is not a coverage decision.",
+      "We could not read your firm's website, so we have no public evidence to score. The assessment below gives you a "
+      + "score based on your answers, marked as low confidence. This is not a coverage decision.",
     );
   });
 
@@ -360,12 +359,20 @@ describe("/score with too little evidence to rate", () => {
     expect(screen.getByText("Confidence: low")).toBeTruthy();
   });
 
-  it("keeps the highest-risk treatment of an unreadable website", async () => {
+  it("withholds the number and the tier of an unreadable website, in its own low-confidence state", async () => {
     await showScore(unreadableWebsite(), "PARTIAL");
 
     expect(screen.queryByRole("heading", { name: unrated })).toBeNull();
-    expect(gauge()).toBeTruthy();
-    expect(screen.getByText("CRITICAL")).toBeTruthy();
+    const state = screen.getByRole("heading", { level: 2, name: "No score from public evidence" });
+    expect(state.parentElement?.textContent).toContain("Confidence: low");
+    expect(gauge()).toBeNull();
+    expect(screen.queryByText("CRITICAL")).toBeNull();
+    expect(screen.queryByText(/^0$/)).toBeNull();
+    // The assessment is the primary action, right under the state and before the breakdown.
+    const refine = screen.getByRole("button", { name: "Refine your score" });
+    expect(screen.getAllByRole("button", { name: "Refine your score" })).toHaveLength(1);
+    expect(comesBefore(state, refine)).toBe(true);
+    expect(comesBefore(refine, screen.getByRole("heading", { name: "Score breakdown" }))).toBe(true);
   });
 });
 

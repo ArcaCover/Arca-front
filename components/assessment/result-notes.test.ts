@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resultNotes, websiteNotice } from "./result-notes";
+import { ANSWERS_ONLY_LINE, answersOnly, resultNotes } from "./result-notes";
 
 describe("resultNotes", () => {
   it("words each flag a visitor can act on, in a fixed order whatever order the API sends", () => {
@@ -41,7 +41,7 @@ describe("resultNotes", () => {
     ]);
   });
 
-  it("leaves the missing public evidence to the website notice when the website could not be read", () => {
+  it("leaves the missing public evidence to the answers-only line when the website could not be read", () => {
     expect(resultNotes(["INCOMPLETE_EVIDENCE", "INCOMPLETE_SOURCES", "NO_AI_POLICY", "WEBSITE_UNAVAILABLE"])).toEqual([
       "Your answers say the firm has no AI policy yet.",
     ]);
@@ -53,23 +53,16 @@ describe("resultNotes", () => {
   });
 });
 
-// The API takes the tier from the combined score, so the answers can move the group; only the manual review holds
-// whatever they show. The back's assessment PDF prints the same sentences.
-describe("websiteNotice", () => {
-  it("names the highest-risk group as where the outlook is, and holds only the manual review whatever the answers", () => {
-    expect(websiteNotice("CRITICAL")).toBe(
-      "We could not read your firm's website during the scan. This outlook is in the highest-risk group, and because the "
-      + "website could not be read, it needs a manual review whatever your answers show. "
-      + "This is not a coverage decision or a price.",
-    );
+// DN-12 §14: an unreadable website is low confidence, not high risk. The combined score is the answers alone, and the
+// screen says so in one line. The back's assessment PDF prints it in the third person.
+describe("the answers-only line", () => {
+  it("says plainly what the score rests on", () => {
+    expect(ANSWERS_ONLY_LINE).toBe("Based only on your answers; no public evidence could be verified (low confidence).");
+    expect(ANSWERS_ONLY_LINE).not.toMatch(/highest-risk|manual review/);
   });
 
-  it.each(["FORTRESS", "FORTIFIED", "GUARDED", "EXPOSED", "UNKNOWN"] as const)("keeps only the manual review for %s", tier => {
-    const notice = websiteNotice(tier);
-    expect(notice).toBe(
-      "We could not read your firm's website during the scan. Until it can be read, this outlook needs a manual review, "
-      + "whatever your answers show. This is not a coverage decision or a price.",
-    );
-    expect(notice).not.toMatch(/highest-risk/);
+  it("applies to a result the API scored on the answers alone", () => {
+    expect(answersOnly({ flags: ["LAYER1_UNAVAILABLE", "WEBSITE_UNAVAILABLE"] })).toBe(true);
+    expect(answersOnly({ flags: ["INCOMPLETE_EVIDENCE"] })).toBe(false);
   });
 });

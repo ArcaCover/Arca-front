@@ -45,6 +45,8 @@ const BANK = "0.1.0-demo.1";
 const MODEL = "layer2-demo-fixed-coverage-0.1.0";
 // The one small line the results print for them: the numbers only, since the notice already says "demo".
 const VERSION_LINE = "Question bank 0.1.0 · Scoring model 0.1.0";
+// DN-12 §14: what the results say when the website could not be read and the score is the answers alone.
+const ANSWERS_ONLY = "Based only on your answers; no public evidence could be verified (low confidence).";
 // The back's own copy, which repeats the disclosure on every follow-up and on every action.
 const FOLLOW_UP_HELP = "This follow-up adds context and does not change the demo score.";
 const actionDetail = (step: string) =>
@@ -410,10 +412,11 @@ describe("one disclosure per assessment screen", () => {
     expect(screen.getByText(/not an assurance that all risks are addressed/)).toBeTruthy();
   });
 
-  it.each(["CRITICAL", "FORTIFIED"] as const)("shows it once on %s results that carry the website notice", async tier => {
-    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, tier, flags: ["WEBSITE_UNAVAILABLE"] }));
+  it.each(["CRITICAL", "FORTIFIED"] as const)("shows it once on %s results scored on the answers alone", async tier => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, tier,
+      layer1Score: null, layer2Score: 60, compositeScore: 60, flags: ["LAYER1_UNAVAILABLE", "WEBSITE_UNAVAILABLE"] }));
     render(<AssessmentResultsPage />);
-    await screen.findByRole("note", { name: "About this outlook" });
+    await screen.findByText(ANSWERS_ONLY);
     expectOneDisclosure(VERSION_LINE);
   });
 
@@ -533,36 +536,35 @@ describe("notes on the results", () => {
     expect(document.body.textContent).not.toMatch(/provider cost|bank not approved|future flag/i);
   });
 
-  it("says beside the score that the website could not be read, without a decision or a price", async () => {
+  it("says beside the score that it rests on the answers alone, with no Layer 1 number (DN-12 §14)", async () => {
     vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
-      layer1Score: 12, compositeScore: 21, tier: "CRITICAL", decision: "REFERRAL_SENIOR",
-      flags: ["COMMERCIAL_DECISION_BLOCKED", "INCOMPLETE_EVIDENCE", "INCOMPLETE_SOURCES", "INSUFFICIENT_EVIDENCE", "WEBSITE_UNAVAILABLE"],
+      layer1Score: null, layer2Score: 21, compositeScore: 21, tier: "CRITICAL", decision: "UNKNOWN",
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INCOMPLETE_EVIDENCE", "INCOMPLETE_SOURCES", "INSUFFICIENT_EVIDENCE", "LAYER1_UNAVAILABLE",
+        "WEBSITE_UNAVAILABLE"],
     }));
     render(<AssessmentResultsPage />);
     const gauge = await screen.findByRole("img", { name: "AI Governance Score: 21 out of 100" });
-    const notice = screen.getByRole("note", { name: "About this outlook" });
-    expect(notice.textContent).toBe(
-      "We could not read your firm's website during the scan. This outlook is in the highest-risk group, and because the website could not be read, it needs a manual review whatever your answers show. This is not a coverage decision or a price.",
-    );
-    expect(gauge.closest("section")!.contains(notice)).toBe(true);
-    // The notice already says the public evidence is missing, so the notes do not say it again.
+    const line = screen.getByText(ANSWERS_ONLY);
+    expect(gauge.closest("section")!.contains(line)).toBe(true);
+    expect(screen.getAllByText(/no public evidence could be verified/)).toHaveLength(1);
+    expect(document.body.textContent).not.toMatch(/combines the public evidence/);
+    // Layer 1 has no number: it was not scored, not scored zero.
+    expect(screen.getByText("Public evidence · Layer 1").parentElement?.textContent).toContain("Not scored");
+    // The line already says the public evidence is missing, so the notes do not say it again.
     expect(screen.queryByText(/Notes for review/)).toBeNull();
-    expect(document.body.textContent).not.toMatch(/WEBSITE_UNAVAILABLE|referral/i);
+    expect(screen.queryByRole("note", { name: "About this outlook" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/WEBSITE_UNAVAILABLE|LAYER1_UNAVAILABLE|referral|highest-risk|manual review/i);
   });
 
-  // The API derives the tier from the composite alone, so strong answers can lift an unread website out of the
-  // lowest band. The notice must never say otherwise beside the badge.
-  it.each(["FORTRESS", "FORTIFIED", "GUARDED", "EXPOSED", "UNKNOWN"] as const)("keeps only the manual review in the website notice when the tier is %s", async tier => {
+  // Low confidence, not high risk, whatever tier the answers alone reach.
+  it.each(["FORTRESS", "FORTIFIED", "GUARDED", "EXPOSED", "CRITICAL"] as const)("never names a risk group or a manual review when the tier is %s", async tier => {
     vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
-      layer1Score: 12, layer2Score: 100, compositeScore: tier === "UNKNOWN" ? null : 73.6, tier, decision: "REFERRAL_SENIOR",
-      flags: ["COMMERCIAL_DECISION_BLOCKED", "INSUFFICIENT_EVIDENCE", "WEBSITE_UNAVAILABLE"],
+      layer1Score: null, layer2Score: 73.6, compositeScore: 73.6, tier, decision: "UNKNOWN",
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INSUFFICIENT_EVIDENCE", "LAYER1_UNAVAILABLE", "WEBSITE_UNAVAILABLE"],
     }));
     render(<AssessmentResultsPage />);
-    const notice = await screen.findByRole("note", { name: "About this outlook" });
-    expect(notice.textContent).toBe(
-      "We could not read your firm's website during the scan. Until it can be read, this outlook needs a manual review, whatever your answers show. This is not a coverage decision or a price.",
-    );
-    expect(document.body.textContent).not.toMatch(/highest-risk|WEBSITE_UNAVAILABLE|referral/i);
+    expect(await screen.findByText(ANSWERS_ONLY)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/highest-risk|manual review|WEBSITE_UNAVAILABLE|referral/i);
   });
 
   // The minimal profile: every source answered, the evidence was thin. /score says all three answered, so the note

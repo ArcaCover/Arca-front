@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { AnalysisView } from "@arca/contracts";
 
+import { ANSWERS_ONLY_LINE, answersOnly } from "@/components/assessment/result-notes";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
-import { adaptScore, notRatedSentence } from "@/lib/api/adapt";
+import { adaptScore, notRatedText } from "@/lib/api/adapt";
 import type { TierName } from "@/lib/score-tiers";
 
 type Bar = { key: string; name: string; score: number | null; max?: number; caption?: string };
@@ -23,17 +24,19 @@ export function summary({ assessment, layer1, scanStatus }: AnalysisView): Summa
         caption: `${domain.weight}% weight${domain.status === "PARTIAL" ? " · partial evidence" : ""}`,
       })),
       decisionWithheld: false,
-      notRated: null,
+      // The website could not be read, so the combined score is the answers alone: the card says so, as the results do.
+      notRated: answersOnly(assessment) ? ANSWERS_ONLY_LINE : null,
     };
   }
   const scan = adaptScore(layer1, scanStatus);
   return {
-    // Too little evidence to rate, as on /score: no number and no risk tier, only the unscored state.
+    // No score shown on /score (an unreadable website, or too little evidence to rate): no number and no risk tier here
+    // either, only the unscored state and why.
     score: scan.notRated ? null : scan.score,
     tier: scan.notRated ? "UNKNOWN" : scan.tier,
     bars: scan.categories.map(category => ({ key: category.key, name: category.label, score: category.score, max: category.max })),
     decisionWithheld: scan.decisionWithheld,
-    notRated: scan.notRated && notRatedSentence(scan.notRated.evaluated),
+    notRated: scan.notRated && notRatedText(scan.notRated),
   };
 }
 
