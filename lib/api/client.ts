@@ -168,24 +168,47 @@ export async function pollScan(
   return apiParse(PollResponse, await response.json().catch(() => null));
 }
 
-/** The Quick Scan Report, rendered by the API from the stored result. The filename is the
-    API's too: it names the file after the domain and the scan date. */
-export async function downloadReport(
-  scanId: string,
+export type ReportFile = { blob: Blob; filename: string };
+
+/** Both reports are rendered by the API from stored data and named by it, after the domain and
+    the date. `fallback` only names the file when the API sent no filename. */
+async function downloadPdf(
+  path: string,
   sessionToken: string,
-): Promise<{ blob: Blob; filename: string }> {
-  const response = await apiSend(
-    `/scan/${encodeURIComponent(scanId)}/report.pdf`,
-    {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-    },
-  );
+  fallback: string,
+): Promise<ReportFile> {
+  const response = await apiSend(path, {
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  });
   if (!response.ok) throw await apiFailure(response);
   const disposition = response.headers.get("Content-Disposition") ?? "";
-  const filename =
-    /filename="([^"]+)"/.exec(disposition)?.[1] ??
-    `arca-quick-scan-${scanId}.pdf`;
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallback;
   return { blob: await response.blob(), filename };
+}
+
+/** The Quick Scan Report, from the stored Layer 1 result. */
+export function downloadReport(
+  scanId: string,
+  sessionToken: string,
+): Promise<ReportFile> {
+  return downloadPdf(
+    `/scan/${encodeURIComponent(scanId)}/report.pdf`,
+    sessionToken,
+    `arca-quick-scan-${scanId}.pdf`,
+  );
+}
+
+/** The assessment report, from the stored Layer 2 record. It takes the scan's session token,
+    like every other assessment route. */
+export function downloadAssessmentReport(
+  assessmentId: string,
+  sessionToken: string,
+): Promise<ReportFile> {
+  return downloadPdf(
+    `/assessment/${encodeURIComponent(assessmentId)}/report.pdf`,
+    sessionToken,
+    `arca-assessment-${assessmentId}.pdf`,
+  );
 }
 
 /** The server owns the question list, branch rules, answer validation and scoring. */

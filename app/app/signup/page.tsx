@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { SIGN_IN_NOT_AVAILABLE, useBrowser } from "@/components/app/AppContext";
+import SimulationNotice from "@/components/app/SimulationNotice";
 import { ApiError } from "@/lib/api/client";
 import { signIn } from "@/lib/app/auth";
 import { createOrg } from "@/lib/app/client";
@@ -69,6 +70,7 @@ function SignupScreen() {
       <h1 className="font-heading text-2xl">
         {hasAccount ? "Save your results to a new organization" : "Save your results and activate your account"}
       </h1>
+      <SimulationNotice />
       <form onSubmit={submit} className="mt-6 space-y-4">
         <label className="block text-sm">
           Email

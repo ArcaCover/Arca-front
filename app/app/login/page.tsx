@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { SIGN_IN_NOT_AVAILABLE } from "@/components/app/AppContext";
+import SimulationNotice from "@/components/app/SimulationNotice";
 import { ApiError } from "@/lib/api/client";
 import { signIn } from "@/lib/app/auth";
 
@@ -35,6 +36,7 @@ export default function LoginPage() {
   return (
     <section className="max-w-md">
       <h1 className="font-heading text-2xl">Sign in</h1>
+      <SimulationNotice />
       <form onSubmit={submit} className="mt-6 space-y-4">
         <label className="block text-sm">
           Email
@@ -46,7 +48,8 @@ export default function LoginPage() {
             className="mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2"
           />
         </label>
-        {/* DN-10 §4.6: in mock, the simulated sign-in is also how someone at ARCA becomes a platform admin. */}
+        {/* DN-10 §4.6: in mock, the simulated sign-in is also how someone at ARCA becomes a platform admin. Mock only, like
+            the panel's sign-ins as a role: live-debug simulates the customer's account, not ARCA's staff. */}
         {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && (
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={platformAdmin} onChange={event => setPlatformAdmin(event.target.checked)} />

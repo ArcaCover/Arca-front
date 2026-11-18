@@ -7,10 +7,11 @@ import { notFound } from "next/navigation";
 // components/debug/DebugMount.tsx).
 let MockCheckout: ComponentType | undefined;
 
-// A server component, so outside mock the route is a real 404 from the build on, like the back's debug routes: the
-// comparison against the inlined literal decides it (DN-09 literal guard).
+// A server component, so outside the debug modes the route is a real 404 from the build on, like the back's debug
+// routes: the comparison against the inlined literal decides it (DN-09 literal guard). In live-debug it pays the
+// organization the back keeps in memory, as in mock.
 export default function MockCheckoutPage() {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE === "mock") {
+  if (process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug") {
     MockCheckout ??= dynamic(() => import("./MockCheckout"));
     return (
       <Suspense fallback={null}>

@@ -5,10 +5,17 @@ The design, the security rules and the verification record live in the backend r
 | Mode | `NEXT_PUBLIC_ARCA_MODE` (front) / `ARCA_MODE` (back) | What it uses | Banner |
 |---|---|---|---|
 | production | unset or `production` | whatever `.env.local` configures | none |
-| live-debug | `live-debug` | real APIs and the Supabase shared with production | `LIVE DEBUG · real APIs & real database` |
+| live-debug | `live-debug` | real APIs and the Supabase shared with production for scans and assessments; accounts, organizations and billing simulated in the back's memory (`webapp.md`) | `LIVE DEBUG · real scans · simulated accounts & billing` |
 | mock | `mock` | fixtures and in-memory storage, no external API | `MOCK · no real APIs · in-memory data` |
 
 An unknown value stops `next dev` and `next build`. A Vercel build (`VERCEL` set) fails in any mode except production. The debug code is only loaded when the mode is not production, and `npm run build` fails if a production build ships any of it (`scripts/check-no-debug.mjs`).
+
+What each mode has of the private webapp:
+
+| | production | live-debug | mock |
+|---|---|---|---|
+| "Keep these results" on `/assessment/results`, sign-up, sign-in, billing, simulated checkout | no (sign-in says it is not available yet; the checkout page is a 404) | yes, simulated, with a line that says so on each of those screens | yes, simulated |
+| Demo seed, "Sign in as <role>" and "Show forbidden actions" in the State panel; platform admin sign-in on `/app/login` | no | no | yes |
 
 ## Run (Windows PowerShell)
 

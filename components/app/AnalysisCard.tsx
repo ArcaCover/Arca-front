@@ -1,13 +1,14 @@
 import Link from "next/link";
 import type { AnalysisView } from "@arca/contracts";
 
+import { ANSWERS_ONLY_LINE, answersOnly } from "@/components/assessment/result-notes";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
-import { adaptScore } from "@/lib/api/adapt";
+import { adaptScore, notRatedText } from "@/lib/api/adapt";
 import type { TierName } from "@/lib/score-tiers";
 
 type Bar = { key: string; name: string; score: number | null; max?: number; caption?: string };
 
-type Summary = { score: number | null; tier: TierName; bars: Bar[]; decisionWithheld: boolean };
+type Summary = { score: number | null; tier: TierName; bars: Bar[]; decisionWithheld: boolean; notRated: string | null };
 
 // With an assessment, the combined score and the six domains, as /assessment/results shows them. A scan claimed without
 // one keeps its Layer 1 score and four categories, as /score shows them.
@@ -23,14 +24,19 @@ export function summary({ assessment, layer1, scanStatus }: AnalysisView): Summa
         caption: `${domain.weight}% weight${domain.status === "PARTIAL" ? " · partial evidence" : ""}`,
       })),
       decisionWithheld: false,
+      // The website could not be read, so the combined score is the answers alone: the card says so, as the results do.
+      notRated: answersOnly(assessment) ? ANSWERS_ONLY_LINE : null,
     };
   }
   const scan = adaptScore(layer1, scanStatus);
   return {
-    score: scan.score,
-    tier: scan.tier,
+    // No score shown on /score (an unreadable website, or too little evidence to rate): no number and no risk tier here
+    // either, only the unscored state and why.
+    score: scan.notRated ? null : scan.score,
+    tier: scan.notRated ? "UNKNOWN" : scan.tier,
     bars: scan.categories.map(category => ({ key: category.key, name: category.label, score: category.score, max: category.max })),
     decisionWithheld: scan.decisionWithheld,
+    notRated: scan.notRated && notRatedText(scan.notRated),
   };
 }
 
@@ -39,7 +45,7 @@ export function summary({ assessment, layer1, scanStatus }: AnalysisView): Summa
  * assessment recommended; only the analysis the organization's plan comes from (`current`) links to where it is tracked.
  */
 export default function AnalysisCard({ analysis, current = false }: { analysis: AnalysisView; current?: boolean }) {
-  const { score, tier, bars, decisionWithheld } = summary(analysis);
+  const { score, tier, bars, decisionWithheld, notRated } = summary(analysis);
   const plan = analysis.assessment?.actionPlan ?? [];
 
   return (
@@ -65,8 +71,12 @@ export default function AnalysisCard({ analysis, current = false }: { analysis: 
           ))}
         </div>
       </div>
-      {decisionWithheld && (
-        <p className="mt-5 text-xs text-marino/75">There is not enough evidence in this scan for a coverage decision on its own.</p>
+      {notRated ? (
+        <p className="mt-5 text-xs text-marino/75">{notRated}</p>
+      ) : (
+        decisionWithheld && (
+          <p className="mt-5 text-xs text-marino/75">There is not enough evidence in this scan for a coverage decision on its own.</p>
+        )
       )}
       {plan.length > 0 && (
         <ol aria-label="Action plan" className="mt-5 list-decimal space-y-1 pl-5 text-sm">

@@ -7,7 +7,8 @@ import type { AnswerValue, AssessmentView, PollResponse, StartedAssessmentRespon
 import AssessmentPage from "@/app/assessment/page";
 import AssessmentResultsPage from "@/app/assessment/results/page";
 import ScorePage from "@/app/score/page";
-import { ApiError, completeAssessment, getAssessment, getAssessmentResult, pollScan, saveAnswer, startAssessment } from "@/lib/api/client";
+import { ApiError, completeAssessment, downloadAssessmentReport, getAssessment, getAssessmentResult, pollScan, saveAnswer, startAssessment } from "@/lib/api/client";
+import { saveFile } from "@/lib/api/download";
 import { recallSession, rememberSession } from "@/lib/api/session";
 import { recallAssessment, rememberAssessment } from "@/lib/api/assessment-session";
 import { fixtureAssessment, fixtureAssessmentResult, fixtureQuestion } from "@/lib/test-fixtures/assessment";
@@ -26,8 +27,9 @@ vi.mock("next/link", () => ({ default: (props: AnchorHTMLAttributes<HTMLAnchorEl
 vi.mock("@/lib/api/client", async importOriginal => ({
   ...await importOriginal<typeof import("@/lib/api/client")>(),
   startAssessment: vi.fn(), getAssessment: vi.fn(), saveAnswer: vi.fn(),
-  completeAssessment: vi.fn(), getAssessmentResult: vi.fn(), pollScan: vi.fn(),
+  completeAssessment: vi.fn(), getAssessmentResult: vi.fn(), pollScan: vi.fn(), downloadAssessmentReport: vi.fn(),
 }));
+vi.mock("@/lib/api/download", () => ({ saveFile: vi.fn() }));
 
 function assessment(overrides: Partial<AssessmentView> = {}) {
   return fixtureAssessment({ expiresAt: new Date(Date.now() + 3600000).toISOString(), ...overrides });
@@ -37,6 +39,32 @@ const no: AnswerValue = { kind: "option", optionId: "no" };
 const reviewed = () => assessment({ answers: { "governance.policy": yes }, progress: { answered: 1, total: 1 } });
 const button = (name: string | RegExp) => screen.getByRole<HTMLButtonElement>("button", { name });
 const attestation = () => screen.getByRole<HTMLInputElement>("checkbox", { name: /I confirm these answers/ });
+
+// The versions as the back sends them today: both ids carry the word "demo".
+const BANK = "0.1.0-demo.1";
+const MODEL = "layer2-demo-fixed-coverage-0.1.0";
+// The one small line the results print for them: the numbers only, since the notice already says "demo".
+const VERSION_LINE = "Question bank 0.1.0 · Scoring model 0.1.0";
+// DN-12 §14: what the results say when the website could not be read and the score is the answers alone.
+const ANSWERS_ONLY = "Based only on your answers; no public evidence could be verified (low confidence).";
+// The back's own copy, which repeats the disclosure on every follow-up and on every action.
+const FOLLOW_UP_HELP = "This follow-up adds context and does not change the demo score.";
+const actionDetail = (step: string) =>
+  `Illustrative next step: ${step}. This estimate is independent of other steps and is not a pricing or coverage promise.`;
+
+/** One disclosure per screen: the shell's notice. `versionLine`, the results' small version line, has to appear exactly
+    once; nothing else may carry the word, the version line included. */
+function expectOneDisclosure(versionLine: string | null) {
+  const notices = screen.getAllByRole("note", { name: "About this assessment" });
+  expect(notices).toHaveLength(1);
+  expect(notices[0].textContent).toMatch(/provisional/);
+  expect(notices[0].textContent).toMatch(/not an insurance offer, a price or an underwriting decision/);
+  const page = document.body.cloneNode(true) as HTMLElement;
+  page.querySelector('[aria-label="About this assessment"]')!.remove();
+  const rest = page.textContent ?? "";
+  if (versionLine) expect(rest.split(versionLine)).toHaveLength(2);
+  expect(rest).not.toMatch(/demo|provisional|illustrative/i);
+}
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -148,7 +176,7 @@ describe("assessment route interactions", () => {
     expect(screen.getAllByRole("button", { name: /Edit answer:/ })).toHaveLength(1);
     expect(screen.getByRole("progressbar").getAttribute("aria-valuemax")).toBe("1");
     expect(attestation().checked).toBe(false);
-    expect(button("See my demo score").disabled).toBe(true);
+    expect(button("See my score").disabled).toBe(true);
   });
 
   it("answers a new branch introduced while editing and returns directly to review", async () => {
@@ -174,7 +202,7 @@ describe("assessment route interactions", () => {
     expect(screen.queryByRole("heading", { name: last.text })).toBeNull();
     expect(screen.getByText(last.text)).toBeTruthy();
     expect(attestation().checked).toBe(false);
-    expect(button("See my demo score").disabled).toBe(true);
+    expect(button("See my score").disabled).toBe(true);
     expect(saveAnswer).toHaveBeenCalledTimes(2);
   });
 
@@ -184,11 +212,11 @@ describe("assessment route interactions", () => {
     vi.mocked(completeAssessment).mockReturnValue(pending.promise);
     render(<AssessmentPage />);
     await screen.findByRole("heading", { name: "One last look." });
-    expect(button("See my demo score").disabled).toBe(true);
-    await userEvent.click(button("See my demo score"));
+    expect(button("See my score").disabled).toBe(true);
+    await userEvent.click(button("See my score"));
     expect(completeAssessment).not.toHaveBeenCalled();
     await userEvent.click(attestation());
-    await userEvent.dblClick(button("See my demo score"));
+    await userEvent.dblClick(button("See my score"));
     expect(completeAssessment).toHaveBeenCalledExactlyOnceWith("as_demo", "synthetic-test-capability");
     expect(attestation().disabled).toBe(true);
     expect(button("Calculating…").disabled).toBe(true);
@@ -202,10 +230,10 @@ describe("assessment route interactions", () => {
     render(<AssessmentPage />);
     await screen.findByRole("heading", { name: "One last look." });
     await userEvent.click(attestation());
-    await userEvent.click(button("See my demo score"));
+    await userEvent.click(button("See my score"));
     expect((await screen.findByRole("alert")).textContent).toContain("saved answers are safe");
     expect(attestation().checked).toBe(true);
-    await userEvent.click(button("See my demo score"));
+    await userEvent.click(button("See my score"));
     await waitFor(() => expect(navigation.router.replace).toHaveBeenCalledWith("/assessment/results?scan=sc_demo&a=as_demo"));
     expect(completeAssessment).toHaveBeenCalledTimes(2);
     expect(startAssessment).not.toHaveBeenCalled();
@@ -217,7 +245,7 @@ describe("assessment route interactions", () => {
     render(<AssessmentPage />);
     await screen.findByRole("heading", { name: "One last look." });
     await userEvent.click(attestation());
-    await userEvent.click(button("See my demo score"));
+    await userEvent.click(button("See my score"));
     await screen.findByRole("heading", { name: "Is there a written AI policy?" });
     expect(button("Continue").disabled).toBe(true);
     expect(getAssessment).toHaveBeenCalledTimes(2);
@@ -318,6 +346,101 @@ describe("assessment route interactions", () => {
   });
 });
 
+describe("one disclosure per assessment screen", () => {
+  it("shows it once while the questions are being prepared", async () => {
+    vi.mocked(getAssessment).mockReturnValue(new Promise(() => {}));
+    render(<AssessmentPage />);
+    await screen.findByText("Preparing assessment");
+    expectOneDisclosure(null);
+  });
+
+  it("shows it once on a scored question, with no bank version", async () => {
+    vi.mocked(getAssessment).mockResolvedValue(assessment({ bankVersion: BANK, questions: [fixtureQuestion({ help: "Use the typical answer for your team." })] }));
+    render(<AssessmentPage />);
+    await screen.findByRole("heading", { name: "Is there a written AI policy?" });
+    expectOneDisclosure(null);
+    expect(document.body.textContent).not.toContain("Question bank");
+  });
+
+  it("shows it once on a follow-up, although the bank's help repeats it", async () => {
+    vi.mocked(getAssessment).mockResolvedValue(assessment({ bankVersion: BANK, questions: [fixtureQuestion({ scored: false, help: FOLLOW_UP_HELP })] }));
+    render(<AssessmentPage />);
+    await screen.findByRole("heading", { name: "Is there a written AI policy?" });
+    expectOneDisclosure(null);
+    expect(document.body.textContent).not.toContain("Question bank");
+  });
+
+  it("shows it once on the review step, where the acknowledgement stays", async () => {
+    vi.mocked(getAssessment).mockResolvedValue(assessment({ bankVersion: BANK, answers: { "governance.policy": yes }, progress: { answered: 1, total: 1 } }));
+    render(<AssessmentPage />);
+    await screen.findByRole("heading", { name: "One last look." });
+    expectOneDisclosure(null);
+    expect(document.body.textContent).not.toContain("Question bank");
+    expect(attestation().parentElement?.textContent).toMatch(/not an insurance application or a coverage decision/);
+  });
+
+  it("shows it once when the session is lost", async () => {
+    sessionStorage.clear();
+    render(<AssessmentPage />);
+    await screen.findByRole("alert");
+    expectOneDisclosure(null);
+  });
+
+  it("shows it once on the results, although every action and three flags repeat it", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      bankVersion: BANK, scoringVersion: MODEL,
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "DEMO_BANK_NOT_APPROVED", "DEMO_COMPOSITE_FORMULA", "NO_AI_POLICY"],
+      actionPlan: [
+        { id: "improve:D1.1", domain: "governance", title: "How is your firm’s AI policy shared with the team?", detail: actionDetail("Written and shared with everyone"), pointsGain: 5 },
+        { id: "improve:D6.1", domain: "incident_preparedness", title: "Do you have a documented response plan?", detail: actionDetail("Yes"), pointsGain: 2.5 },
+      ],
+    }));
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    expectOneDisclosure(VERSION_LINE);
+    // The step survives without its repeated caveat, and the gain keeps its number.
+    expect(screen.getByText("Next step: Written and shared with everyone.")).toBeTruthy();
+    expect(screen.getByText("Up to +2.5 points")).toBeTruthy();
+    expect(screen.getAllByText(/not a promised outcome/)).toHaveLength(1);
+  });
+
+  it("shows it once on the results with nothing left to improve", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, actionPlan: [] }));
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    expectOneDisclosure(VERSION_LINE);
+    expect(screen.getByText(/not an assurance that all risks are addressed/)).toBeTruthy();
+  });
+
+  it.each(["CRITICAL", "FORTIFIED"] as const)("shows it once on %s results scored on the answers alone", async tier => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ bankVersion: BANK, scoringVersion: MODEL, tier,
+      layer1Score: null, layer2Score: 60, compositeScore: 60, flags: ["LAYER1_UNAVAILABLE", "WEBSITE_UNAVAILABLE"] }));
+    render(<AssessmentResultsPage />);
+    await screen.findByText(ANSWERS_ONLY);
+    expectOneDisclosure(VERSION_LINE);
+  });
+
+  it("dates the result in the visitor's time zone and prints the versions on one line", async () => {
+    vi.stubEnv("TZ", "America/New_York");
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      bankVersion: BANK, scoringVersion: MODEL, completedAt: "2026-11-10T02:30:00.000Z",
+    }));
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    const footer = screen.getByText(/^Completed /);
+    // Still Nov 9 in Florida, although it is already Nov 10 in UTC.
+    expect(footer.textContent).toBe(`Completed Nov 9, 2026${VERSION_LINE}`);
+    expect(footer.querySelectorAll("br")).toHaveLength(1);
+  });
+
+  it("shows it once when the result cannot be loaded", async () => {
+    vi.mocked(getAssessmentResult).mockRejectedValue(new ApiError("network", "Offline"));
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("alert");
+    expectOneDisclosure(null);
+  });
+});
+
 describe("assessment planning", () => {
   it("polls planning until ready without creating another assessment", async () => {
     vi.useFakeTimers();
@@ -371,7 +494,7 @@ describe("assessment result recovery", () => {
     await screen.findByRole("alert");
     await userEvent.click(button("Try again"));
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
-    expect(screen.getByText(/Commercial decisions are blocked for this demo/)).toBeTruthy();
+    expect(screen.getByRole("note", { name: "About this assessment" }).textContent).toMatch(/not an insurance offer/);
     expect(screen.getByText("Document the policy")).toBeTruthy();
     expect(getAssessmentResult).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("button", { name: /buy|bind|quote|pay/i })).toBeNull();
@@ -386,21 +509,183 @@ describe("assessment result recovery", () => {
   });
 });
 
+describe("notes on the results", () => {
+  const ready = () => screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+
+  it("words the flags a visitor can act on and prints no machine flag", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "DEMO_BANK_NOT_APPROVED", "DEMO_COMPOSITE_FORMULA", "NO_AI_POLICY", "NO_CITATION_REVIEW", "PROVIDER_COST_UNKNOWN", "SOME_FUTURE_FLAG"],
+    }));
+    render(<AssessmentResultsPage />);
+    await ready();
+    const notes = screen.getByText("Notes for review (2)").closest("details")!;
+    expect([...notes.querySelectorAll("li")].map(item => item.textContent)).toEqual([
+      "Your answers say the firm has no AI policy yet.",
+      "AI-generated citations are not checked consistently.",
+    ]);
+    expect(document.body.textContent).not.toMatch(/provider cost|bank not approved|composite formula|decision blocked|future flag/i);
+    expect(document.body.textContent).not.toMatch(/[A-Z]{2,}_[A-Z]{2,}/);
+  });
+
+  it("shows no notes at all when no flag is one a visitor can act on", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({ flags: ["PROVIDER_COST_UNKNOWN", "DEMO_BANK_NOT_APPROVED", "SOME_FUTURE_FLAG"] }));
+    render(<AssessmentResultsPage />);
+    await ready();
+    expect(screen.queryByText(/Notes for review/)).toBeNull();
+    expect(document.querySelector("details")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/provider cost|bank not approved|future flag/i);
+  });
+
+  it("says beside the score that it rests on the answers alone, with no Layer 1 number (DN-12 §14)", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      layer1Score: null, layer2Score: 21, compositeScore: 21, tier: "CRITICAL", decision: "UNKNOWN",
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INCOMPLETE_EVIDENCE", "INCOMPLETE_SOURCES", "INSUFFICIENT_EVIDENCE", "LAYER1_UNAVAILABLE",
+        "WEBSITE_UNAVAILABLE"],
+    }));
+    render(<AssessmentResultsPage />);
+    const gauge = await screen.findByRole("img", { name: "AI Governance Score: 21 out of 100" });
+    const line = screen.getByText(ANSWERS_ONLY);
+    expect(gauge.closest("section")!.contains(line)).toBe(true);
+    expect(screen.getAllByText(/no public evidence could be verified/)).toHaveLength(1);
+    expect(document.body.textContent).not.toMatch(/combines the public evidence/);
+    // Layer 1 has no number: it was not scored, not scored zero.
+    expect(screen.getByText("Public evidence · Layer 1").parentElement?.textContent).toContain("Not scored");
+    // The line already says the public evidence is missing, so the notes do not say it again.
+    expect(screen.queryByText(/Notes for review/)).toBeNull();
+    expect(screen.queryByRole("note", { name: "About this outlook" })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/WEBSITE_UNAVAILABLE|LAYER1_UNAVAILABLE|referral|highest-risk|manual review/i);
+  });
+
+  // Low confidence, not high risk, whatever tier the answers alone reach.
+  it.each(["FORTRESS", "FORTIFIED", "GUARDED", "EXPOSED", "CRITICAL"] as const)("never names a risk group or a manual review when the tier is %s", async tier => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      layer1Score: null, layer2Score: 73.6, compositeScore: 73.6, tier, decision: "UNKNOWN",
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INSUFFICIENT_EVIDENCE", "LAYER1_UNAVAILABLE", "WEBSITE_UNAVAILABLE"],
+    }));
+    render(<AssessmentResultsPage />);
+    expect(await screen.findByText(ANSWERS_ONLY)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/highest-risk|manual review|WEBSITE_UNAVAILABLE|referral/i);
+  });
+
+  // The minimal profile: every source answered, the evidence was thin. /score says all three answered, so the note
+  // must not say the scan failed to gather it.
+  it("says the public evidence was limited when every source answered", async () => {
+    vi.mocked(getAssessmentResult).mockResolvedValue(fixtureAssessmentResult({
+      flags: ["COMMERCIAL_DECISION_BLOCKED", "INCOMPLETE_EVIDENCE", "INSUFFICIENT_EVIDENCE"],
+    }));
+    render(<AssessmentResultsPage />);
+    await ready();
+    const notes = screen.getByText("Notes for review (1)").closest("details")!;
+    expect(notes.querySelector("li")!.textContent).toBe(
+      "The public evidence about the firm was limited, so that part of the score rests on less than usual.",
+    );
+    expect(document.body.textContent).not.toMatch(/could not gather/);
+  });
+
+  it("shows no website notice when the scan read the website", async () => {
+    render(<AssessmentResultsPage />);
+    await ready();
+    expect(screen.queryByRole("note", { name: "About this outlook" })).toBeNull();
+  });
+});
+
+describe("assessment report download", () => {
+  const ready = () => screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+  const download = () => button("Download report (PDF)");
+
+  it("is a labelled secondary button in the top result card, with the session it works in", async () => {
+    render(<AssessmentResultsPage />);
+    const card = (await ready()).closest("section")!;
+    expect(card.contains(download())).toBe(true);
+    // It sits with the score, not inside the explanation, so a phone can show it right under the badge.
+    const explanation = screen.getByRole("heading", { name: "Your practices, in perspective." }).parentElement!;
+    expect(explanation.contains(download())).toBe(false);
+    // Gold stays for the primary action.
+    expect(download().className).not.toContain("bg-oro");
+    expect(card.textContent).toContain("The download works during this 24-hour session.");
+  });
+
+  it("downloads the report with the scan token and hands the file to the browser", async () => {
+    const file = { blob: new Blob(["%PDF"]), filename: "arca-assessment-firm.example-2026-10-13.pdf" };
+    const pending = deferred<typeof file>();
+    vi.mocked(downloadAssessmentReport).mockReturnValue(pending.promise);
+    render(<AssessmentResultsPage />);
+    await ready();
+    await userEvent.click(download());
+    expect(downloadAssessmentReport).toHaveBeenCalledExactlyOnceWith("as_demo", "synthetic-test-capability");
+    expect(button("Preparing your report…").disabled).toBe(true);
+    await act(async () => pending.resolve(file));
+    expect(saveFile).toHaveBeenCalledExactlyOnceWith(file);
+    expect(download().disabled).toBe(false);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("says so beside the button when the report cannot be prepared, and can be tried again", async () => {
+    vi.mocked(downloadAssessmentReport).mockRejectedValue(new ApiError("report_unavailable", "The report is unavailable"));
+    render(<AssessmentResultsPage />);
+    await ready();
+    await userEvent.click(download());
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("We could not prepare your report. Please try again.");
+    expect(download().parentElement?.contains(alert)).toBe(true);
+    expect(saveFile).not.toHaveBeenCalled();
+    expect(download().disabled).toBe(false);
+  });
+
+  it.each(["unauthorized", "expired"] as const)("says the session has ended when the download returns %s", async code => {
+    vi.mocked(downloadAssessmentReport).mockRejectedValue(new ApiError(code, "Session no longer valid"));
+    render(<AssessmentResultsPage />);
+    await ready();
+    await userEvent.click(download());
+    expect((await screen.findByRole("alert")).textContent).toBe("This session has ended, so the report can no longer be downloaded here.");
+    expect(saveFile).not.toHaveBeenCalled();
+  });
+
+  it("makes no request once the tab has lost the scan token", async () => {
+    render(<AssessmentResultsPage />);
+    await ready();
+    sessionStorage.clear();
+    await userEvent.click(download());
+    expect((await screen.findByRole("alert")).textContent).toBe("This session has ended, so the report can no longer be downloaded here.");
+    expect(downloadAssessmentReport).not.toHaveBeenCalled();
+  });
+});
+
 describe("saving the results to the webapp", () => {
-  // Outside mock the back answers 501 to the webapp's routes, so the offer would lead nowhere (DN-10 §10).
-  it.each([undefined, "production", "live-debug"])("is not offered when the mode is %s", async mode => {
+  const simulation = () => screen.queryByRole("note", { name: "About this simulation" });
+
+  // In production the back answers 501 to the webapp's routes, so the offer would lead nowhere (DN-10 §10).
+  it.each([undefined, "production"])("is not offered when the mode is %s", async mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     render(<AssessmentResultsPage />);
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
     expect(screen.queryByRole("heading", { name: "Keep these results." })).toBeNull();
     expect(screen.queryByRole("button", { name: /Save your results/ })).toBeNull();
+    expect(simulation()).toBeNull();
+    expect(document.body.textContent).not.toMatch(/simulated/i);
   });
 
-  it("is offered in mock", async () => {
+  it("is offered in mock, where the strip already says nothing is real", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     render(<AssessmentResultsPage />);
     expect(await screen.findByRole("heading", { name: "Keep these results." })).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(simulation()).toBeNull();
+  });
+
+  // The scan and the assessment behind this page are real in live-debug; the account it leads to is not, and says so.
+  it("is offered in live-debug, with one line saying the account and the payment are simulated", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    render(<AssessmentResultsPage />);
+    const heading = await screen.findByRole("heading", { name: "Keep these results." });
+    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(screen.getAllByRole("note", { name: "About this simulation" })).toHaveLength(1);
+    expect(simulation()!.textContent).toBe(
+      "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.",
+    );
+    expect(heading.closest("section")!.contains(simulation())).toBe(true);
+    // The screen's one disclosure stays the shell's: this line is about the account, and repeats none of its words.
+    expect(simulation()!.textContent).not.toMatch(/demo|provisional|illustrative/i);
   });
 });
 

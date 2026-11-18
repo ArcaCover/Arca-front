@@ -115,6 +115,90 @@ describe("QuestionCard interactions", () => {
     expect(screen.getByText("Recorded scan signal · no source link")).toBeTruthy();
   });
 
+  it("shows a context sentence once when the scan evidence is that same sentence", () => {
+    const sentence = "The public scan detected an AI policy. Internal distribution still needs your confirmation.";
+    render(<ControlledQuestion question={fixtureQuestion({
+      context: sentence,
+      evidence: [{ id: "policy", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: null }],
+    })} />);
+    expect(screen.getAllByText(sentence)).toHaveLength(1);
+    expect(screen.queryByText(/Evidence from your quick scan/)).toBeNull();
+    expect(screen.queryByText("Recorded scan signal · no source link")).toBeNull();
+  });
+
+  it("keeps the source link of the context sentence and still lists the other evidence", async () => {
+    const sentence = "The public scan detected an AI policy.";
+    render(<ControlledQuestion question={fixtureQuestion({
+      context: sentence,
+      evidence: [
+        { id: "policy", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/policy" },
+        { id: "services", signal: "W2_aiInServices", value: true, text: "AI is mentioned in the services.", sourceUrl: "https://firm.example/services" },
+      ],
+    })} />);
+    expect(screen.getAllByText(sentence)).toHaveLength(1);
+    const source = screen.getByText(sentence).closest("div")!.querySelector("a")!;
+    expect(source.textContent).toBe("View source");
+    expect(source.getAttribute("href")).toBe("https://firm.example/policy");
+    expect(source.getAttribute("rel")).toBe("noopener noreferrer");
+    await userEvent.click(screen.getByText("Evidence from your quick scan (1)"));
+    expect(screen.getByText("AI is mentioned in the services.")).toBeTruthy();
+    expect(screen.getAllByRole("link", { name: "View source" })).toHaveLength(2);
+  });
+
+  it("keeps every source of a context sentence that the scan cites more than once", () => {
+    const sentence = "The public scan detected an AI policy.";
+    render(<ControlledQuestion question={fixtureQuestion({
+      context: sentence,
+      evidence: [
+        { id: "signal", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: null },
+        { id: "policy", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/policy" },
+        { id: "handbook", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/handbook" },
+        { id: "again", signal: "W1_aiPolicy", value: true, text: sentence, sourceUrl: "https://firm.example/policy" },
+      ],
+    })} />);
+    expect(screen.getAllByText(sentence)).toHaveLength(1);
+    expect(screen.queryByText(/Evidence from your quick scan/)).toBeNull();
+    expect(screen.getAllByRole("link", { name: "View source" }).map(link => link.getAttribute("href"))).toEqual([
+      "https://firm.example/policy",
+      "https://firm.example/handbook",
+    ]);
+  });
+
+  it.each([
+    ["the bank's help already says it", "Select all that apply. “None” cannot be combined with other choices."],
+    ["the bank sends no help", null],
+  ])("tells a multi-select to select all that apply once when %s", (_case, help) => {
+    render(<ControlledQuestion question={fixtureQuestion({ type: "multi_select", help })} />);
+    expect(document.body.textContent!.match(/Select all that apply/g)).toHaveLength(1);
+    if (help) expect(screen.getByText(help)).toBeTruthy();
+  });
+
+  it("says once that a follow-up does not affect the score", () => {
+    render(<ControlledQuestion question={fixtureQuestion({ scored: false, help: "This follow-up adds context and does not change the demo score." })} />);
+    expect(document.body.textContent!.match(/does not (affect|change)/g)).toHaveLength(1);
+    expect(screen.getByText("Context only · does not affect your score")).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Is there a written AI policy?" }).getAttribute("aria-describedby")).toBeNull();
+  });
+
+  it("drops only the repeated sentence from a follow-up's help", () => {
+    render(<ControlledQuestion question={fixtureQuestion({ scored: false, help: "Count each office separately. This follow-up adds context and does not change the demo score." })} />);
+    expect(screen.getByText("Count each office separately.")).toBeTruthy();
+    expect(document.body.textContent!.match(/does not (affect|change)/g)).toHaveLength(1);
+    expect(screen.getByRole("group", { name: "Is there a written AI policy?" }).getAttribute("aria-describedby")).toBe("question-help");
+  });
+
+  it("keeps the help of a scored question as the bank wrote it", () => {
+    const help = "Leaving this blank does not change your score.";
+    render(<ControlledQuestion question={fixtureQuestion({ help })} />);
+    expect(screen.getByText(help)).toBeTruthy();
+  });
+
+  it("keeps a follow-up's help when it says something else", () => {
+    render(<ControlledQuestion question={fixtureQuestion({ scored: false, help: "Count every office." })} />);
+    expect(screen.getByText("Count every office.")).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Is there a written AI policy?" }).getAttribute("aria-describedby")).toBe("question-help");
+  });
+
   it("does not allow suggestions or answer controls to change during a save", async () => {
     const onAnswer = vi.fn();
     render(<QuestionCard question={fixtureQuestion({ suggestedAnswer: { kind: "option", optionId: "yes" } })} answer={undefined} onAnswer={onAnswer} disabled />);

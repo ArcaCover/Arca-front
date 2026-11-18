@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, downloadReport, startScan } from "@/lib/api/client";
+import { ApiError, downloadAssessmentReport, downloadReport, startScan } from "@/lib/api/client";
 import { SCENARIO_STORAGE_KEY } from "@/lib/debug/bridge";
 
 describe("API base URL", () => {
@@ -54,6 +54,55 @@ describe("downloadReport", () => {
     const error = await downloadReport("sc_1", "token-1").catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "report_unavailable" });
+  });
+});
+
+describe("downloadAssessmentReport", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+  it("asks for the assessment's report with the scan token and keeps the API's filename", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test/");
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([37, 80, 68, 70]), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="arca-assessment-smithlaw.com-2026-11-09.pdf"',
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { blob, filename } = await downloadAssessmentReport("as/1", "token-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("http://api.test/assessment/as%2F1/report.pdf",
+      { headers: { Authorization: "Bearer token-1" }, signal: expect.any(AbortSignal) });
+    expect(filename).toBe("arca-assessment-smithlaw.com-2026-11-09.pdf");
+    expect(blob.size).toBe(4);
+  });
+
+  it("names the file after the assessment when the API sends no filename", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array([37]), { headers: { "Content-Type": "application/pdf" } })));
+
+    await expect(downloadAssessmentReport("as_1", "token-1")).resolves.toMatchObject({ filename: "arca-assessment-as_1.pdf" });
+  });
+
+  it.each([
+    [409, "incomplete", "The assessment is not completed yet"],
+    [503, "report_unavailable", "The report could not be generated"],
+    [401, "unauthorized", "Invalid session token"],
+  ])("surfaces a %i as the typed error %s", async (status, code, message) => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: code, message }, { status })));
+
+    const error = await downloadAssessmentReport("as_1", "token-1").catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ code, message });
+  });
+
+  it("reports an unreachable API as a network error", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.test");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("fetch failed"); }));
+
+    await expect(downloadAssessmentReport("as_1", "token-1")).rejects.toMatchObject({ code: "network" });
   });
 });
 

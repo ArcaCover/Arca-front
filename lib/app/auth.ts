@@ -2,7 +2,10 @@ import { debugSignIn } from "@/lib/debug/bridge";
 
 import { clearAppSession, clearPendingClaim, forgetOrg, saveAppSession } from "./session";
 
-/** `not_configured` until Supabase Auth is wired up, which comes after the demo: only the mock sign-in exists today. */
+/**
+ * `not_configured` until Supabase Auth is wired up, which comes after the demo: only the simulated sign-in of the debug
+ * modes exists today.
+ */
 export async function signIn(
   email: string,
   opts?: { platformAdmin?: boolean },

@@ -262,7 +262,7 @@ if (
 await page.getByRole("spinbutton").fill("12");
 await page.getByRole("button", { name: "Continue", exact: true }).click();
 await page.getByRole("heading", { name: "One last look." }).waitFor();
-if (await page.getByRole("button", { name: "See my demo score" }).isEnabled())
+if (await page.getByRole("button", { name: "See my score" }).isEnabled())
   throw Error("No attestation gating");
 await page.screenshot({
   path: path.join(artifactDir, "review.png"),
@@ -289,7 +289,7 @@ await page.getByRole("button", { name: "Review", exact: true }).click();
 await page.getByRole("heading", { name: "One last look." }).waitFor();
 await page.setViewportSize({ width: 1440, height: 1050 });
 await page.getByRole("checkbox").check();
-await page.getByRole("button", { name: "See my demo score" }).dblclick();
+await page.getByRole("button", { name: "See my score" }).dblclick();
 await page.getByRole("heading", { name: "Your governance profile" }).waitFor();
 if (completeCount !== 1) throw Error("Duplicate completion " + completeCount);
 await page.screenshot({
@@ -304,6 +304,22 @@ if (
   await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
 )
   throw Error("Mobile overflow");
+// The report button belongs in the first screen on a phone, right under the score and its badge, as on /score.
+{
+  const button = await page
+    .getByRole("button", { name: "Download report (PDF)" })
+    .boundingBox();
+  const gauge = await page
+    .getByRole("img", { name: /^AI Governance Score: / })
+    .boundingBox();
+  const explanation = await page
+    .getByRole("heading", { name: "Your practices, in perspective." })
+    .boundingBox();
+  if (!button || button.y + button.height > 844)
+    throw Error(`Mobile report button below the first screen: ${JSON.stringify(button)}`);
+  if (!gauge || !explanation || button.y < gauge.y + gauge.height || button.y > explanation.y)
+    throw Error("Mobile report button is not between the score and its explanation");
+}
 await page.screenshot({
   path: path.join(artifactDir, "results-mobile.png"),
   fullPage: true,

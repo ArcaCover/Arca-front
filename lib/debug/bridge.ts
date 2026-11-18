@@ -56,23 +56,35 @@ export function sentDebugScenario(): unknown {
   }
 }
 
-// DN-10: the simulated sign-in and payment. Both open with the literal comparison against the inlined mode and import
-// their module only after it, so in a production build nothing past the `return` ships, and neither do the debug routes
-// those modules call. This comment must not spell them out: server source maps keep the original source, comments
-// included, and the leak check would flag the bridge itself. null means "not the mock": there is no simulation to use.
+// DN-10: the simulated sign-in and payment, in mock and in live-debug, where the webapp runs in the back's memory beside
+// the real scans. Both open with the literal comparison against the inlined mode and import their module only after it,
+// so in a production build nothing past the `return` ships, and neither do the debug routes those modules call. This
+// comment must not spell them out: server source maps keep the original source, comments included, and the leak check
+// would flag the bridge itself. null means "not a debug mode": there is no simulation to use.
 export async function debugSignIn(
   email: string,
   platformAdmin?: boolean,
 ): Promise<{ token: string; email: string; expiresAt: string } | null> {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock") return null;
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return null;
   const { mockSignIn } = await import("./mock-auth");
   return mockSignIn(email, platformAdmin);
 }
 
 export async function debugPay(sessionId: string): Promise<boolean | null> {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock") return null;
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return null;
   const { mockPay } = await import("./mock-billing");
   return mockPay(sessionId);
+}
+
+/**
+ * The line the screens show where someone signs up, signs in or pays in live-debug: there the scans and assessments are
+ * real, and the account and the payment are not. null in every other mode: mock's own strip already says nothing is real,
+ * and production has no simulation. The text sits past the guard, so a production build drops it, and the leak check
+ * looks for it in what ships.
+ */
+export function simulatedWebappNotice(): string | null {
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return null;
+  return "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.";
 }
 
 // DN-11 §6.4: the debug panel's switch that shows again what a role may not do, so the demo can reach the back's 403. It

@@ -500,8 +500,8 @@ function AssessmentScreen({
                   One last look.
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-marino/70">
-                  Review your answers before we calculate your demo score. You
-                  can still change anything.
+                  Review your answers before we calculate your score. You can
+                  still change anything.
                 </p>
                 <ol className="mt-6 divide-y divide-marino/10">
                   {view.questions.map((item, itemIndex) => (
@@ -544,8 +544,8 @@ function AssessmentScreen({
                   />
                   <span className="text-xs leading-6 text-marino">
                     I confirm these answers are accurate to the best of my
-                    knowledge. I understand this uses provisional demo rules and
-                    is not an insurance application or coverage decision.
+                    knowledge. I understand this is not an insurance application
+                    or a coverage decision.
                   </span>
                 </label>
                 {error && (
@@ -560,7 +560,7 @@ function AssessmentScreen({
                     onClick={() => void complete()}
                     className={primaryButton}
                   >
-                    {busy ? "Calculating…" : "See my demo score"}
+                    {busy ? "Calculating…" : "See my score"}
                     <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white">
                       {busy ? (
                         <Loader2
@@ -576,11 +576,6 @@ function AssessmentScreen({
               </div>
             )}
           </div>
-          <p className="mt-4 text-center text-[10px] text-marino/70">
-            Demo question bank {view.bankVersion} ·{" "}
-            {view.questions.filter((item) => item.scored).length} scored
-            questions · Follow-ups add context
-          </p>
         </>
       )}
     </AssessmentShell>

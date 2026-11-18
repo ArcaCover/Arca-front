@@ -743,8 +743,8 @@ mock y sin backend. Las cinco pantallas viven en `app/` y comparten el lienzo
 | Ruta | Qué hace | Backend |
 |---|---|---|
 | `/quote` | Email + dominio, estilo Lemonade. Sin contraseña, sin registro. Entra desde los CTA "Get a quote" del hero y del navbar. | **real** (`POST /scan`) |
-| `/quote/scanning` | Espera del scan de Capa 1 con polling real, mensajes rotando y orbe latiendo. | **real** (`GET /scan/:id`) |
-| `/score` | Pre-Score: gauge, tier, las **4 categorías** de Capa 1 y las señales detectadas. | **real** |
+| `/quote/scanning` | Espera del scan de Capa 1 con polling real, mensajes rotando y orbe latiendo. Si el scan falla, pide reintentar en un rato. | **real** (`GET /scan/:id`) |
+| `/score` | Pre-Score: aviso de evidencia, gauge, tier, botón del informe en PDF, las **4 categorías** de Capa 1 y las señales detectadas. | **real** |
 | `/assessment` | Cuestionario de Capa 2: 10 preguntas, una a la vez. | mock |
 | `/assessment/results` | Score completo, action plan y las 3 opciones de pricing. | mock |
 
@@ -762,8 +762,8 @@ Toda pantalla que lea `useSearchParams` necesita un `<Suspense>` por encima o la
 no se puede prerenderizar. El patrón está en las cinco.
 
 **Capa 1 (real):** `lib/api/client.ts` (cliente y errores tipados), `lib/api/session.ts`
-(token), `lib/api/adapt.ts` (payload → pantalla) y `lib/signals-view.ts` (señales →
-tarjetas). Los tipos y la validación en runtime vienen de **`@arca/contracts`**, el
+(token), `lib/api/adapt.ts` (payload → pantalla), `lib/api/download.ts` (entrega un PDF de
+la API al navegador) y `lib/signals-view.ts` (señales → tarjetas). Los tipos y la validación en runtime vienen de **`@arca/contracts`**, el
 paquete del backend: no se reescriben aquí (§3).
 
 **Capa 2 (mock):** `lib/mock/assessment-questions.ts` (las 10 preguntas) y
@@ -778,6 +778,67 @@ Professional Standing (30), Reputation (20) y Firm Maturity (15). Los 6 dominios
 son de Capa 2 y siguen en `/assessment/results`. La pantalla los pintaba antes de
 conectar la API, sobre datos que la Capa 1 nunca produjo: no observa oversight, training
 ni incident preparedness, así que derivarlos habría sido inventar tres de seis (§7).
+
+**`/score` abre con un único aviso de evidencia** (noviembre 2026, tras el primer scan real
+del fundador). Siempre se ve y dice cuál de tres casos aplica: respondieron las tres fuentes;
+faltó alguna (dice cuál y qué pasó, en palabras llanas); o no se pudo leer la web de la firma.
+La frase "not enough for a coverage decision" ya no depende de que falte una fuente: antes se
+escondía cuando todas respondían pero la evidencia no alcanzaba. El caso lo decide
+`adaptScore` (`evidence`) y los textos están en `docs/copy-deck.md` §10. **La pantalla nunca
+imprime flags ni códigos de la API** (`INCOMPLETE_SOURCES`, `ACCESS_BLOCKED`…): están escritos
+para operar el sistema, no para el visitante.
+
+**Una web que no se puede leer ya no hace fallar el scan, por ninguna causa del propio sitio**
+(decisión de Jesús del 2026-11-17, DN-12 §14 en Arca-back). El `robots.txt` lo prohíbe, 401/403
+o una página de verificación, DNS que no resuelve, conexión rechazada, plazo agotado, 5xx o
+`robots.txt` inalcanzable: la API termina el scan como `PARTIAL` con resultado, el flag
+`WEBSITE_UNAVAILABLE` y confianza `LOW`. **Se presenta como confianza baja, no como alto riesgo:**
+`/score` no enseña número ni tier (la API sigue mandando 0 y `CRITICAL`), sino el estado "No score
+from public evidence" con "Confidence: low", y un solo aviso: "We could not read your firm's
+website, so we have no public evidence to score. The assessment below gives you a score based on
+your answers, marked as low confidence. This is not a coverage decision." "Refine your score"
+sube justo debajo: el cuestionario es la acción principal. Tras el cuestionario la API puntúa
+solo con las respuestas (`layer1Score: null`, compuesto = Capa 2, flag `LAYER1_UNAVAILABLE`), y
+`/assessment/results` lo dice en una línea bajo el titular: "Based only on your answers; no
+public evidence could be verified (low confidence)." **Esto sustituye a la decisión D4**
+(grupo de mayor riesgo, override `REFERRAL_SENIOR` y revisión manual): nunca volver a escribir
+"highest-risk group" ni "manual review" para este caso. Consecuencia: **un scan `FAILED` es solo
+un fallo nuestro** (almacenamiento, pipeline, la extracción del modelo sobre páginas que sí se
+leyeron, nuestro plazo), y `/quote/scanning` pide reintentar en un rato en vez de decir que la
+web nos bloqueó. Dominios mock: `blocked.arca.example` (negativa definitiva) y
+`down.arca.example` (web inalcanzable, transitoria) terminan `PARTIAL` con el flag;
+`failed.arca.example` termina `FAILED`. La herramienta de debug "Fill mock firm" solo escribe
+`robust.arca.example` y no enumera dominios.
+
+**Con muy poca evidencia, `/score` no muestra número ni tier** (noviembre 2026, decisión del
+fundador). Un scan real de hklaw.com dio "3 / 100 CRITICAL" con una sola categoría evaluada, y
+a medias, y confianza baja: se leía como un veredicto sobre la firma y era un hueco en lo que
+pudimos ver. **Regla** (`hasInsufficientEvidence` en `lib/api/adapt.ts`, la misma que aplica el
+PDF del Quick Scan en Arca-back, DN-12 §12): confianza `LOW` **y** menos de 2 de las 4
+categorías con estado distinto de `UNKNOWN`. La web ilegible (flag `WEBSITE_UNAVAILABLE`, o la
+web caída sin flag) no entra en esta regla sino en su estado hermano: `notRated` lleva `reason`
+(`website_unavailable` o `thin_evidence`) y la web ilegible va primero (párrafo anterior).
+En su lugar sale "Not enough evidence to rate" con cuántas áreas se pudieron evaluar, "Refine
+your score" sube como en el caso de la web, y el aviso de evidencia solo dice qué fuentes
+fallaron y "This is not a coverage decision." (no habla de "this score"). Las barras, las
+señales y el PDF siguen. En la webapp, un análisis solo de scan en cualquiera de los dos estados
+sale con "—" y "NOT SCORED" (`headline` y `summary` de `components/app/`), con la frase de
+`notRatedText`; uno con assessment de una web ilegible enseña el score de las respuestas con la
+línea "Based only on your answers…". `/assessment/results` no
+cambia: su tier es el del compuesto, y la Capa 1 solo aparece como número en "Public evidence ·
+Layer 1" (el resultado de la Capa 2 no trae la confianza ni las categorías para aplicar la
+regla). Textos en `docs/copy-deck.md` §10.
+
+**El informe en PDF es un botón secundario arriba**, "Download report (PDF)", debajo del
+nombre de la firma y con su error al lado. Era un enlace gris al final de la página, por
+debajo del CTA dorado, a unos 1.900px del borde superior. Medido en la app real, en Chromium
+contra el stack mock (API en 8081): a 1280×900 el botón ocupa y 361-403 (DN-12 §10, recorrido
+de integración del 9 de noviembre de 2026); a 390×844, en la segunda revisión, y 313-355 para
+`robust`, 353-395 para `minimal` y 376-418 para `blocked`, siempre dentro de la primera
+pantalla. Capturas en el scratchpad de esa sesión, no en el repo. El dorado sigue reservado a
+"Refine your score". `saveFile` (`lib/api/download.ts`) hace el paso de
+blob a archivo para las dos pantallas con informe, y `downloadAssessmentReport` ya llama a
+`GET /assessment/:assessmentId/report.pdf` con el token del scan.
 
 **`ScoreGauge` y `TierBadge` los comparten `/score` y `/assessment/results`.** Los dos
 reciben el tier como prop, por nombre. `/score` pasa el que manda la API;
@@ -797,9 +858,11 @@ qué la Capa 1 existe.
 ni tarifas presentadas. Las dos pantallas llevan disclaimer visible, que es lo que hoy
 cumple la §7. Antes de lanzar hay que decidir si se retiran las cifras.
 
-**Aún no conectado:** el botón "Get coverage" (falta Stripe), "Connect with a broker",
-la descarga del Full Assessment Report y todos los `TODO` de llamada a API. Las respuestas del
-cuestionario viven **solo en memoria**: recargar la página lo empieza de cero.
+**Aún no conectado:** la compra ("Get coverage", falta Stripe) y la derivación a broker
+("Connect with a broker"); los dos botones se retiraron de la pantalla con el prototipo de
+Capa 2 (octubre 2026). La descarga del informe **sí está conectada** desde noviembre de
+2026 (ver "Hechos"). El estado actual de la Capa 2 está en las dos secciones del final de
+este archivo, que sustituyen a esta.
 
 ### 9.3 Página Partners
 
@@ -1025,11 +1088,11 @@ este entorno** (no hay H.264, §9.3) queda pendiente de juicio en la preview.
 
 ### Pendientes marcados en el código (TODO)
 
-Lista verificada contra los **21 `TODO`** que hay hoy en el código (última revisión:
-tras conectar la descarga del Quick Scan Report). **Al añadir un `TODO` nuevo,
-añadirlo también aquí**, o la lista vuelve a mentir sobre estar verificada. En la
-revisión de esta vez faltaban cuatro entradas: las dos descargas de PDF, el checkout de
-Stripe, la derivación a broker y la reconciliación del banco de preguntas.
+Recuento de noviembre de 2026: quedan **13 líneas `TODO`** en `app/`, `components/` y
+`lib/`. La lista se verificó por última vez contra 21, tras conectar la descarga del Quick
+Scan Report, y **no se ha vuelto a verificar entrada por entrada**: varias de abajo ya no
+tienen un `TODO` en el código (las de la Capa 2 con mock, entre otras) y siguen aquí como
+pendientes de producto. **Al añadir un `TODO` nuevo, añadirlo también aquí.**
 
 - **Conectar Supabase** — sigue sin conectar **y probablemente ya no hace falta desde el
   frontend**: el lead lo persiste la API al arrancar el scan, y §3 dice que el frontend
@@ -1076,19 +1139,18 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
 - **`SignalCard` pinta las señales negativas en rojo**, y la §5 reserva el rojo para
   errores y alertas. `/assessment/results` usa oro oscuro para lo mismo citando esa
   regla. Es incoherencia previa a esta sesión; decidir cuál de las dos manda.
-- **Generar el Full Assessment Report** de `/assessment/results`. El botón existe y no
-  descarga nada; depende de la Capa 2, que no existe en el backend.
-  (`app/assessment/results/page.tsx`)
 - **Pasar `/score` a las vistas de `@arca/contracts`** cuando se publique la versión de
   los contratos que las trae. `adaptScore` y `signalsToCards` se copiaron tal cual al
   backend para el PDF del Quick Scan; hasta entonces hay dos copias
   (`lib/api/adapt.ts`, `lib/signals-view.ts`) y **cualquier cambio de texto se hace en las
-  dos** o el PDF y la pantalla dirán cosas distintas.
-- **Arrancar el checkout de Stripe** desde "Get coverage" en los resultados. Hoy el botón
-  no hace nada. (`app/assessment/results/page.tsx`)
-- **Enrutar la derivación a broker** desde "Connect with a broker" en los resultados —
-  es la rama REFERRAL del Flujo B de la §6.4 y todavía no existe.
-  (`app/assessment/results/page.tsx`)
+  dos** o el PDF y la pantalla dirán cosas distintas. Ojo: el aviso de evidencia de
+  noviembre 2026 (`evidence` en `adaptScore`) existe **solo en la copia del front**; las
+  notas del PDF las escribe la API por su cuenta.
+- **Arrancar el checkout de Stripe** desde los resultados. El botón "Get coverage" ya no
+  existe: salió con el prototipo de Capa 2 y vuelve cuando haya checkout.
+- **Enrutar la derivación a broker** desde los resultados — es la rama REFERRAL del
+  Flujo B de la §6.4 y todavía no existe. El botón "Connect with a broker" tampoco está
+  ya en la pantalla.
 - **Reconciliar el texto de las 10 preguntas** con el banco de preguntas del
   ARCA_DEVELOPER_HANDOFF antes de ponerlo delante de una firma real. La lógica de
   selección ya sigue el handoff; la redacción se escribió aquí y puede no coincidir.
@@ -1118,6 +1180,13 @@ Stripe, la derivación a broker y la reconciliación del banco de preguntas.
   usa para rastrear webs; decidido así por el fundador (septiembre 2026) frente a imprimir
   desde el navegador o una librería de PDF en el front. Una página A4 con score, tier, las
   4 categorías, las señales y las fuentes. El texto sale del mismo código que `/score`.
+  En noviembre de 2026 el control pasó de enlace gris al final de la página a botón
+  "Download report (PDF)" en el bloque del score (§9.2).
+- ~~Descargar el informe desde `/assessment/results`~~ — el botón "Download report (PDF)"
+  de la tarjeta superior descarga el PDF que genera la API
+  (`GET /assessment/:assessmentId/report.pdf`, con el token del scan, como las demás rutas
+  del assessment). Mismo camino que el Quick Scan Report; funciona mientras dura la sesión
+  de 24 horas del scan (noviembre 2026).
 - ~~Alinear el aviso de email de `/quote` con el backend~~ — decía "We'll get better
   results with your firm's email", pero la API **no puntúa el email** (solo identifica el
   lead), así que prometía algo que no pasa (§7). Ahora dice que un email personal sirve.
@@ -1420,6 +1489,19 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   rastrear, no una librería en el frontend (septiembre 2026). Los PDF futuros (Full
   Assessment, informe con marca del broker) deberían seguir el mismo camino.
 - *(pendiente)* Librerías de charts y formularios para la plataforma.
+- **`/score` y `/quote/scanning` tras el primer scan real** (noviembre 2026, §9.2): un único
+  aviso de evidencia con tres casos y sin códigos internos; el PDF como botón secundario
+  visible arriba; una web ilegible ya no falla el scan (flag `WEBSITE_UNAVAILABLE`, el
+  cuestionario pasa a ser la acción principal); y `FAILED` significa un fallo nuestro, así que
+  la pantalla pide reintentar.
+- **Web ilegible = confianza baja, no alto riesgo** (2026-11-17, decisión de Jesús, DN-12 §14 en
+  Arca-back; sustituye a D4): cualquier causa del sitio termina `PARTIAL`; `/score` y el PDF del
+  Quick Scan sin número ni tier; el assessment puntúa solo con las respuestas (`layer1Score`
+  null, flag `LAYER1_UNAVAILABLE`) y lo dice en una línea. Sin "highest-risk group" ni "manual
+  review".
+- **Sin número ni tier con muy poca evidencia** (noviembre 2026, §9.2): confianza baja y menos de
+  2 de 4 categorías evaluadas → "Not enough evidence to rate" en `/score`, en el PDF del Quick
+  Scan y en las tarjetas de la webapp. La web ilegible tiene su propio estado hermano.
 
 ## Isolated Layer 2 prototype — October 13, 2026
 
@@ -1428,7 +1510,98 @@ This section applies only to this isolated implementation checkout and supersede
 - Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.4.0`, which also carries the debug, webapp and role-view contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
 - `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
 - `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
-- Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial/PDF controls were removed.
+- Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial controls were removed.
 - Answers save on Continue or Save change. Resume is limited to the current tab and the 24-hour scan session. No tab-close, magic-link or cross-tab recovery is implemented or promised.
 - The frontend keeps only UI state; eligibility, hidden-answer invalidation, answer validation, scoring and audit behavior belong to the API.
 - Full local setup, scope and verification commands: `docs/implementation/layer2-isolated-demo.md`.
+
+### Actualización — noviembre 2026 (hallazgos del primer scan real)
+
+Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de arriba.
+
+- **Un solo aviso de demo por pantalla.** Vive en el shell (`DemoNotice` en
+  `components/assessment/AssessmentShell.tsx`) y es lo que cumple la §7: el banco de
+  preguntas y el scoring son provisionales, los resultados son ilustrativos y nada es una
+  oferta de seguro, un precio ni una decisión de suscripción. Antes la misma idea salía de
+  3 a 24 veces por pantalla. **Al añadir texto a la Capa 2, no repetir "demo",
+  "provisional" ni "illustrative"**: un test cuenta el aviso en cada pantalla y falla si
+  aparece otro. **Las preguntas y el repaso no muestran la versión del banco**; los
+  resultados la dan en una sola línea pequeña del pie, solo con el número y sin la palabra
+  "demo" ("Question bank 0.1.0 · Scoring model 0.1.0", `components/assessment/result-meta.ts`).
+  Los identificadores completos siguen en el PDF y en el panel State. El fundador pidió menos
+  mensajes en pantalla: no añadir líneas de versión ni de "demo" fuera del aviso.
+- **La API ya solo repite el aviso en la ayuda de las preguntas de seguimiento.** La
+  tarjeta de pregunta recorta esa frase repetida (solo esa; el resto de la ayuda se conserva).
+  El detalle de cada paso del plan ya llega como "Next step: X." desde el back (commit
+  `dd8e9fe` de Arca-back, DN-12 §6.3); `nextStep()` en los resultados sigue para los planes
+  guardados antes de ese cambio y no hace nada con los nuevos.
+- **Los controles de PDF ya no están retirados.** `/assessment/results` lleva el botón
+  "Download report (PDF)" en la tarjeta superior: desde sm junto al texto, a la derecha del
+  score; en un móvil justo debajo de la insignia del tier y antes del texto, y la columna
+  lateral oculta su descripción, para que el botón quepa en la primera pantalla como en
+  `/score`. Medido en Chromium contra el stack mock: a 390×844 el botón ocupa y 672-714
+  (antes ~910, fuera de pantalla) y a 1280×900 y 463-505; `npm run test:browser:assessment`
+  falla si en 390×844 se sale de la primera pantalla. El PDF lo genera la API
+  (`GET /assessment/:assessmentId/report.pdf`, con el token del scan), como el Quick Scan
+  Report de `/score`, y solo se puede descargar durante la sesión de 24 horas. Los
+  controles comerciales (comprar, cotizar, broker) siguen fuera.
+- **"Notes for review" ya no imprime flags internos.** Solo redacta los flags de la lista
+  de `components/assessment/result-notes.ts`; un flag que no esté ahí no se muestra. Un
+  flag nuevo del back queda invisible hasta que se añada a esa lista con su frase. Una
+  fuente que no respondió (`INCOMPLETE_SOURCES`) y una evidencia escasa con todas las fuentes
+  respondiendo (`INCOMPLETE_EVIDENCE`/`INSUFFICIENT_EVIDENCE`, el perfil `minimal`) tienen
+  frases distintas y solo sale una, para cuadrar con `/score`.
+- **Web ilegible.** Si el resultado trae el flag `LAYER1_UNAVAILABLE` (la API lo pone cuando la
+  Capa 1 traía `WEBSITE_UNAVAILABLE`), el score combinado es solo el de las respuestas,
+  "Public evidence · Layer 1" dice "Not scored" y la línea bajo el titular es "Based only on your
+  answers; no public evidence could be verified (low confidence)." (`ANSWERS_ONLY_LINE` en
+  `components/assessment/result-notes.ts`). Ya no hay aviso aparte, ni grupo de mayor riesgo ni
+  revisión manual (DN-12 §14 en Arca-back, que sustituye a D4). El PDF de la Capa 2 imprime la
+  misma línea en tercera persona ("the firm's answers").
+- **La fecha del pie va en la zona horaria del visitante** ("Completed Nov 9, 2026" para
+  quien termina a las 21:30 en Florida), no en UTC. El resultado se carga en el cliente
+  después de montar la página, así que no hay desajuste de hidratación.
+- Todo el copy de estas pantallas está en `docs/copy-deck.md` §11.
+
+### Actualización — noviembre 2026 (registro en live-debug)
+
+Decisión del fundador tras su primer scan real: al terminar la Capa 2 en `live-debug` no
+había botón para registrarse, porque la webapp privada (cuentas, organizaciones, cobro:
+DN-10 y DN-11 en Arca-back) solo existía en `mock`. Revierte para ese modo lo que decía
+DN-10 §10.
+
+- **En `live-debug` la webapp funciona, simulada.** `/assessment/results` muestra "Keep
+  these results" y funcionan `/app/signup`, `/app/login`, `/app/billing` y el checkout
+  simulado, igual que en `mock`. Los scans y los assessments son reales (APIs reales y la
+  base compartida con producción); **las cuentas, las organizaciones y el cobro viven en la
+  memoria de la API** y se pierden cuando se reinicia. Guardar un scan no escribe nada en
+  Supabase.
+- **Se dice en pantalla (§7).** Donde alguien se registra, entra o paga en `live-debug`
+  sale una sola línea: la cuenta y el pago son simulados, están en memoria durante esta
+  sesión de depuración y se reinician con la API. El texto vive en `lib/debug/bridge.ts` y
+  lo pinta `components/app/SimulationNotice.tsx`. La franja de `live-debug` ya no dice que
+  todo es real: "LIVE DEBUG · real scans · simulated accounts & billing".
+- **Por qué la franja cambió pese a D8** (D8 pedía dejarla como estaba; D7, que lo simulado
+  se dijera con claridad). Decir "real APIs & real database" a secas habría llamado reales a
+  la cuenta y al cobro simulados, así que manda D7. La primera versión larga ("real APIs &
+  real database for scans · simulated accounts & billing", 80 caracteres) partía en dos o tres
+  líneas en un móvil y tapaba la cabecera de `/app`, que reserva exactamente 1.5rem (`pt-6`)
+  para una línea. La actual cabe en una: medida en Chromium a 390×844 sobre `/app/login` (stack
+  mock, con el texto de `live-debug` puesto en la franja), la franja mide 24px y termina justo donde empieza la cabecera; por debajo de sm el texto baja a
+  11px y el padding a `px-2` (la etiqueta ocupa ~278px de los ~316 que deja el botón State).
+  Un test de `ModeBanner` impide alargarla. El detalle (memoria de la API, se reinicia) queda
+  en la línea de `SimulationNotice`.
+- **Sigue solo en `mock`:** la organización de demo sembrada, los botones "Sign in as
+  <rol>" y el interruptor "Show forbidden actions" del panel de depuración, y la casilla de
+  platform admin del login. El back responde 404 a la siembra en `live-debug`.
+- **Producción no cambia.** No hay botón de registro, el login dice que todavía no está
+  disponible, el checkout simulado es un 404 y la API responde 501 a la webapp. El botón de
+  registro real llega con Supabase Auth y Stripe (pendiente; §3 sigue diciendo "no
+  conectado").
+- **Regla para tocar estas puertas:** cada una compara `process.env.NEXT_PUBLIC_ARCA_MODE`
+  con un literal (`=== "mock" || === "live-debug"`) en el sitio, sin pasar por una
+  constante ni una función compartida. Así el build de producción elimina el código, y
+  `scripts/check-no-debug.mjs` lo comprueba. Un texto nuevo que solo deba existir en los
+  modos de depuración se añade también a los marcadores de `scripts/debug-leaks.mjs`.
+- Detalle y tabla por modo: `docs/implementation/webapp.md` y
+  `docs/implementation/arca-modes.md`.

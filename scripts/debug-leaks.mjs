@@ -5,17 +5,22 @@ import { join } from 'node:path';
 
 // Strings that only debug code carries.
 // These live only in debug-only modules (components/debug and what only it imports), so no production module's
-// source holds them: they are searched everywhere, source maps included. The last three are the debug panel's role
-// tools and the seeded demo users' domain (DN-11 §6.4).
+// source holds them: they are searched everywhere, source maps included. After the strip's labels come the debug
+// panel's role tools and the seeded demo users' domain (DN-11 §6.4), and last what the live-debug strip says of the
+// webapp it simulates (DN-10 §10).
 const DEBUG_ONLY_MARKERS = [
   /arca-debug-sentinel-7f3c/, /\/__debug\//, /LIVE DEBUG/, /MODE MISMATCH/,
   /Show forbidden actions/, /Seed demo organization/, /demo\.arca\.example/,
+  /simulated accounts & billing/,
 ];
 // These are also in lib/debug/bridge.ts, which production pages import. Its body folds to `return` in a production
 // build, but server source maps keep the module's original source, so in maps they would flag the bridge itself.
 // They are searched in everything else, which is the code that ships. Header names may reach the bundle lowercased.
-// The last one is the storage key of the switch that shows forbidden controls again (DN-11 §6.4).
-const BRIDGE_MARKERS = [/__arcaDebug/, /X-Arca-Debug-Scenario/i, /arca\.debug\.showForbidden/];
+// After them come the storage key of the switch that shows forbidden controls again (DN-11 §6.4) and the line the
+// live-debug screens show where someone signs up, signs in or pays (DN-10 §10), with the label of the note that carries
+// it: that label is in components/app/SimulationNotice.tsx, a production module with its own literal guard.
+const BRIDGE_MARKERS = [/__arcaDebug/, /X-Arca-Debug-Scenario/i, /arca\.debug\.showForbidden/, /Simulated in live-debug/,
+  /About this simulation/];
 
 export function findDebugLeaks(dir) {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
