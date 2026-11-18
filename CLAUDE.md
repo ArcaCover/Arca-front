@@ -788,36 +788,43 @@ escondía cuando todas respondían pero la evidencia no alcanzaba. El caso lo de
 imprime flags ni códigos de la API** (`INCOMPLETE_SOURCES`, `ACCESS_BLOCKED`…): están escritos
 para operar el sistema, no para el visitante.
 
-**Una web que no se deja leer ya no hace fallar el scan.** Si la causa es definitiva (el
-`robots.txt` lo prohíbe, o la web responde 401/403 o una página de verificación), la API
-termina el scan como `PARTIAL` con resultado y el flag `WEBSITE_UNAVAILABLE`. `/score` lo
-explica — lo no verificado cuenta como desconocido y deja a la firma en el grupo de mayor
-riesgo "por ahora"; las respuestas del cuestionario también cuentan, y el caso necesitará
-revisión manual — y sube la tarjeta "Refine your score" justo debajo del score, porque ahí el
-cuestionario es la acción principal. La frase del "grupo de mayor riesgo" solo sale si el tier
-que manda la API es `CRITICAL`, para no contradecir al badge. **No se promete ningún
-resultado:** tras el cuestionario el tier sale del score combinado (con la web ilegible, Capa 2
-× 0,7), así que unas respuestas flojas lo dejan en CRITICAL y unas buenas lo sacan. Lo único que
-se mantiene digan lo que digan las respuestas es la revisión manual (el override
-`REFERRAL_SENIOR`). Nunca escribir "hasta completar el cuestionario" ni que el grupo se mantiene
-"whatever your answers show" (hallazgo 23 de la segunda revisión; DN-12 §3.3 y §8 en Arca-back).
-Consecuencia: **un scan `FAILED` es ahora un fallo nuestro o temporal**, y `/quote/scanning`
-pide reintentar en un rato en vez de decir que la web nos bloqueó.
+**Una web que no se puede leer ya no hace fallar el scan, por ninguna causa del propio sitio**
+(decisión de Jesús del 2026-11-17, DN-12 §14 en Arca-back). El `robots.txt` lo prohíbe, 401/403
+o una página de verificación, DNS que no resuelve, conexión rechazada, plazo agotado, 5xx o
+`robots.txt` inalcanzable: la API termina el scan como `PARTIAL` con resultado, el flag
+`WEBSITE_UNAVAILABLE` y confianza `LOW`. **Se presenta como confianza baja, no como alto riesgo:**
+`/score` no enseña número ni tier (la API sigue mandando 0 y `CRITICAL`), sino el estado "No score
+from public evidence" con "Confidence: low", y un solo aviso: "We could not read your firm's
+website, so we have no public evidence to score. The assessment below gives you a score based on
+your answers, marked as low confidence. This is not a coverage decision." "Refine your score"
+sube justo debajo: el cuestionario es la acción principal. Tras el cuestionario la API puntúa
+solo con las respuestas (`layer1Score: null`, compuesto = Capa 2, flag `LAYER1_UNAVAILABLE`), y
+`/assessment/results` lo dice en una línea bajo el titular: "Based only on your answers; no
+public evidence could be verified (low confidence)." **Esto sustituye a la decisión D4**
+(grupo de mayor riesgo, override `REFERRAL_SENIOR` y revisión manual): nunca volver a escribir
+"highest-risk group" ni "manual review" para este caso. Consecuencia: **un scan `FAILED` es solo
+un fallo nuestro** (almacenamiento, pipeline, la extracción del modelo sobre páginas que sí se
+leyeron, nuestro plazo), y `/quote/scanning` pide reintentar en un rato en vez de decir que la
+web nos bloqueó. Dominios mock: `blocked.arca.example` (negativa definitiva) y
+`down.arca.example` (web inalcanzable, transitoria) terminan `PARTIAL` con el flag;
+`failed.arca.example` termina `FAILED`. La herramienta de debug "Fill mock firm" solo escribe
+`robust.arca.example` y no enumera dominios.
 
 **Con muy poca evidencia, `/score` no muestra número ni tier** (noviembre 2026, decisión del
 fundador). Un scan real de hklaw.com dio "3 / 100 CRITICAL" con una sola categoría evaluada, y
 a medias, y confianza baja: se leía como un veredicto sobre la firma y era un hueco en lo que
 pudimos ver. **Regla** (`hasInsufficientEvidence` en `lib/api/adapt.ts`, la misma que aplica el
 PDF del Quick Scan en Arca-back, DN-12 §12): confianza `LOW` **y** menos de 2 de las 4
-categorías con estado distinto de `UNKNOWN`. **Excepción:** con el flag `WEBSITE_UNAVAILABLE`
-no se aplica, porque ese caso se muestra a propósito como grupo de mayor riesgo con revisión
-manual; `adaptScore` además deja fuera cualquier caso que pinte el aviso de web ilegible
-(también la web caída sin flag), para que la pantalla no oculte el tier que ese aviso nombra.
+categorías con estado distinto de `UNKNOWN`. La web ilegible (flag `WEBSITE_UNAVAILABLE`, o la
+web caída sin flag) no entra en esta regla sino en su estado hermano: `notRated` lleva `reason`
+(`website_unavailable` o `thin_evidence`) y la web ilegible va primero (párrafo anterior).
 En su lugar sale "Not enough evidence to rate" con cuántas áreas se pudieron evaluar, "Refine
 your score" sube como en el caso de la web, y el aviso de evidencia solo dice qué fuentes
 fallaron y "This is not a coverage decision." (no habla de "this score"). Las barras, las
-señales y el PDF siguen. En la webapp, un análisis solo de scan que cumple la regla sale con
-"—" y "NOT SCORED" (`headline` y `summary` de `components/app/`). `/assessment/results` no
+señales y el PDF siguen. En la webapp, un análisis solo de scan en cualquiera de los dos estados
+sale con "—" y "NOT SCORED" (`headline` y `summary` de `components/app/`), con la frase de
+`notRatedText`; uno con assessment de una web ilegible enseña el score de las respuestas con la
+línea "Based only on your answers…". `/assessment/results` no
 cambia: su tier es el del compuesto, y la Capa 1 solo aparece como número en "Public evidence ·
 Layer 1" (el resultado de la Capa 2 no trae la confianza ni las categorías para aplicar la
 regla). Textos en `docs/copy-deck.md` §10.
@@ -1484,12 +1491,17 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 - *(pendiente)* Librerías de charts y formularios para la plataforma.
 - **`/score` y `/quote/scanning` tras el primer scan real** (noviembre 2026, §9.2): un único
   aviso de evidencia con tres casos y sin códigos internos; el PDF como botón secundario
-  visible arriba; una web ilegible por causa definitiva ya no falla el scan (flag
-  `WEBSITE_UNAVAILABLE`, el cuestionario pasa a ser la acción principal); y `FAILED` significa
-  un fallo nuestro o temporal, así que la pantalla pide reintentar.
+  visible arriba; una web ilegible ya no falla el scan (flag `WEBSITE_UNAVAILABLE`, el
+  cuestionario pasa a ser la acción principal); y `FAILED` significa un fallo nuestro, así que
+  la pantalla pide reintentar.
+- **Web ilegible = confianza baja, no alto riesgo** (2026-11-17, decisión de Jesús, DN-12 §14 en
+  Arca-back; sustituye a D4): cualquier causa del sitio termina `PARTIAL`; `/score` y el PDF del
+  Quick Scan sin número ni tier; el assessment puntúa solo con las respuestas (`layer1Score`
+  null, flag `LAYER1_UNAVAILABLE`) y lo dice en una línea. Sin "highest-risk group" ni "manual
+  review".
 - **Sin número ni tier con muy poca evidencia** (noviembre 2026, §9.2): confianza baja y menos de
   2 de 4 categorías evaluadas → "Not enough evidence to rate" en `/score`, en el PDF del Quick
-  Scan y en las tarjetas de la webapp. La web ilegible queda fuera de la regla.
+  Scan y en las tarjetas de la webapp. La web ilegible tiene su propio estado hermano.
 
 ## Isolated Layer 2 prototype — October 13, 2026
 
@@ -1539,16 +1551,13 @@ Sustituye a lo que digan sobre la Capa 2 la §9.2 y la lista de pendientes de ar
   fuente que no respondió (`INCOMPLETE_SOURCES`) y una evidencia escasa con todas las fuentes
   respondiendo (`INCOMPLETE_EVIDENCE`/`INSUFFICIENT_EVIDENCE`, el perfil `minimal`) tienen
   frases distintas y solo sale una, para cuadrar con `/score`.
-- **Web ilegible.** Si el resultado trae el flag `WEBSITE_UNAVAILABLE`, los resultados
-  muestran un único aviso junto al score: no se pudo leer la web y el resultado necesita
-  revisión manual digan lo que digan las respuestas. Que el resultado "está en el grupo de
-  mayor riesgo" solo lo dice cuando el tier que manda la API es CRITICAL, igual que el aviso
-  de `/score`, y nunca que el grupo se mantenga digan lo que digan las respuestas: la API
-  calcula el tier de la Capa 2 solo con el score combinado, así que unas respuestas fuertes
-  pueden sacarlo de ahí. Las dos redacciones terminan "This is not a coverage decision or a
-  price." y el PDF de la Capa 2 imprime las mismas frases (hallazgo 23; DN-12 §8 en
-  Arca-back). Si el back llega a fijar el tier en CRITICAL para este flag, hay que revisar
-  el aviso.
+- **Web ilegible.** Si el resultado trae el flag `LAYER1_UNAVAILABLE` (la API lo pone cuando la
+  Capa 1 traía `WEBSITE_UNAVAILABLE`), el score combinado es solo el de las respuestas,
+  "Public evidence · Layer 1" dice "Not scored" y la línea bajo el titular es "Based only on your
+  answers; no public evidence could be verified (low confidence)." (`ANSWERS_ONLY_LINE` en
+  `components/assessment/result-notes.ts`). Ya no hay aviso aparte, ni grupo de mayor riesgo ni
+  revisión manual (DN-12 §14 en Arca-back, que sustituye a D4). El PDF de la Capa 2 imprime la
+  misma línea en tercera persona ("the firm's answers").
 - **La fecha del pie va en la zona horaria del visitante** ("Completed Nov 9, 2026" para
   quien termina a las 21:30 en Florida), no en UTC. El resultado se carga en el cliente
   después de montar la página, así que no hay desajuste de hidratación.
