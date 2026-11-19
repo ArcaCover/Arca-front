@@ -2,7 +2,9 @@
 
 The design, the demo script and the verification record live in the backend repository: `../Arca-back/docs/design-notes/DN-10-webapp-organizaciones-y-cobro.md` (written in Spanish). Section 10 sets the demo scope, section 11 covers how to run the demo and section 12 records what was verified. It builds on the debug modes of DN-09 (`arca-modes.md`).
 
-Today the webapp runs in the two debug modes only. The sign-in and the payment are simulated, and nothing calls Stripe or Supabase Auth. In production its API answers `501 not_configured`, the results page offers no "Keep these results", and the sign-in says it is not available yet.
+By default the webapp runs in the two debug modes only. The sign-in and the payment are simulated, and nothing calls Stripe or Supabase Auth. In production its API answers `501 not_configured`, the results page offers no "Keep these results", and the sign-in says it is not available yet.
+
+With `NEXT_PUBLIC_WEBAPP_ENABLED=true` (production, or live-debug against a back with `WEBAPP_PROVIDERS=real`) the webapp signs in with Supabase Auth and a 6-digit emailed code instead (DN-13). That path, its variables and its verification are in `real-accounts.md` (in Spanish).
 
 | Mode | Webapp | Scans and assessments it reads |
 |---|---|---|

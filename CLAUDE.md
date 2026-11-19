@@ -130,9 +130,11 @@ distintos hacia la misma lógica.
 - **Componentes de UI para la plataforma (portal/dashboard):** `shadcn/ui` aprobado
   como candidato. No aplica a la landing existente (ya construida con componentes
   propios).
-- **Datos / auth / almacenamiento:** **Supabase** (Postgres + Auth con magic links).
-  **Aún NO conectado**: el cliente está cableado a variables de entorno pero dormido.
-- **Auth:** magic links vía Supabase Auth. Sin contraseña nunca.
+- **Datos / auth / almacenamiento:** **Supabase** (Postgres + Auth). El front solo usa Auth, con
+  `@supabase/ssr`; los datos los lee siempre la API. Conectado detrás de `NEXT_PUBLIC_WEBAPP_ENABLED`
+  (DN-13, ver la última sección).
+- **Auth:** sin contraseña nunca. Supabase Auth manda un **código de 6 dígitos** por email (con un
+  enlace de respaldo que pide un clic); ver la sección de cuentas reales al final.
 - **Pagos:** Stripe (test mode para MVP). **No conectado aún.**
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando lógica y
   validaciones en TypeScript.
@@ -1605,3 +1607,32 @@ DN-10 §10.
   modos de depuración se añade también a los marcadores de `scripts/debug-leaks.mjs`.
 - Detalle y tabla por modo: `docs/implementation/webapp.md` y
   `docs/implementation/arca-modes.md`.
+
+### Actualización — noviembre 2026 (cuentas reales con Supabase Auth, DN-13 T9 y T11)
+
+Rama `feat/real-accounts` (desde `feat/unreachable-website-layer2`). Detalle, pruebas y recorrido de navegador en
+`docs/implementation/real-accounts.md`; diseño en DN-13 de Arca-back. Sustituye lo que dice arriba de "producción no
+cambia" en cuanto se enciende la variable.
+
+- **Interruptor `NEXT_PUBLIC_WEBAPP_ENABLED`** (`true`/`false`, se escribe como literal en el build igual que el modo;
+  otro valor para el build, y `true` en `mock` también). Con `true`, `production` y `live-debug` inician sesión con
+  Supabase Auth (`realAccounts()` en `lib/app/accounts.ts`). Sin ella todo sigue como antes: `mock` y `live-debug`
+  simulados, `production` sin webapp. El back tiene que estar igual (`WEBAPP_ENABLED=true` en producción,
+  `WEBAPP_PROVIDERS=real` en live-debug); hasta T19 el front no puede comprobarlo. Orden de encendido: primero el back,
+  después la variable en Vercel, solo en Production (nunca en Preview).
+- **Variables públicas:** `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (sustituye a la anon key, que
+  ya no se lee). Ninguna de servidor. **`npm run build` falla en cualquier modo si el bundle lleva una clave secreta** de
+  Supabase o Stripe, o un secreto de webhook.
+- **Entrar:** código de 6 dígitos por email en la misma pestaña. El login dice lo mismo exista o no la cuenta. El alta solo
+  nace de un reclamo ("Save your results") o de una invitación: el back crea el usuario (`POST /auth/enroll`, una vez por
+  flujo) y el email sale bloqueado. El enlace del correo lleva a `/app/auth/confirm`, que **no hace nada hasta pulsar el
+  botón** (los filtros de correo de los despachos abren los enlaces) y solo sigue rutas `/app/...`.
+- **Sesión:** la del cliente de Supabase, en cookies que él refresca; cada llamada a la API lleva su `access_token` como
+  Bearer, leído justo antes. Cerrar sesión es `scope: 'local'` y olvida la organización y el reclamo.
+- **"Delete my account"** en Settings, para todos los roles y en todos los modos (`DELETE /me`). El único owner recibe un 409
+  explicado; un 503 se reintenta con el mismo botón.
+- **Contratos:** `EnrollRequest`/`EnrollResponse` están copiados en `lib/app/enroll-contract.ts` hasta publicar 0.5.0; el
+  front sigue con el tarball 0.4.0. **Nunca** una dependencia `file:`.
+- **Regla de las puertas de depuración:** sigue igual (literal en el sitio). `realAccounts()` no es una puerta de
+  depuración: es código de producción. Ningún comentario de un módulo de producción puede nombrar las rutas de depuración
+  del back: el chequeo de fugas lee los source maps (pasó en `lib/app/accounts.ts`).

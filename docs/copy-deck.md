@@ -4,7 +4,7 @@ Transcripción literal de la landing tal como está hoy en el código. Nada rees
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
 - **Última actualización:** 9 noviembre 2026 (se añaden la sección 10: el fallo de `/quote/scanning`, y el aviso de evidencia y el botón del PDF de `/score`; y la sección 11: el aviso único de demo, la tarjeta de pregunta, las notas y el botón del PDF de la Capa 2)
-- **Secciones:** 12 — las 10 de la landing, en orden de lectura, una del embudo de cotización y una de la Capa 2
+- **Secciones:** 13 — las 10 de la landing, en orden de lectura, una del embudo de cotización, una de la Capa 2 y una de las cuentas reales de la webapp
 - **Estado:** pre-lanzamiento
 
 > Si cambias un texto en el código, **actualízalo también aquí**. Este archivo está
@@ -696,10 +696,11 @@ ilegible: la línea "Based only on your answers…" ya lo dice.*
 la noche ya no lee la fecha de mañana. Las versiones son solo el número (`0.1.0`), sin la
 palabra "demo", que ya dice el aviso.*
 
-### `/assessment/results` — guardar los resultados (solo en los modos de depuración)
+### `/assessment/results` — guardar los resultados
 
-*Bloque "Keep these results." entre las notas y el pie. **No sale en producción**: solo en
-`mock` y en `live-debug`, porque la webapp privada todavía no tiene adaptadores reales. En
+*Bloque "Keep these results." entre las notas y el pie. Sale en `mock` y en `live-debug`, y en
+producción solo con `NEXT_PUBLIC_WEBAPP_ENABLED=true` (cuentas reales, DN-13); sin ella, no sale.
+Con cuentas reales no lleva la línea de simulación. En
 `live-debug` (scan real, cuenta simulada) lleva debajo del botón una línea más, la misma que
 muestran `/app/login`, `/app/signup`, la invitación, `/app/billing` y el checkout simulado:*
 
@@ -807,3 +808,74 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 - La página ya no mezcla tres audiencias: metadatos, badge, titular y subtítulo hablan
   todos a abogados. Accounting y consulting salieron del texto visible.
 - Ya existe imagen al compartir el enlace.
+
+---
+
+## 12 · Webapp — cuentas reales (Supabase Auth, DN-13)
+
+*Solo con `NEXT_PUBLIC_WEBAPP_ENABLED=true`. Las versiones simuladas de estas pantallas no cambian.*
+
+### `/app/login`
+
+| Elemento | Texto |
+|---|---|
+| Título | Sign in |
+| Ayuda | We will email you a 6-digit code. There is no password. |
+| Botón | Email me a code |
+| Tras pedir el código (igual exista o no la cuenta) | If an account exists for {email}, we sent it a 6-digit code. It expires in 10 minutes. |
+| Código nuevo | If an account exists for {email}, we sent it a new code. |
+| Volver | Use a different email |
+
+### Paso del código (login, alta e invitación)
+
+| Elemento | Texto |
+|---|---|
+| Aviso (alta e invitación) | We sent a 6-digit code to {email}. It expires in 10 minutes. |
+| Campo | 6-digit code |
+| Botones | Continue · Send a new code |
+| Código incorrecto | That code is not valid or has expired. Check the latest email, or send a new code. |
+| Código nuevo enviado / no enviado | We sent a new code to {email}. · We could not send a new code. Wait a minute and try again. |
+| Nota del enlace | The email also has a link. It opens a page where you confirm the sign-in, on this device or another one. |
+
+### `/app/signup` y `/app/invite/[token]`
+
+| Elemento | Texto |
+|---|---|
+| Alta, primer paso | We will email a 6-digit code to this address to confirm it is yours. |
+| Invitación, primer paso | We will email a 6-digit code to the address this invitation was sent to. |
+| Invitación con otra sesión | Signed in as {email}. The invitation is for one email: for any other, we email a 6-digit code to the invited address. |
+| Botones | Email me a sign-in code · Accept invitation (con sesión) |
+| Código no enviado | We could not send the code. Wait a minute and try again. |
+| Reclamo caducado o usado (410) | This link to save your results has expired or was already used. Run a new scan to save its results. |
+| Invitación que ya no vale (410) | This invitation is no longer valid. Ask the person who invited you to send a new one. |
+| Demasiados intentos (429) | Too many attempts. Try again in {n} minutes. |
+| Auth caído (503) | Sign-in is temporarily unavailable. Please try again in a moment. |
+
+### `/app/auth/confirm` (nueva)
+
+| Elemento | Texto |
+|---|---|
+| Título | Confirm your sign-in |
+| Ayuda | Press the button to finish signing in on this device. |
+| Botón | Continue signing in |
+| Enlace usado o caducado | This link has expired or was already used. Sign in again to get a new code. |
+| Enlace incompleto | This sign-in link is incomplete. Open the latest email again, or sign in to get a new code. |
+| Modos simulados | Sign-in links are not used in this environment. |
+| Enlace | Sign in |
+
+### `/app/settings` — "Your account" (todos los modos)
+
+| Elemento | Texto |
+|---|---|
+| Tarjeta | Your account · Signed in as {email}. |
+| Texto | Deleting your account signs you out and removes you from every organization you belong to. The organizations, their analyses and their activity stay with their other members. |
+| Botón | Delete my account |
+| Diálogo | Delete your account? · This cannot be undone. You will be signed out, and an organization would have to invite you again. |
+| Botones del diálogo | Cancel · Yes, delete my account (tras un 503: Try again) |
+| Único owner (409) | You are the only owner of an organization. Make another member an owner on the Members page, or request the organization's deletion, before deleting your account. |
+| Cuenta cerrada a medias (503) | Your account is closed, but we could not finish removing your sign-in. Try again to finish. |
+| Tarjeta Security (cambiado) | ARCA signs you in with a 6-digit code sent to your email. There is no password to set, change or leak. |
+
+### Franja de `live-debug` con cuentas reales
+
+> LIVE DEBUG · real scans · real accounts
