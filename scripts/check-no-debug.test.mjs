@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { findDebugLeaks } from './debug-leaks.mjs';
+import { findDebugLeaks, findSecretLeaks } from './debug-leaks.mjs';
 
 describe('findDebugLeaks', () => {
   let dir;
@@ -102,6 +102,45 @@ describe('findDebugLeaks', () => {
   });
 });
 
+// DN-13 §8.2: no server secret may reach the bundle, in any mode. The keys are built here from their parts so this file
+// holds no string that looks like a real one.
+const SECRET_SAMPLES = [
+  ['a Supabase secret key', `${'sb_'}secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz`],
+  ['a Stripe live key', `${'sk_'}live_${'4eC39HqLyjWDarjtT1zdp7dc'}`],
+  ['a Stripe test key', `${'sk_'}test_${'51Hx9aBcDeFgHiJkLmNoPqRs'}`],
+  ['a restricted live key', `${'rk_'}live_${'51Hx9aBcDeFgHiJkLmNoPqRs'}`],
+  ['a restricted test key', `${'rk_'}test_${'51Hx9aBcDeFgHiJkLmNoPqRs'}`],
+  ['a webhook secret', `${'whsec_'}${'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6'}`],
+];
+
+describe('findSecretLeaks', () => {
+  let dir;
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'arca-no-secret-'));
+    mkdirSync(join(dir, 'static', 'chunks'), { recursive: true });
+    // supabase-js names the prefix to refuse a secret key in the browser: a mention is not a key.
+    writeFileSync(join(dir, 'static', 'chunks', 'supabase.js'),
+      "const n=e=>e.startsWith('sb_publishable_')||e.startsWith('sb_secret_');/* whsec_ sk_test_ rk_live_ */");
+  });
+
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it('finds nothing where the prefixes are only named', () => {
+    expect(findSecretLeaks(dir)).toEqual([]);
+  });
+
+  it.each(SECRET_SAMPLES)('reports %s in a shipped chunk and in a source map', (_name, key) => {
+    const chunk = join(dir, 'static', 'chunks', 'app.js');
+    const map = join(dir, 'server', 'app', 'page.js.map');
+    mkdirSync(join(dir, 'server', 'app'), { recursive: true });
+    writeFileSync(chunk, `const k="${key}";`);
+    writeFileSync(map, JSON.stringify({ sourcesContent: [`process.env.X ?? "${key}"`] }));
+
+    expect(findSecretLeaks(dir).sort()).toEqual([chunk, map].sort());
+  });
+});
+
 describe('the build script', () => {
   const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -160,6 +199,34 @@ describe('check-no-debug CLI', () => {
     expect(result.stdout).toContain('1 debug leak(s) in the production build');
     expect(result.stdout).toContain('debug.js');
     expect(result.status).toBe(1);
+  });
+
+  it('fails a build that carries a secret key, and names the file but never the key', () => {
+    const [, key] = SECRET_SAMPLES[0];
+    writeFileSync(join(root, '.next', 'static', 'chunks', 'env.js'), `const k="${key}";`);
+
+    const result = run(join(root, 'scripts', 'check-no-debug.mjs'));
+
+    expect(result.stdout).toContain('1 secret key(s) in the build');
+    expect(result.stdout).toContain('env.js');
+    expect(result.stdout).not.toContain(key);
+    expect(result.status).toBe(1);
+  });
+
+  it('looks for secret keys in a debug build too', () => {
+    const [, key] = SECRET_SAMPLES[5];
+    writeFileSync(join(root, '.next', 'server', 'app', 'env.js'), `module.exports="${key}"`);
+
+    const result = run(join(root, 'scripts', 'check-no-debug.mjs'), 'mock');
+
+    expect(result.stdout).toContain('1 secret key(s) in the build');
+    expect(result.status).toBe(1);
+  });
+
+  it('reports no secret key in a clean build', () => {
+    const result = run(join(root, 'scripts', 'check-no-debug.mjs'));
+
+    expect(result.stdout).toContain('[check-no-debug] 0 secret key(s) in the build');
   });
 
   it('skips a debug build', () => {

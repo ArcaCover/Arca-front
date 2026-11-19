@@ -33,3 +33,17 @@ export function findDebugLeaks(dir) {
       return markers.some(marker => marker.test(content));
     });
 }
+
+// DN-13 §8.2: a server secret in the bundle, in any mode. The front only ever holds public values (the Supabase URL and its
+// publishable key), so a Supabase secret key, a Stripe secret or restricted key, or a Stripe webhook secret in anything that
+// ships means a server variable got inlined. Only a key is a leak, not its prefix: supabase-js names `sb_secret_` to refuse
+// such a key in the browser. Real keys run to 24 characters or more after the prefix; 16 is the floor looked for. Source maps
+// count too: they are served with the build.
+const SECRET_KEY = /(?:sb_secret_|sk_live_|sk_test_|rk_live_|rk_test_|whsec_)[A-Za-z0-9_-]{16,}/;
+
+export function findSecretLeaks(dir) {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => join(entry.parentPath, entry.name))
+    .filter(file => SECRET_KEY.test(readFileSync(file, 'latin1')));
+}
