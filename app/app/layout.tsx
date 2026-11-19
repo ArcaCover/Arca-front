@@ -15,12 +15,13 @@ import TopBar from "@/components/app/shell/TopBar";
 import { ToastProvider } from "@/components/app/ui";
 import { ApiError } from "@/lib/api/client";
 import { canOpen, useForbiddenShown } from "@/lib/app/access";
-import { signOut } from "@/lib/app/auth";
+import { forgetSession, signOut } from "@/lib/app/auth";
 import { getMe } from "@/lib/app/client";
-import { loadAppSession, rememberOrg } from "@/lib/app/session";
+import { currentAppSession, rememberOrg, watchSessionEnd } from "@/lib/app/session";
 
-// Sign-in, sign-up and an invitation are where a visitor gets a session, so they are the only pages open without one.
-const PUBLIC = ["/app/login", "/app/signup", "/app/invite/"];
+// Sign-in, sign-up, an invitation and the confirmation of a sign-in link (DN-13 §4.1) are where a visitor gets a session, so
+// they are the only pages open without one.
+const PUBLIC = ["/app/login", "/app/signup", "/app/invite/", "/app/auth/confirm"];
 const isPublic = (pathname: string) => PUBLIC.some(path => pathname === path || pathname.startsWith(path));
 // The ARCA staff page needs a session but no organization: a platform admin need not belong to one.
 const STAFF = "/app/admin";
@@ -40,23 +41,27 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const forbiddenShown = useForbiddenShown();
 
   const leave = useCallback(() => {
-    signOut();
+    void signOut();
     setState({ kind: "loading" });
     router.replace("/app/login");
   }, [router]);
   const reload = useCallback(() => setVersion(value => value + 1), []);
 
-  // Asked again on every private page, so a payment or a new organization shows as soon as the user moves on.
+  // Asked again on every private page, so a payment or a new organization shows as soon as the user moves on. The session is
+  // the Supabase client's with the real accounts (DN-13 §4.3), which may refresh it on the way, so it is read asynchronously.
   useEffect(() => {
     if (open) return;
-    if (!loadAppSession()) {
-      router.replace("/app/login");
-      return;
-    }
     let cancelled = false;
-    getMe()
-      .then(me => {
-        if (!cancelled) setState({ kind: "ready", me });
+    currentAppSession()
+      .then(session => {
+        if (cancelled) return;
+        if (!session) {
+          router.replace("/app/login");
+          return;
+        }
+        return getMe().then(me => {
+          if (!cancelled) setState({ kind: "ready", me });
+        });
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
@@ -67,6 +72,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [open, pathname, version, router, leave]);
+
+  // A real session can also end outside this page: a refresh token that stopped working, a sign-out in another tab. It is
+  // already gone, so only what this browser keeps is forgotten; asking Supabase to sign out again would announce another end.
+  useEffect(() => {
+    if (open) return;
+    return watchSessionEnd(() => {
+      forgetSession();
+      setState({ kind: "loading" });
+      router.replace("/app/login");
+    });
+  }, [open, router]);
 
   const org = useMemo(() => {
     if (state.kind !== "ready") return null;

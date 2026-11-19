@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ModeBanner from "./ModeBanner";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+});
 
 const banner = () => screen.getByRole("status");
 
@@ -38,6 +41,15 @@ describe("ModeBanner", () => {
     expect(banner().textContent!.length).toBeLessThanOrEqual(54);
     expect(banner().className).toContain("text-[11px]");
     expect(banner().className).toContain("leading-4");
+  });
+
+  // DN-13 §8.4: in live-debug on the real accounts (the back's WEBAPP_PROVIDERS=real), the accounts are not simulated.
+  it("says the accounts are real in live-debug on the real accounts, still on one phone line", () => {
+    vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "true");
+    render(<ModeBanner front="live-debug" check={{ state: "match", mode: "live-debug" }} />);
+
+    expect(banner().textContent).toBe("LIVE DEBUG · real scans · real accounts");
+    expect(banner().textContent!.length).toBeLessThanOrEqual(54);
   });
 
   it("shows the mismatch label on marino with oro text and an alert icon", () => {

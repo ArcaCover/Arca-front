@@ -8,6 +8,10 @@ const LABELS: Record<DebugMode, string> = {
   // for one line beside the State button on a 390 px phone; SimulationNotice says the rest where it matters.
   "live-debug": "LIVE DEBUG · real scans · simulated accounts & billing",
 };
+// live-debug built with NEXT_PUBLIC_WEBAPP_ENABLED=true signs in with Supabase Auth, against a back started with
+// WEBAPP_PROVIDERS=real (DN-13 §3.2). The flag is the front's word for it until /__debug/mode reports the back's providers
+// (T19), so the strip names only what the front knows: the accounts are real.
+const REAL_ACCOUNTS_LABEL = "LIVE DEBUG · real scans · real accounts";
 
 // Each state differs in shape as well as colour (DN-09 §6.2): stripes for mock, solid rojo for live-debug, inverted
 // marino for a mismatch. The stripes are a pattern nothing else in the UI uses, drawn from the palette's variables.
@@ -42,7 +46,9 @@ export default function ModeBanner({
       ? `Checking the back's mode · front=${front}`
       : check.state === "mismatch"
         ? check.label
-        : LABELS[check.mode];
+        : check.mode === "live-debug" && process.env.NEXT_PUBLIC_WEBAPP_ENABLED === "true"
+          ? REAL_ACCOUNTS_LABEL
+          : LABELS[check.mode];
   return (
     <div
       data-arca-debug="arca-debug-sentinel-7f3c"

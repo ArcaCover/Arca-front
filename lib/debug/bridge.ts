@@ -84,6 +84,8 @@ export async function debugPay(sessionId: string): Promise<boolean | null> {
  */
 export function simulatedWebappNotice(): string | null {
   if (process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return null;
+  // DN-13 §3.2: against a back with WEBAPP_PROVIDERS=real the accounts are Supabase's, so nothing here is simulated.
+  if (process.env.NEXT_PUBLIC_WEBAPP_ENABLED === "true") return null;
   return "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.";
 }
 

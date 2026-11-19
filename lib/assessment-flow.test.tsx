@@ -665,6 +665,25 @@ describe("saving the results to the webapp", () => {
     expect(document.body.textContent).not.toMatch(/simulated/i);
   });
 
+  // DN-13 §8.1: production offers it once the webapp is on, with the real accounts and nothing simulated to say.
+  it("is offered in production once NEXT_PUBLIC_WEBAPP_ENABLED is true, with no simulation line", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "production");
+    vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "true");
+    render(<AssessmentResultsPage />);
+    expect(await screen.findByRole("heading", { name: "Keep these results." })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(simulation()).toBeNull();
+    expect(document.body.textContent).not.toMatch(/simulated/i);
+  });
+
+  it("is not offered in production with NEXT_PUBLIC_WEBAPP_ENABLED set to anything but true", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "production");
+    vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "false");
+    render(<AssessmentResultsPage />);
+    await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
+    expect(screen.queryByRole("heading", { name: "Keep these results." })).toBeNull();
+  });
+
   it("is offered in mock, where the strip already says nothing is real", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     render(<AssessmentResultsPage />);

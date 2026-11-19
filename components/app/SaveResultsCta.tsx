@@ -10,7 +10,7 @@ import SimulationNotice from "@/components/app/SimulationNotice";
 import { ApiError } from "@/lib/api/client";
 import { recallSession } from "@/lib/api/session";
 import { attachAnalysis, createClaim, getMe } from "@/lib/app/client";
-import { loadAppSession, savePendingClaim } from "@/lib/app/session";
+import { currentAppSession, savePendingClaim } from "@/lib/app/session";
 
 // An organization the analysis may be added to: the signed-in user's role adds analyses there and it has paid. Any other
 // would answer 403 or 402, which leaves the user nowhere, so the claim goes to sign-up instead. Neither a member (DN-11 D2)
@@ -34,7 +34,8 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    const lookup = loadAppSession() ? getMe().then(me => activeOrg(me.organizations)) : Promise.resolve(null);
+    // With the real accounts the session is the Supabase client's (DN-13 §4.3), so it is read asynchronously.
+    const lookup = currentAppSession().then(session => (session ? getMe().then(me => activeOrg(me.organizations)) : null));
     // A /me that fails leaves the sign-up path, which still works: the results are never blocked by it.
     lookup
       .catch(() => null)
@@ -56,7 +57,7 @@ export default function SaveResultsCta({ scanId }: { scanId: string }) {
     setError(null);
     try {
       const claim = await createClaim(token);
-      if (target && sameEmail(loadAppSession()?.email, claim.email)) {
+      if (target && sameEmail((await currentAppSession())?.email, claim.email)) {
         await attachAnalysis(target.id, claim.claimId);
         router.push("/app");
       } else {

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { CalendarDays, FolderOpen, Laptop, Scale, Smartphone } from "lucide-react";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
+import DeleteAccount from "@/components/app/DeleteAccount";
 import {
   Badge, Card, PageHeader, ReadOnlyNotice, SampleBadge, buttonClass, formatDate, inputClass, usePreview,
 } from "@/components/app/ui";
@@ -309,7 +310,7 @@ export default function SettingsPage() {
           </div>
 
           <div id="security" className="scroll-mt-24">
-            <Card title="Security" description="ARCA signs you in with a link sent to your email. There is no password to set, change or leak.">
+            <Card title="Security" description="ARCA signs you in with a 6-digit code sent to your email. There is no password to set, change or leak.">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-heading text-base font-semibold">Recent sessions</h3>
                 <SampleBadge />
@@ -362,7 +363,7 @@ export default function SettingsPage() {
             </Card>
           </div>
 
-          <div id="data-privacy" className="scroll-mt-24">
+          <div id="data-privacy" className="scroll-mt-24 space-y-6">
             <Card title="Data & privacy" description="Closing the organization starts with a request that ARCA reviews.">
               <h3 className="font-heading text-base font-semibold">{canRequest ? "Request deletion" : "Deletion"}</h3>
               {pending ? (
@@ -402,6 +403,8 @@ export default function SettingsPage() {
                 </div>
               )}
             </Card>
+            {/* Personal, like notifications and security: every role closes its own account (DN-13 §4.8). */}
+            <DeleteAccount />
           </div>
         </div>
       </div>
