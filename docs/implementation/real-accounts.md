@@ -18,10 +18,9 @@ Lo decide `realAccounts()` (`lib/app/accounts.ts`) con dos valores que el build 
 | `mock` | sin definir o `false` | simuladas, como hasta ahora | `mock` |
 | `mock` | `true` | `next dev` y `next build` se paran: mock nunca usa un servicio real (el back también rechaza esa combinación) | — |
 
-Cualquier otro valor (`TRUE`, `1`…) para el build. Hasta que `/__debug/mode` diga qué proveedores usa el back (T19), la
-variable es la palabra del front: si front y back no coinciden, el back rechaza el token (401) y la persona vuelve al login.
-En `live-debug` con cuentas reales la franja dice `LIVE DEBUG · real scans · real accounts` y la línea "Simulated in
-live-debug…" desaparece, porque ya no es verdad.
+Cualquier otro valor (`TRUE`, `1`…) para el build. La variable decide qué inicio de sesión corre el build: si front y back no
+coinciden, el back rechaza el token (401) y la persona vuelve al login. Desde T19 (abajo) la franja lo detecta y lo dice. La
+línea "Simulated in live-debug…" desaparece con cuentas reales, porque ya no es verdad.
 
 ## Variables
 
@@ -194,10 +193,37 @@ datos creados en DN-13 §19.9 de Arca-back.
 
 - La tarjeta "Billing contact" de `/app/billing` sigue siendo de muestra y vacía, aunque el perfil del despacho ya existe: debería
   leerlo (falta una ruta que lo devuelva).
-- **T19:** que `/__debug/mode` diga `webapp`/`billing` y que el panel y la franja lo lean, en vez de la variable.
+- ~~**T19**~~: hecho (abajo). Al publicar 0.5.0, `lib/debug/mode-contract.ts` pasa a reexportar `DebugModeResponse`.
 - ~~**T16**~~: hecho con el pre-checkout (arriba): `/app/billing` incrustado y `/app/billing/return`. Falta mostrar `BillingView`
   (fin del periodo, cancelación programada) en `/app/billing`.
-- **T18:** cambiar `lib/app/enroll-contract.ts` y `lib/app/checkout-contract.ts` por el import de 0.5.0 y la URL de la release.
+- **T18:** cambiar `lib/app/enroll-contract.ts`, `lib/app/checkout-contract.ts` y `lib/debug/mode-contract.ts` por el import de 0.5.0
+  y la URL de la release.
 - **T30:** `Referrer-Policy` en `/app/*` (el `?claim=` ya se quita de la barra, el token de invitación sigue en la ruta).
 - Las cookies del verificador PKCE que deja `signInWithOtp` siguen tras entrar por el código o el enlace (no son sesión).
 - `/app/members` todavía no dice "Invitation email sent"; llega con `emailSent` en 0.5.0.
+
+## T19: la franja y el panel leen la webapp del back (DN-13 §20)
+
+Rama `feat/t19-debug-mode`. `/__debug/mode` dice ahora `webapp` (`simulated` | `real`) y `billing` (`simulated` | `test`; nunca
+`live`, que el back no arranca en debug). La franja y el panel leen eso, no `NEXT_PUBLIC_WEBAPP_ENABLED`; la variable solo se
+compara con lo que dice el back.
+
+| Back | Build | Franja | Fila "Webapp" del panel |
+|---|---|---|---|
+| `mock` | — | `MOCK · no real APIs · in-memory data` | `Webapp: simulated · billing simulated`, y que vive en la memoria del back |
+| `live-debug` simulado | sin la variable | `LIVE DEBUG · real scans · simulated accounts & billing` | igual que `mock` |
+| `live-debug` real | `NEXT_PUBLIC_WEBAPP_ENABLED=true` | `LIVE DEBUG · real scans · real accounts · Stripe test` | `Webapp: real · Stripe test`, la tarjeta 4242 con enlace a las tarjetas de test de Stripe, y `stripe listen --forward-to <API>/billing/webhook` con enlace a su documentación |
+| Distintos | Distinto del back | `ACCOUNTS MISMATCH · front=real, back=simulated` (o al revés), en marino con el icono de alerta | lo mismo, más una línea en rojo con la variable que hay que cambiar |
+| `production` | — | `MODE MISMATCH · … back unreachable or production` (404, como siempre) | "Unknown until the back reports its mode" |
+
+- **Contrato:** 0.5.0 no está publicado y el `DebugModeResponse` de 0.4.0 es estricto (llamaría "otra forma" a la respuesta nueva).
+  `lib/debug/mode-contract.ts` lee los dos campos a mano y el resto con el esquema de 0.4.0, al estilo de `enroll-contract.ts`. Es
+  código de debug: solo lo importan `lib/debug` y `components/debug`, y el build de producción no lo lleva.
+- **Chequeo de fugas:** marcadores nuevos `ACCOUNTS MISMATCH`, la etiqueta real y `stripe listen --forward-to`
+  (`scripts/debug-leaks.mjs`). `npm run build` sin variables y con `NEXT_PUBLIC_WEBAPP_ENABLED=true`: `0 secret key(s)` y
+  `0 debug leak(s)`.
+- **Pruebas** (escritas antes, vistas fallar): `lib/debug/mode-contract.test.ts` (nuevo), `mode-check`, `ModeBanner`, `StatePanel`,
+  `DebugRoot` y `scripts/check-no-debug.test.mjs`. `npm test`: 1156 pasan.
+- **Visto en Chromium** a 1280×900 y 390×844 (front en el 3011): con el back en `mock` (8091) y, para los estados reales, con un stub
+  local que solo responde `/__debug/mode` (no había claves de Stripe ni de Supabase). La franja mide 24 px en los tres casos, también
+  la real en el móvil. Capturas en el scratchpad de la sesión, carpeta `t19\`.
