@@ -130,10 +130,13 @@ distintos hacia la misma lógica.
 - **Componentes de UI para la plataforma (portal/dashboard):** `shadcn/ui` aprobado
   como candidato. No aplica a la landing existente (ya construida con componentes
   propios).
-- **Datos / auth / almacenamiento:** **Supabase** (Postgres + Auth con magic links).
-  **Aún NO conectado**: el cliente está cableado a variables de entorno pero dormido.
-- **Auth:** magic links vía Supabase Auth. Sin contraseña nunca.
-- **Pagos:** Stripe (test mode para MVP). **No conectado aún.**
+- **Datos / auth / almacenamiento:** **Supabase** (Postgres + Auth). El front solo usa Auth, con
+  `@supabase/ssr`; los datos los lee siempre la API. Conectado detrás de `NEXT_PUBLIC_WEBAPP_ENABLED`
+  (DN-13, ver la última sección).
+- **Auth:** sin contraseña nunca. Supabase Auth manda un **código de 6 dígitos** por email (con un
+  enlace de respaldo que pide un clic); ver la sección de cuentas reales al final.
+- **Pagos:** Stripe en modo test, conectado detrás de `NEXT_PUBLIC_WEBAPP_ENABLED`: Checkout incrustado en el pre-checkout y en
+  `/app/billing` (DN-13 §19, ver la última sección).
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando lógica y
   validaciones en TypeScript.
 - **Hosting frontend:** **Vercel**.
@@ -1524,7 +1527,7 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 
 This section applies only to this isolated implementation checkout and supersedes the historical Layer 2 mock status above. The original repositories, remote branches and deployments are unchanged.
 
-- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.4.0`, which also carries the debug, webapp and role-view contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
+- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.5.0`, which also carries the debug, webapp, role-view and DN-13 contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
 - `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
 - `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
 - Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial controls were removed.
@@ -1622,3 +1625,51 @@ DN-10 §10.
   modos de depuración se añade también a los marcadores de `scripts/debug-leaks.mjs`.
 - Detalle y tabla por modo: `docs/implementation/webapp.md` y
   `docs/implementation/arca-modes.md`.
+
+### Actualización — noviembre 2026 (cuentas reales con Supabase Auth, DN-13 T9 y T11)
+
+Rama `feat/real-accounts` (desde `feat/unreachable-website-layer2`). Detalle, pruebas y recorrido de navegador en
+`docs/implementation/real-accounts.md`; diseño en DN-13 de Arca-back. Sustituye lo que dice arriba de "producción no
+cambia" en cuanto se enciende la variable.
+
+- **Interruptor `NEXT_PUBLIC_WEBAPP_ENABLED`** (`true`/`false`, se escribe como literal en el build igual que el modo;
+  otro valor para el build, y `true` en `mock` también). Con `true`, `production` y `live-debug` inician sesión con
+  Supabase Auth (`realAccounts()` en `lib/app/accounts.ts`). Sin ella todo sigue como antes: `mock` y `live-debug`
+  simulados, `production` sin webapp. El back tiene que estar igual (`WEBAPP_ENABLED=true` en producción,
+  `WEBAPP_PROVIDERS=real` en live-debug); desde T19 la franja de depuración lo comprueba y dice `ACCOUNTS MISMATCH` si no coinciden. Orden de encendido: primero el back,
+  después la variable en Vercel, solo en Production (nunca en Preview).
+- **Variables públicas:** `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (sustituye a la anon key, que
+  ya no se lee). Ninguna de servidor. **`npm run build` falla en cualquier modo si el bundle lleva una clave secreta** de
+  Supabase o Stripe, o un secreto de webhook.
+- **Entrar:** código de 6 dígitos por email en la misma pestaña. El login dice lo mismo exista o no la cuenta. El alta solo
+  nace de un reclamo ("Save your results") o de una invitación: el back crea el usuario (`POST /auth/enroll`, una vez por
+  flujo) y el email sale bloqueado. El enlace del correo lleva a `/app/auth/confirm`, que **no hace nada hasta pulsar el
+  botón** (los filtros de correo de los despachos abren los enlaces) y solo sigue rutas `/app/...`.
+- **Sesión:** la del cliente de Supabase, en cookies que él refresca; cada llamada a la API lleva su `access_token` como
+  Bearer, leído justo antes. Cerrar sesión es `scope: 'local'` y olvida la organización y el reclamo.
+- **"Delete my account"** en Settings, para todos los roles y en todos los modos (`DELETE /me`). El único owner recibe un 409
+  explicado; un 503 se reintenta con el mismo botón.
+- **Contratos:** `EnrollRequest`/`EnrollResponse` vienen de 0.5.0; `lib/app/enroll-contract.ts` solo los reexporta.
+  **Nunca** una dependencia `file:`.
+- **Regla de las puertas de depuración:** sigue igual (literal en el sitio). `realAccounts()` no es una puerta de
+  depuración: es código de producción. Ningún comentario de un módulo de producción puede nombrar las rutas de depuración
+  del back: el chequeo de fugas lee los source maps (pasó en `lib/app/accounts.ts`).
+
+### Actualización — noviembre 2026 (pre-checkout con Stripe incrustado, DN-13 §19)
+
+Detalle en `docs/implementation/real-accounts.md` y copy en `docs/copy-deck.md` §11 y §12.
+
+- **El alta es un pre-checkout de cinco pasos** en `/app/signup`: You, Your firm, Plan, Verify email, Payment. Nada se escribe
+  antes del código: los pasos 1–3 quedan en la pestaña (`sessionStorage`); con el código, `POST /orgs` crea la organización con
+  el perfil del despacho y se abre el pago. El perfil va a Stripe (nombre, email, teléfono, dirección y el EIN como `us_ein`), así
+  que Checkout no pide nada dos veces.
+- **Stripe incrustado** solo con cuentas reales (`@stripe/stripe-js/pure`: Stripe.js no se carga en los modos simulados, que
+  siguen con el checkout simulado). Variable pública nueva: `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_`). El chequeo de secretos
+  del build deja pasar `pk_` y `sb_publishable_`.
+- **Abandonar en el pago no pierde nada**: la cuenta y la organización existen, y `/app/billing` abre el mismo Checkout
+  incrustado. `/app/billing/return` sincroniza la sesión y espera al webhook.
+- **Pantallas de entrada** (`FunnelFrame`): el lenguaje del embudo, con orbe y titular a la izquierda, en el alta, el login y la
+  invitación. El código son seis casillas (pegar, autocompletar, Backspace, verificación al sexto dígito, reenvío a los 30 s).
+- **"Keep these results"** es ahora el momento de conversión: nombre del despacho, puntuación, tier, pasos del plan, ventajas que
+  la app cumple hoy y el precio leído de la API. Gold solo en "Activate your account".
+- **Contratos**: las formas nuevas vienen de 0.5.0; `lib/app/checkout-contract.ts` solo las reexporta.

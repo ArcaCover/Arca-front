@@ -467,13 +467,13 @@ describe("SaveResultsCta for a member or a viewer", () => {
 
   it("asks someone not signed in to activate an account, and someone signed in only to start an organization", async () => {
     const anonymous = render(<SaveResultsCta scanId="sc_demo" />);
-    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Activate your account" })).toBeTruthy();
     anonymous.unmount();
 
     signedIn(org({ role: "viewer" }));
     render(<SaveResultsCta scanId="sc_demo" />);
     expect(await screen.findByRole("button", { name: "Save your results to a new organization" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /activate your account/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /activate your account/i })).toBeNull();
   });
 
   it.each<Role>(["member", "viewer"])("sends a %s of the active organization to create a new one, and says why", async role => {
@@ -503,7 +503,7 @@ describe("SaveResultsCta for a member or a viewer", () => {
     signedIn(org({ billingStatus: "pending_payment", paidAccess: false }));
     render(<SaveResultsCta scanId="sc_demo" />);
     await screen.findByRole("button", { name: "Save your results to a new organization" });
-    expect(screen.getByText("Create your organization to keep this analysis and invite your colleagues.")).toBeTruthy();
+    expect(screen.getByText("Your ARCA workspace in five short steps. Nothing is charged before the last one.")).toBeTruthy();
     expect(screen.queryByText(/does not add analyses/)).toBeNull();
   });
 });

@@ -372,4 +372,12 @@ describe("the simulated webapp's notice", () => {
 
     expect(simulatedWebappNotice()).toBeNull();
   });
+
+  // DN-13 §3.2: live-debug against a back with WEBAPP_PROVIDERS=real has real accounts, so there is nothing simulated to say.
+  it("is null in live-debug on the real accounts", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "true");
+
+    expect(simulatedWebappNotice()).toBeNull();
+  });
 });

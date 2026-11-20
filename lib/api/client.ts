@@ -54,6 +54,8 @@ export type ApiErrorCode =
   | "not_found"
   | "gone"
   | "not_configured"
+  | "auth_unavailable"
+  | "billing_unavailable"
   | "internal_error"
   | "network"
   | "contract"
@@ -93,6 +95,9 @@ const ERROR_CODES = new Set<string>([
   "not_found",
   "gone",
   "not_configured",
+  // DN-13 §7.3: the back could not reach Supabase Auth; the same request can be repeated.
+  "auth_unavailable",
+  "billing_unavailable",
   "internal_error",
 ]);
 

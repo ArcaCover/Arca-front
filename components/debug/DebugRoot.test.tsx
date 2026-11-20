@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import type { DebugModeResponse } from "@arca/contracts/debug";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DebugModeResponse } from "@/lib/debug/mode-contract";
 import { publishDebugState, SCENARIO_STORAGE_KEY, takeDebugScenarioHeaders } from "@/lib/debug/bridge";
 import DebugRoot from "./DebugRoot";
 
@@ -25,15 +25,18 @@ const BACK: DebugModeResponse = {
   assessmentPlanner: "rules",
   signalLlmModel: null,
   inUse: { openai: false, apify: false, supabase: false },
+  webapp: "simulated",
+  billing: "simulated",
 };
 const MOCK = "MOCK · no real APIs · in-memory data";
 const ABSENT = "MODE MISMATCH · front=mock, back unreachable or production";
 
 // What the back answers to the next probe.
-let back: "mock" | "live-debug" | 404 | "hang";
+let back: "mock" | "live-debug" | 404 | "hang" | "real-webapp";
 const fetcher = vi.fn<typeof fetch>(async () => {
   if (back === 404) return Response.json({ error: "not_found", message: "Not found" }, { status: 404 });
   if (back === "hang") return new Promise<Response>(() => undefined);
+  if (back === "real-webapp") return Response.json({ ...BACK, webapp: "real", billing: "test" });
   return Response.json({ ...BACK, mode: back });
 });
 const strip = () => document.querySelector('[data-arca-debug="arca-debug-sentinel-7f3c"]')?.textContent;
@@ -110,6 +113,14 @@ describe("DebugRoot", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  // DN-13 T19: the strip compares the accounts this build signs in with against the webapp the back reports.
+  it("shows an accounts mismatch when the back runs a webapp this build does not sign in to", async () => {
+    back = "real-webapp";
+    render(<DebugRoot />);
+
+    await waitFor(() => expect(strip()).toBe("ACCOUNTS MISMATCH · front=simulated, back=real"));
   });
 
   it("probes every 10 seconds while the tab is visible, and not while it is hidden", async () => {

@@ -24,7 +24,9 @@ import {
 
 import { ApiError, apiFailure, apiParse, apiSend } from "@/lib/api/client";
 
-import { loadAppSession } from "./session";
+import { EmbeddedCheckoutResponse, type OrgProfileInput } from "./checkout-contract";
+import { EnrollResponse, type EnrollRequest } from "./enroll-contract";
+import { currentAppSession } from "./session";
 
 // One function per route of the private webapp's API (DN-10 section 4.7, DN-11 section 4.9). The back is the one that
 // denies: a 402, 403, 410 or 429 reaches the page as an ApiError to react to, never something this client decides on its
@@ -32,12 +34,13 @@ import { loadAppSession } from "./session";
 
 type Init = { method?: string; body?: unknown };
 
-// `authenticated: false` is for the two public routes only. Every other route needs the signed-in user, and without a
-// session there is no point in asking.
+// `authenticated: false` is for the public routes only. Every other route needs the signed-in user, and without a session
+// there is no point in asking. The session is read again before each call: with the real accounts the Supabase client may
+// have refreshed the access token since the last one (DN-13 §4.3).
 async function request(path: string, { method, body }: Init = {}, authenticated = true): Promise<Response> {
   const headers: Record<string, string> = {};
   if (authenticated) {
-    const session = loadAppSession();
+    const session = await currentAppSession();
     if (!session) throw new ApiError("unauthorized", "Sign in to continue.");
     headers.Authorization = `Bearer ${session.token}`;
   }
@@ -82,10 +85,27 @@ export const getPlans = () => json(PlanView.array(), "/plans", undefined, false)
 export const createClaim = (scanToken: string) =>
   json(ClaimResponse, "/claims", { method: "POST", body: { scanToken } }, false);
 
+/**
+ * Public: the claim ticket or the invitation token is what authorizes it (DN-13 §4.2). The back creates the Supabase user for
+ * that email if there is none, and answers with the email either way; a ticket or an invitation that no longer works is a
+ * single 410, whatever the reason.
+ */
+export const enroll = (request: EnrollRequest) =>
+  json(EnrollResponse, "/auth/enroll", { method: "POST", body: request }, false);
+
 export const getMe = () => json(MeResponse, "/me");
 
-export const createOrg = (name: string, claimId: string) =>
-  json(OrgView, "/orgs", { method: "POST", body: { name, claimId } });
+/**
+ * Closes the signed-in person's account (DN-13 §4.8): 204, or 409 while they are the only owner of an organization. A 503
+ * means the account is closed but its sign-in was not removed yet: the same call, with the same token, finishes it.
+ */
+export async function deleteAccount(): Promise<void> {
+  await request("/me", { method: "DELETE" });
+}
+
+/** With the pre-checkout's firm profile (DN-13 §19), which the back keeps and makes the Stripe customer from. */
+export const createOrg = (name: string, claimId: string, profile?: OrgProfileInput) =>
+  json(OrgView, "/orgs", { method: "POST", body: profile ? { name, claimId, profile } : { name, claimId } });
 
 export const getOrg = (id: string) => json(OrgView, org(id));
 
@@ -118,6 +138,17 @@ export const acceptInvitation = (token: string) =>
 
 export const checkout = (orgId: string, planCode: string) =>
   json(UrlResponse, `${org(orgId)}/billing/checkout`, { method: "POST", body: { planCode } });
+
+/**
+ * Checkout embedded in ARCA's page (DN-13 §19): the client secret Stripe.js mounts it with. The back keeps one open session per
+ * organization, so asking again (a reload, the billing page) gets the same one while it is open.
+ */
+export const embeddedCheckout = (orgId: string, planCode: string) =>
+  json(EmbeddedCheckoutResponse, `${org(orgId)}/billing/checkout`, { method: "POST", body: { planCode, uiMode: "embedded" } });
+
+/** The return from Checkout (DN-13 §6.3): the back reads the session at Stripe and applies it before the webhook arrives. */
+export const syncBilling = (orgId: string, sessionId: string) =>
+  json(OrgView, `${org(orgId)}/billing/sync`, { method: "POST", body: { sessionId } });
 
 export const portal = (orgId: string) => json(UrlResponse, `${org(orgId)}/billing/portal`, { method: "POST" });
 

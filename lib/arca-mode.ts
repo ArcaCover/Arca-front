@@ -17,3 +17,20 @@ export function resolveArcaMode(env: Record<string, string | undefined>): ArcaMo
   }
   return mode;
 }
+
+/**
+ * Whether the build runs the private webapp on the real accounts (DN-13 §3.2, §8.2). Production keeps the webapp hidden
+ * until the back is turned on (§7.6 step 4); live-debug uses it against a back started with WEBAPP_PROVIDERS=real. Like the
+ * mode, next.config.ts resolves it once and inlines it, so a typo, or a mock build that asks for real accounts (the back
+ * refuses that combination too), stops the build instead of shipping a webapp no one can sign in to.
+ */
+export function resolveWebappEnabled(env: Record<string, string | undefined>, mode: ArcaMode): boolean {
+  const value = env.NEXT_PUBLIC_WEBAPP_ENABLED || "false";
+  if (value !== "true" && value !== "false") {
+    throw new Error(`NEXT_PUBLIC_WEBAPP_ENABLED="${value}" must be true or false`);
+  }
+  if (value === "true" && mode === "mock") {
+    throw new Error("NEXT_PUBLIC_WEBAPP_ENABLED=true needs real accounts, and mock never uses a real service; unset it for mock");
+  }
+  return value === "true";
+}

@@ -16,6 +16,9 @@ What each mode has of the private webapp:
 |---|---|---|---|
 | "Keep these results" on `/assessment/results`, sign-up, sign-in, billing, simulated checkout | no (sign-in says it is not available yet; the checkout page is a 404) | yes, simulated, with a line that says so on each of those screens | yes, simulated |
 | Demo seed, "Sign in as <role>" and "Show forbidden actions" in the State panel; platform admin sign-in on `/app/login` | no | no | yes |
+| With `NEXT_PUBLIC_WEBAPP_ENABLED=true` | real accounts (Supabase Auth, emailed code) | real accounts; the strip reads `LIVE DEBUG · real scans · real accounts` and the simulation line is gone | refused: `next dev` and `next build` stop |
+
+The flag, the real sign-in and how it was verified: `real-accounts.md`.
 
 ## Run (Windows PowerShell)
 

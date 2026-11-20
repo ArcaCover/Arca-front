@@ -1,26 +1,22 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-// Cliente de Supabase con inicialización perezosa: no se conecta al arrancar
-// la app, solo cuando algo lo usa. Si faltan las variables de entorno
-// (todavía no hay proyecto de Supabase creado), falla con un mensaje claro.
+// The browser's Supabase client (DN-13 §4.3), used for Auth only: the webapp's tables are closed to it (RLS with no policy
+// and no grant), and every read goes through the API. @supabase/ssr keeps the session in cookies of the front's own domain
+// and refreshes it on its own. Built lazily, so nothing connects until a page signs someone in, and only from the two
+// public variables: the URL and the publishable key (sb_publishable_...). A server key never belongs here.
 let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
-  if (client) {
-    return client;
-  }
-
+  if (client) return client;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !publishableKey) {
     throw new Error(
-      "Faltan las variables de entorno NEXT_PUBLIC_SUPABASE_URL y/o " +
-        "NEXT_PUBLIC_SUPABASE_ANON_KEY. Copia .env.example a .env.local y " +
-        "rellena los valores de tu proyecto de Supabase.",
+      "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are not set. Copy .env.example to .env.local and " +
+        "fill them in with the Supabase project's URL and publishable key.",
     );
   }
-
-  client = createClient(url, anonKey);
+  client = createBrowserClient(url, publishableKey);
   return client;
 }

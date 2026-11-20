@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { realAccounts } from "@/lib/app/accounts";
 import { checkModes, probeBackMode, type BackModeProbe, type DebugMode } from "@/lib/debug/mode-check";
 import { armedScenario } from "@/lib/debug/scenario";
 import { installDebugStore } from "@/lib/debug/store";
@@ -71,7 +72,11 @@ export default function DebugRoot() {
     <div className="fixed inset-x-0 top-0 z-[60]">
       <div className="flex">
         <div className="min-w-0 flex-1">
-          <ModeBanner front={FRONT} check={probe && checkModes(FRONT, probe)} armed={armed} />
+          <ModeBanner
+            front={FRONT}
+            check={probe && checkModes(FRONT, probe, realAccounts() ? "real" : "simulated")}
+            armed={armed}
+          />
         </div>
         <button
           type="button"

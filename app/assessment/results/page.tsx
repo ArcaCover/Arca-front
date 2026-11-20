@@ -379,10 +379,12 @@ function ResultsScreen() {
                 </ul>
               </details>
             )}
-            {/* The webapp exists in the debug modes only, until its real adapters land: in live-debug it is simulated in the
-                back's memory, and in production the back answers 501 (DN-10 §10). Literal comparisons, as DN-09 asks. */}
-            {(process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug") &&
-              scanId && <SaveResultsCta scanId={scanId} />}
+            {/* The webapp exists in the debug modes, simulated by default, and in production once NEXT_PUBLIC_WEBAPP_ENABLED
+                says the back is on with the real accounts; until then the back answers 501 there (DN-13 §7.6, §8.1). Literal
+                comparisons, as DN-09 asks. */}
+            {(process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug" ||
+              process.env.NEXT_PUBLIC_WEBAPP_ENABLED === "true") &&
+              scanId && <SaveResultsCta scanId={scanId} result={result} />}
             <div className="mt-8 flex items-center justify-between gap-3 border-t border-marino/10 pt-5">
               <span className="text-[10px] leading-5 text-marino/70">
                 Completed {completedOn(result.completedAt)}

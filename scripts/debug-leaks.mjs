@@ -6,12 +6,13 @@ import { join } from 'node:path';
 // Strings that only debug code carries.
 // These live only in debug-only modules (components/debug and what only it imports), so no production module's
 // source holds them: they are searched everywhere, source maps included. After the strip's labels come the debug
-// panel's role tools and the seeded demo users' domain (DN-11 §6.4), and last what the live-debug strip says of the
-// webapp it simulates (DN-10 §10).
+// panel's role tools and the seeded demo users' domain (DN-11 §6.4), then what the live-debug strip says of the
+// webapp it simulates (DN-10 §10), and last what the strip and the panel say of the webapp the back reports (DN-13 T19).
 const DEBUG_ONLY_MARKERS = [
   /arca-debug-sentinel-7f3c/, /\/__debug\//, /LIVE DEBUG/, /MODE MISMATCH/,
   /Show forbidden actions/, /Seed demo organization/, /demo\.arca\.example/,
   /simulated accounts & billing/,
+  /ACCOUNTS MISMATCH/, /real accounts .{1,6} Stripe test/, /stripe listen --forward-to/,
 ];
 // These are also in lib/debug/bridge.ts, which production pages import. Its body folds to `return` in a production
 // build, but server source maps keep the module's original source, so in maps they would flag the bridge itself.
@@ -32,4 +33,18 @@ export function findDebugLeaks(dir) {
       const content = readFileSync(file, 'latin1');
       return markers.some(marker => marker.test(content));
     });
+}
+
+// DN-13 §8.2: a server secret in the bundle, in any mode. The front only ever holds public values (the Supabase URL and its
+// publishable key), so a Supabase secret key, a Stripe secret or restricted key, or a Stripe webhook secret in anything that
+// ships means a server variable got inlined. Only a key is a leak, not its prefix: supabase-js names `sb_secret_` to refuse
+// such a key in the browser. Real keys run to 24 characters or more after the prefix; 16 is the floor looked for. Source maps
+// count too: they are served with the build.
+const SECRET_KEY = /(?:sb_secret_|sk_live_|sk_test_|rk_live_|rk_test_|whsec_)[A-Za-z0-9_-]{16,}/;
+
+export function findSecretLeaks(dir) {
+  return readdirSync(dir, { recursive: true, withFileTypes: true })
+    .filter(entry => entry.isFile())
+    .map(entry => join(entry.parentPath, entry.name))
+    .filter(file => SECRET_KEY.test(readFileSync(file, 'latin1')));
 }

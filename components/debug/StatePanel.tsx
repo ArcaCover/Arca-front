@@ -4,9 +4,11 @@ import { DebugScanState } from "@arca/contracts/debug";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 
+import { realAccounts } from "@/lib/app/accounts";
 import { recallSession } from "@/lib/api/session";
 import type { DebugSection } from "@/lib/debug/bridge";
 import type { BackModeProbe } from "@/lib/debug/mode-check";
+import type { DebugModeResponse } from "@/lib/debug/mode-contract";
 import type { DebugStore } from "@/lib/debug/store";
 import { tokenTimes, type TokenTimes } from "@/lib/debug/token";
 import AssessmentControls from "./AssessmentControls";
@@ -83,6 +85,15 @@ export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: P
         <Row label="Back mode">
           {probe === null ? "Checking…" : probe.kind === "ok" ? <Json value={probe.body} /> : BACK_MODE[probe.kind]}
         </Row>
+        <Row label="Webapp">
+          {probe === null ? (
+            "Checking…"
+          ) : probe.kind === "ok" ? (
+            <Webapp back={probe.body} apiUrl={apiUrl} />
+          ) : (
+            "Unknown until the back reports its mode"
+          )}
+        </Row>
         <Row label="Scan">{scanId ?? "No scan in the URL"}</Row>
       </dl>
       {section === "quote" && <ScenarioControls apiUrl={apiUrl} onScenarioChange={onScenarioChange} />}
@@ -93,6 +104,49 @@ export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: P
       {/* Keyed by scan, so a new scan starts from a fresh token reading and no internal state from the last one. */}
       {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} />}
     </section>
+  );
+}
+
+const LINK = "font-semibold underline";
+
+// DN-13 §8.4, T19: which webapp the back built and what bills it, as /__debug/mode says, next to what this build signs in with.
+// The back answers with words only: no key, no prefix, no project URL.
+function Webapp({ back, apiUrl }: { back: DebugModeResponse; apiUrl: string }) {
+  const front = realAccounts() ? "real" : "simulated";
+  return (
+    <div className="grid gap-1">
+      <p>{`Webapp: ${back.webapp} · ${back.billing === "test" ? "Stripe test" : "billing simulated"}`}</p>
+      {back.webapp === "simulated" ? (
+        <p>Accounts, organizations and payments live in the back&apos;s memory and reset when it restarts.</p>
+      ) : (
+        <p>Accounts sign in with Supabase Auth; organizations live in the back&apos;s Supabase project.</p>
+      )}
+      {back.billing === "test" && (
+        <>
+          <p>
+            {"Pay with the test card 4242 4242 4242 4242, any future date and any CVC ("}
+            <a className={LINK} href="https://docs.stripe.com/testing#cards" target="_blank" rel="noreferrer">
+              Stripe test cards
+            </a>
+            {")."}
+          </p>
+          <p>
+            {"Stripe's events reach this API only through "}
+            <a className={LINK} href="https://docs.stripe.com/cli/listen" target="_blank" rel="noreferrer">
+              stripe listen
+            </a>
+            {": "}
+            <code className="font-body">{`stripe listen --forward-to ${apiUrl || "<API URL>"}/billing/webhook`}</code>
+          </p>
+        </>
+      )}
+      {front !== back.webapp && (
+        <p className="text-rojo">
+          {`This front signs in with ${front} accounts and the back runs ${back.webapp} ones, so sign-in fails: build the front `
+            + `with NEXT_PUBLIC_WEBAPP_ENABLED=${back.webapp === "real"} or start the back with WEBAPP_PROVIDERS=${front}.`}
+        </p>
+      )}
+    </div>
   );
 }
 
