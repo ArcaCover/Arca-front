@@ -43,7 +43,7 @@ navegador. El chequeo imprime el archivo, nunca la clave (`scripts/debug-leaks.m
 | `lib/app/session.ts` | `currentAppSession()` lee el token antes de cada llamada (Supabase lo refresca solo); `watchSessionEnd()` avisa de un `SIGNED_OUT` que no provocó la pestaña (refresh caducado, otra pestaña); `endRealSession()` cierra con `scope: 'local'` sin despertar a esos avisos. El reclamo y la última organización, como antes |
 | `lib/app/auth.ts` | `requestCode` (`signInWithOtp` con `shouldCreateUser: false` y `emailRedirectTo` a `/app/auth/confirm?next=…`), `verifyCode`, `confirmLink` (`verifyOtp` con `token_hash`), `safeNext` (solo rutas `/app/…`), `signOut` y `forgetSession`. `signIn` sigue siendo el simulado |
 | `lib/app/client.ts` | Bearer de `currentAppSession()`; `enroll()` (pública) y `deleteAccount()` |
-| `lib/app/enroll-contract.ts` | `EnrollRequest`/`EnrollResponse` copiados del back hasta los contratos 0.5.0 (abajo) |
+| `lib/app/enroll-contract.ts` | Reexporta `EnrollRequest`/`EnrollResponse` de los contratos 0.5.0 (abajo) |
 | `components/app/CodeEntry.tsx` | El paso del código: 6 dígitos, "Send a new code", modo neutro para el login |
 | `/app/login` | Email → código. Con o sin cuenta, el mismo mensaje: "If an account exists for …, we sent it a 6-digit code" |
 | `/app/signup` | Email bloqueado del reclamo → `enroll` una vez → código → nombre → `POST /orgs`. Con el `claim` en la URL (enlace de respaldo, otra pestaña u otro dispositivo) usa ese reclamo y la sesión, y lo quita de la barra |
@@ -56,6 +56,10 @@ Lo simulado no cambia: en `mock`, en `live-debug` por defecto y en `production` 
 versión de siempre (`SimulatedLogin`, `SimulatedSignup`, `SimulatedInvite`).
 
 ## Contratos: copia local hasta 0.5.0
+
+> **Publicado (2026-11-20):** el front instala `contracts-v0.5.0` desde su tarball. `lib/app/enroll-contract.ts`,
+> `lib/app/checkout-contract.ts` y `lib/debug/mode-contract.ts` ya solo reexportan del paquete; lo que sigue describe la etapa
+> anterior.
 
 El front sigue instalando `@arca/contracts` 0.4.0 desde el tarball de la release, sin `file:` y sin tocar esa entrada del
 `package-lock.json`. Las dos formas nuevas (`EnrollRequest`, `EnrollResponse`, en `packages/contracts/src/webapp.ts` del back,
@@ -196,8 +200,7 @@ datos creados en DN-13 §19.9 de Arca-back.
 - ~~**T19**~~: hecho (abajo). Al publicar 0.5.0, `lib/debug/mode-contract.ts` pasa a reexportar `DebugModeResponse`.
 - ~~**T16**~~: hecho con el pre-checkout (arriba): `/app/billing` incrustado y `/app/billing/return`. Falta mostrar `BillingView`
   (fin del periodo, cancelación programada) en `/app/billing`.
-- **T18:** cambiar `lib/app/enroll-contract.ts`, `lib/app/checkout-contract.ts` y `lib/debug/mode-contract.ts` por el import de 0.5.0
-  y la URL de la release.
+- ~~**T18:**~~ hecho: los tres archivos reexportan de 0.5.0 y `package.json` apunta a la release `contracts-v0.5.0`.
 - **T30:** `Referrer-Policy` en `/app/*` (el `?claim=` ya se quita de la barra, el token de invitación sigue en la ruta).
 - Las cookies del verificador PKCE que deja `signInWithOtp` siguen tras entrar por el código o el enlace (no son sesión).
 - `/app/members` todavía no dice "Invitation email sent"; llega con `emailSent` en 0.5.0.
@@ -216,7 +219,7 @@ compara con lo que dice el back.
 | Distintos | Distinto del back | `ACCOUNTS MISMATCH · front=real, back=simulated` (o al revés), en marino con el icono de alerta | lo mismo, más una línea en rojo con la variable que hay que cambiar |
 | `production` | — | `MODE MISMATCH · … back unreachable or production` (404, como siempre) | "Unknown until the back reports its mode" |
 
-- **Contrato:** 0.5.0 no está publicado y el `DebugModeResponse` de 0.4.0 es estricto (llamaría "otra forma" a la respuesta nueva).
+- **Contrato** (antes de publicar 0.5.0; hoy `mode-contract.ts` reexporta del paquete): el `DebugModeResponse` de 0.4.0 es estricto (llamaría "otra forma" a la respuesta nueva).
   `lib/debug/mode-contract.ts` lee los dos campos a mano y el resto con el esquema de 0.4.0, al estilo de `enroll-contract.ts`. Es
   código de debug: solo lo importan `lib/debug` y `components/debug`, y el build de producción no lo lleva.
 - **Chequeo de fugas:** marcadores nuevos `ACCOUNTS MISMATCH`, la etiqueta real y `stripe listen --forward-to`

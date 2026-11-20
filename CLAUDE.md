@@ -1510,7 +1510,7 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
 
 This section applies only to this isolated implementation checkout and supersedes the historical Layer 2 mock status above. The original repositories, remote branches and deployments are unchanged.
 
-- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.4.0`, which also carries the debug, webapp and role-view contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
+- Layer 2 uses the shared `@arca/contracts` package from a release tarball (`contracts-v0.5.0`, which also carries the debug, webapp, role-view and DN-13 contracts), as §3 describes. It was briefly `file:../Arca-back/packages/contracts`, which broke every Vercel build because only this repo is cloned there. To try unreleased contracts locally, `npm install ../Arca-back/packages/contracts --no-save`; never commit a `file:` dependency.
 - `NEXT_PUBLIC_API_URL` is required in every environment. The production API fallback was removed in this fork so local testing cannot silently contact the live service.
 - `/score` preloads an assessment; `/assessment` renders and saves the server's adaptive question list, with evidence, unselected suggestions, review and explicit attestation; `/assessment/results` reads the saved API result.
 - Business rules, the question bank and scoring are provisional demo data. The screens clearly disclose this and make no insurance offer, price, benchmark or underwriting promise. The old Layer 2 mock data and inert commercial controls were removed.
@@ -1632,8 +1632,8 @@ cambia" en cuanto se enciende la variable.
   Bearer, leído justo antes. Cerrar sesión es `scope: 'local'` y olvida la organización y el reclamo.
 - **"Delete my account"** en Settings, para todos los roles y en todos los modos (`DELETE /me`). El único owner recibe un 409
   explicado; un 503 se reintenta con el mismo botón.
-- **Contratos:** `EnrollRequest`/`EnrollResponse` están copiados en `lib/app/enroll-contract.ts` hasta publicar 0.5.0; el
-  front sigue con el tarball 0.4.0. **Nunca** una dependencia `file:`.
+- **Contratos:** `EnrollRequest`/`EnrollResponse` vienen de 0.5.0; `lib/app/enroll-contract.ts` solo los reexporta.
+  **Nunca** una dependencia `file:`.
 - **Regla de las puertas de depuración:** sigue igual (literal en el sitio). `realAccounts()` no es una puerta de
   depuración: es código de producción. Ningún comentario de un módulo de producción puede nombrar las rutas de depuración
   del back: el chequeo de fugas lee los source maps (pasó en `lib/app/accounts.ts`).
@@ -1655,4 +1655,4 @@ Detalle en `docs/implementation/real-accounts.md` y copy en `docs/copy-deck.md` 
   invitación. El código son seis casillas (pegar, autocompletar, Backspace, verificación al sexto dígito, reenvío a los 30 s).
 - **"Keep these results"** es ahora el momento de conversión: nombre del despacho, puntuación, tier, pasos del plan, ventajas que
   la app cumple hoy y el precio leído de la API. Gold solo en "Activate your account".
-- **Contratos**: las formas nuevas están copiadas en `lib/app/checkout-contract.ts` hasta 0.5.0, como `enroll-contract.ts`.
+- **Contratos**: las formas nuevas vienen de 0.5.0; `lib/app/checkout-contract.ts` solo las reexporta.
