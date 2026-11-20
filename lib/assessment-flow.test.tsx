@@ -659,7 +659,7 @@ describe("saving the results to the webapp", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     render(<AssessmentResultsPage />);
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
-    expect(screen.queryByRole("heading", { name: "Keep these results." })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /start closing the gaps/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Save your results/ })).toBeNull();
     expect(simulation()).toBeNull();
     expect(document.body.textContent).not.toMatch(/simulated/i);
@@ -670,8 +670,8 @@ describe("saving the results to the webapp", () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "production");
     vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "true");
     render(<AssessmentResultsPage />);
-    expect(await screen.findByRole("heading", { name: "Keep these results." })).toBeTruthy();
-    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /start closing the gaps/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Activate your account" })).toBeTruthy();
     expect(simulation()).toBeNull();
     expect(document.body.textContent).not.toMatch(/simulated/i);
   });
@@ -681,14 +681,14 @@ describe("saving the results to the webapp", () => {
     vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "false");
     render(<AssessmentResultsPage />);
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
-    expect(screen.queryByRole("heading", { name: "Keep these results." })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /start closing the gaps/ })).toBeNull();
   });
 
   it("is offered in mock, where the strip already says nothing is real", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
     render(<AssessmentResultsPage />);
-    expect(await screen.findByRole("heading", { name: "Keep these results." })).toBeTruthy();
-    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /start closing the gaps/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Activate your account" })).toBeTruthy();
     expect(simulation()).toBeNull();
   });
 
@@ -696,8 +696,8 @@ describe("saving the results to the webapp", () => {
   it("is offered in live-debug, with one line saying the account and the payment are simulated", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
     render(<AssessmentResultsPage />);
-    const heading = await screen.findByRole("heading", { name: "Keep these results." });
-    expect(await screen.findByRole("button", { name: "Save your results and activate your account" })).toBeTruthy();
+    const heading = await screen.findByRole("heading", { name: /start closing the gaps/ });
+    expect(await screen.findByRole("button", { name: "Activate your account" })).toBeTruthy();
     expect(screen.getAllByRole("note", { name: "About this simulation" })).toHaveLength(1);
     expect(simulation()!.textContent).toBe(
       "Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.",

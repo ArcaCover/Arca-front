@@ -5,7 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 
 import { SIGN_IN_NOT_AVAILABLE, useBrowser } from "@/components/app/AppContext";
 import CodeEntry from "@/components/app/CodeEntry";
+import FunnelFrame, { FunnelCard, IdentityChip } from "@/components/app/FunnelFrame";
 import SimulationNotice from "@/components/app/SimulationNotice";
+import { buttonClass, inputClass } from "@/components/app/ui";
 import { ApiError } from "@/lib/api/client";
 import { realAccounts } from "@/lib/app/accounts";
 import { requestCode, signIn, signOut } from "@/lib/app/auth";
@@ -84,44 +86,32 @@ function RealInvite() {
 
   if (session === undefined) return null;
   return (
-    <section className="max-w-md">
-      <h1 className="font-heading text-2xl">Join an organization</h1>
-      {codeSent && enrolled ? (
-        <CodeEntry email={enrolled} next={next} onVerified={() => void accept()} />
-      ) : (
-        <div className="mt-6 space-y-4">
-          {enrolled && (
-            <label className="block text-sm">
-              Email
-              <input
-                type="email"
-                value={enrolled}
-                readOnly
-                className="mt-1 block w-full rounded-xl border border-marino/20 bg-bruma/40 px-3 py-2"
-              />
-            </label>
-          )}
-          <p className="text-sm text-marino/70">
-            {session
-              ? `Signed in as ${session.email}. The invitation is for one email: for any other, we email a 6-digit code to the invited address.`
-              : "We will email a 6-digit code to the address this invitation was sent to."}
+    <FunnelFrame eyebrow="Join an organization" title={codeSent && enrolled ? "Check your inbox." : "You're invited."}
+      description={codeSent && enrolled ? "Type the 6-digit code from the email to join." : "Your colleagues already use ARCA. Verify your email to join them: no password."}>
+      <FunnelCard>
+        <h2 className="font-heading text-xl font-semibold tracking-tight">{codeSent && enrolled ? "Enter your code" : "Accept the invitation"}</h2>
+        {codeSent && enrolled ? (
+          <CodeEntry email={enrolled} next={next} onVerified={() => void accept()} />
+        ) : (
+          <div className="mt-6 space-y-4">
+            {enrolled && <IdentityChip email={enrolled} source="From your invitation" />}
+            <p className="text-sm text-marino/70">
+              {session
+                ? `Signed in as ${session.email}. The invitation is for one email: for any other, we email a 6-digit code to the invited address.`
+                : "We'll send a 6-digit code to the address this invitation was sent to, to verify it's you."}
+            </p>
+            <button type="button" onClick={start} disabled={busy} className={buttonClass.primary}>
+              {session ? "Accept invitation" : "Send my code"}
+            </button>
+          </div>
+        )}
+        {message && (
+          <p role="alert" className="mt-4 text-sm">
+            {message}
           </p>
-          <button
-            type="button"
-            onClick={start}
-            disabled={busy}
-            className="rounded-full bg-oro px-5 py-2 text-sm font-semibold disabled:opacity-60"
-          >
-            {session ? "Accept invitation" : "Email me a sign-in code"}
-          </button>
-        </div>
-      )}
-      {message && (
-        <p role="alert" className="mt-4 text-sm">
-          {message}
-        </p>
-      )}
-    </section>
+        )}
+      </FunnelCard>
+    </FunnelFrame>
   );
 }
 
@@ -157,11 +147,10 @@ function SimulatedInvite() {
   }
 
   return (
-    <section className="max-w-md">
-      <h1 className="font-heading text-2xl">Join an organization</h1>
-      <p className="mt-3 text-sm text-marino/70">Sign in with the email the invitation was sent to.</p>
-      <SimulationNotice />
-      <form onSubmit={accept} className="mt-6 space-y-4">
+    <FunnelFrame eyebrow="Join an organization" title="You're invited." description="Sign in with the email the invitation was sent to.">
+      <SimulationNotice className="mb-4" />
+      <FunnelCard>
+      <form onSubmit={accept} className="space-y-4">
         {session ? (
           <p className="text-sm">
             Signed in as {session.email}.{" "}
@@ -178,18 +167,18 @@ function SimulatedInvite() {
             </button>
           </p>
         ) : (
-          <label className="block text-sm">
+          <label className="block text-sm font-semibold">
             Email
             <input
               type="email"
               required
               value={email}
               onChange={event => setEmail(event.target.value)}
-              className="mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2"
+              className={inputClass}
             />
           </label>
         )}
-        <button type="submit" disabled={busy || !browser} className="rounded-full bg-oro px-5 py-2 text-sm font-semibold disabled:opacity-60">
+        <button type="submit" disabled={busy || !browser} className={buttonClass.primary}>
           {session ? "Accept invitation" : "Sign in and accept"}
         </button>
       </form>
@@ -198,6 +187,7 @@ function SimulatedInvite() {
           {message}
         </p>
       )}
-    </section>
+      </FunnelCard>
+    </FunnelFrame>
   );
 }

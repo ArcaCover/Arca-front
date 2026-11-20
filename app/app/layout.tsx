@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import type { MeResponse } from "@arca/contracts";
 
 import { ActionsProvider } from "@/components/app/ActionsState";
+import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { AppContext, activeOrg, type AppState } from "@/components/app/AppContext";
 import { SampleStateProvider } from "@/components/app/SampleState";
 import { OrgNotices, RoleGate } from "@/components/app/shell/OrgNotices";
@@ -94,7 +95,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     [state, org, reload, leave],
   );
 
-  if (open) return <Frame>{children}</Frame>;
+  if (open) return <Frame wide>{children}</Frame>;
 
   if (state.kind === "ready" && context) {
     const organization =
@@ -208,17 +209,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 const debugStrip = () =>
   process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
 
-/** The plain frame of the public pages, the loading and failed states and the staff page. */
-function Frame({ header, children }: { header?: ReactNode; children: ReactNode }) {
+/**
+ * The plain frame of the loading and failed states and the staff page. `wide` is the public pages' (sign-in, sign-up, invitation):
+ * the funnel's lit canvas and room for its two columns (FunnelFrame).
+ */
+function Frame({ header, wide = false, children }: { header?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
-    <div className={`min-h-screen text-marino${debugStrip() ? " pt-6" : ""}`}>
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-marino/10 bg-white px-6 py-4">
-        <Link href="/app" className="font-heading text-lg font-semibold">
-          Arca
+    <div className={`min-h-screen text-marino${wide ? " assessment-canvas" : ""}${debugStrip() ? " pt-6" : ""}`}>
+      <header className={`flex flex-wrap items-center justify-between gap-4 px-6 py-4${wide ? " mx-auto max-w-[1240px] sm:px-8 lg:px-12" : " border-b border-marino/10 bg-white"}`}>
+        <Link href="/app" aria-label="Arca" className="rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-marino">
+          <ArcaWordmark className="h-6 w-auto text-marino" />
         </Link>
         {header}
       </header>
-      <main className="mx-auto max-w-4xl px-6 py-10">{children}</main>
+      <main className={wide ? "mx-auto max-w-[1240px] px-5 pb-16 pt-4 sm:px-8 lg:px-12 lg:pt-8" : "mx-auto max-w-4xl px-6 py-10"}>{children}</main>
     </div>
   );
 }

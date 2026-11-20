@@ -384,7 +384,7 @@ function ResultsScreen() {
                 comparisons, as DN-09 asks. */}
             {(process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug" ||
               process.env.NEXT_PUBLIC_WEBAPP_ENABLED === "true") &&
-              scanId && <SaveResultsCta scanId={scanId} />}
+              scanId && <SaveResultsCta scanId={scanId} result={result} />}
             <div className="mt-8 flex items-center justify-between gap-3 border-t border-marino/10 pt-5">
               <span className="text-[10px] leading-5 text-marino/70">
                 Completed {completedOn(result.completedAt)}

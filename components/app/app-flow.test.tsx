@@ -28,6 +28,7 @@ import {
 import { loadAppSession, loadPendingClaim, recallOrg, saveAppSession, savePendingClaim } from "@/lib/app/session";
 import { debugPay } from "@/lib/debug/bridge";
 import { fixtureAssessmentResult } from "@/lib/test-fixtures/assessment";
+import { PROFILE, throughPlan } from "@/lib/test-fixtures/pre-checkout";
 
 const navigation = vi.hoisted(() => ({
   pathname: "/app",
@@ -348,19 +349,20 @@ describe("sign-up from the results", () => {
 
   it("prefills the email from the pending claim and locks it", async () => {
     inApp("/app/signup", <SignupPage />);
-    const email = await screen.findByLabelText<HTMLInputElement>("Email");
+    const email = await screen.findByLabelText<HTMLInputElement>("Work email");
     expect(email.value).toBe("owner@smithlaw.com");
     expect(email.readOnly).toBe(true);
   });
 
-  it("creates the organization with the claim and goes on to billing", async () => {
+  // The pre-checkout's steps (DN-13 §19) are in pre-checkout.test.tsx; here, the simulated sign-in at its step 4.
+  it("signs in as the claim's email at step 4, creates the organization with its profile, and offers the payment", async () => {
     vi.mocked(createOrg).mockResolvedValue(org({ id: "org_new", billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/signup", <SignupPage />);
-    await userEvent.type(await screen.findByLabelText("Organization name"), "Smith Law");
-    await userEvent.click(button("Create organization"));
-    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/billing"));
+    await throughPlan();
+    await userEvent.click(button("Create my account"));
+    expect(await screen.findByRole("button", { name: "Continue to payment" })).toBeTruthy();
     expect(signIn).toHaveBeenCalledExactlyOnceWith("owner@smithlaw.com");
-    expect(createOrg).toHaveBeenCalledExactlyOnceWith("Smith Law", "cl_1");
+    expect(createOrg).toHaveBeenCalledExactlyOnceWith("Smith Law LLP", "cl_1", PROFILE);
     expect(recallOrg()).toBe("org_new");
     expect(loadPendingClaim()).toBeNull();
   });
@@ -368,8 +370,8 @@ describe("sign-up from the results", () => {
   it("keeps the claim and shows the API's reason when the organization cannot be created", async () => {
     vi.mocked(createOrg).mockRejectedValue(new ApiError("conflict", "This analysis already belongs to an organization"));
     inApp("/app/signup", <SignupPage />);
-    await userEvent.type(await screen.findByLabelText("Organization name"), "Smith Law");
-    await userEvent.click(button("Create organization"));
+    await throughPlan();
+    await userEvent.click(button("Create my account"));
     expect((await screen.findByRole("alert")).textContent).toContain("already belongs to an organization");
     expect(navigation.router.push).not.toHaveBeenCalled();
     expect(loadPendingClaim()?.claimId).toBe("cl_1");
@@ -383,14 +385,13 @@ describe("sign-up from the results", () => {
     });
     vi.mocked(createOrg).mockResolvedValue(org({ id: "org_new", billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/signup", <SignupPage />);
-    expect(await screen.findByRole("heading", { level: 1, name: "Save your results to a new organization" })).toBeTruthy();
+    expect(await screen.findByText("Save your results to a new organization")).toBeTruthy();
     expect(screen.queryByText(/activate your account/)).toBeNull();
 
-    await userEvent.type(screen.getByLabelText("Organization name"), "Owner Law");
-    await userEvent.click(button("Create organization"));
-    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/billing"));
+    await throughPlan();
+    await userEvent.click(button("Continue to payment"));
+    await waitFor(() => expect(createOrg).toHaveBeenCalledExactlyOnceWith("Smith Law LLP", "cl_1", PROFILE));
     expect(signIn).not.toHaveBeenCalled();
-    expect(createOrg).toHaveBeenCalledExactlyOnceWith("Owner Law", "cl_1");
   });
 
   it.each<[string, () => void]>([
@@ -399,14 +400,14 @@ describe("sign-up from the results", () => {
   ])("asks to activate the account when %s, since sign-up signs in as the claim's email", async (_who, sign) => {
     sign();
     inApp("/app/signup", <SignupPage />);
-    expect(await screen.findByRole("heading", { level: 1, name: "Save your results and activate your account" })).toBeTruthy();
+    expect(await screen.findByText("Save your results and activate your account")).toBeTruthy();
   });
 
   it("without a pending claim, sends the visitor to the funnel instead", async () => {
     sessionStorage.clear();
     inApp("/app/signup", <SignupPage />);
     expect((await screen.findByRole("link", { name: /Start an analysis/ })).getAttribute("href")).toBe("/quote");
-    expect(screen.queryByLabelText("Organization name")).toBeNull();
+    expect(screen.queryByLabelText("Full name")).toBeNull();
   });
 });
 
@@ -436,8 +437,8 @@ describe.each([undefined, "production"])("sign-in in production (mode %s)", mode
   it("the sign-up says the same and creates nothing", async () => {
     savePendingClaim({ claimId: "cl_1", email: "owner@smithlaw.com", expiresAt: future() });
     inApp("/app/signup", <SignupPage />);
-    await userEvent.type(await screen.findByLabelText("Organization name"), "Smith Law");
-    await userEvent.click(button("Create organization"));
+    await throughPlan();
+    await userEvent.click(button("Create my account"));
     expect(await screen.findByText(NOT_AVAILABLE)).toBeTruthy();
     expect(createOrg).not.toHaveBeenCalled();
     expect(navigation.router.push).not.toHaveBeenCalled();
@@ -483,12 +484,12 @@ describe("the simulated webapp in live-debug", () => {
     savePendingClaim({ claimId: "cl_1", email: "owner@smithlaw.com", expiresAt: future() });
     vi.mocked(createOrg).mockResolvedValue(org({ id: "org_new", billingStatus: "pending_payment", paidAccess: false }));
     inApp("/app/signup", <SignupPage />);
-    await userEvent.type(await screen.findByLabelText("Organization name"), "Smith Law");
+    await screen.findByLabelText("Full name");
     expect(simulation()).toEqual([SIMULATION]);
-    await userEvent.click(button("Create organization"));
-    await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/billing"));
+    await throughPlan();
+    await userEvent.click(button("Create my account"));
+    await waitFor(() => expect(createOrg).toHaveBeenCalledExactlyOnceWith("Smith Law LLP", "cl_1", PROFILE));
     expect(signIn).toHaveBeenCalledExactlyOnceWith("owner@smithlaw.com");
-    expect(createOrg).toHaveBeenCalledExactlyOnceWith("Smith Law", "cl_1");
   });
 
   it("the invitation's sign-in says so", async () => {
@@ -534,7 +535,7 @@ describe.each([undefined, "production", "mock"])("the simulation line (mode %s)"
 
     savePendingClaim({ claimId: "cl_1", email: "owner@smithlaw.com", expiresAt: future() });
     const signup = inApp("/app/signup", <SignupPage />);
-    await screen.findByLabelText("Organization name");
+    await screen.findByLabelText("Full name");
     expect(simulation()).toEqual([]);
     signup.unmount();
 
@@ -740,7 +741,7 @@ describe("SaveResultsCta", () => {
   it("in live-debug, says under the button that the account and the payment are simulated", async () => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
     render(<SaveResultsCta scanId="sc_demo" />);
-    const save = await screen.findByRole("button", { name: "Save your results and activate your account" });
+    const save = await screen.findByRole("button", { name: "Activate your account" });
     expect(simulation()).toEqual([SIMULATION]);
     expect(save.closest("section")!.textContent).toContain(SIMULATION);
   });
@@ -748,7 +749,7 @@ describe("SaveResultsCta", () => {
   it.each([undefined, "production", "mock"])("says nothing of a simulation when the mode is %s", async mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     render(<SaveResultsCta scanId="sc_demo" />);
-    await screen.findByRole("button", { name: "Save your results and activate your account" });
+    await screen.findByRole("button", { name: "Activate your account" });
     expect(simulation()).toEqual([]);
     expect(document.body.textContent).not.toMatch(/simulated/i);
   });
@@ -757,7 +758,7 @@ describe("SaveResultsCta", () => {
     const claim = { claimId: "cl_1", email: "owner@smithlaw.com", expiresAt: future() };
     vi.mocked(createClaim).mockResolvedValue(claim);
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Activate your account" }));
     await waitFor(() => expect(navigation.router.push).toHaveBeenCalledWith("/app/signup?claim=cl_1"));
     expect(createClaim).toHaveBeenCalledExactlyOnceWith("synthetic-scan-capability");
     expect(loadPendingClaim()).toEqual(claim);
@@ -819,7 +820,7 @@ describe("SaveResultsCta", () => {
   it("shows the API's reason when the analysis cannot be saved", async () => {
     vi.mocked(createClaim).mockRejectedValue(new ApiError("conflict", "This analysis already belongs to an organization"));
     render(<SaveResultsCta scanId="sc_demo" />);
-    await userEvent.click(await screen.findByRole("button", { name: "Save your results and activate your account" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Activate your account" }));
     expect((await screen.findByRole("alert")).textContent).toContain("already belongs to an organization");
     expect(navigation.router.push).not.toHaveBeenCalled();
   });

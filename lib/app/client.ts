@@ -24,6 +24,7 @@ import {
 
 import { ApiError, apiFailure, apiParse, apiSend } from "@/lib/api/client";
 
+import { EmbeddedCheckoutResponse, type OrgProfileInput } from "./checkout-contract";
 import { EnrollResponse, type EnrollRequest } from "./enroll-contract";
 import { currentAppSession } from "./session";
 
@@ -102,8 +103,9 @@ export async function deleteAccount(): Promise<void> {
   await request("/me", { method: "DELETE" });
 }
 
-export const createOrg = (name: string, claimId: string) =>
-  json(OrgView, "/orgs", { method: "POST", body: { name, claimId } });
+/** With the pre-checkout's firm profile (DN-13 §19), which the back keeps and makes the Stripe customer from. */
+export const createOrg = (name: string, claimId: string, profile?: OrgProfileInput) =>
+  json(OrgView, "/orgs", { method: "POST", body: profile ? { name, claimId, profile } : { name, claimId } });
 
 export const getOrg = (id: string) => json(OrgView, org(id));
 
@@ -136,6 +138,17 @@ export const acceptInvitation = (token: string) =>
 
 export const checkout = (orgId: string, planCode: string) =>
   json(UrlResponse, `${org(orgId)}/billing/checkout`, { method: "POST", body: { planCode } });
+
+/**
+ * Checkout embedded in ARCA's page (DN-13 §19): the client secret Stripe.js mounts it with. The back keeps one open session per
+ * organization, so asking again (a reload, the billing page) gets the same one while it is open.
+ */
+export const embeddedCheckout = (orgId: string, planCode: string) =>
+  json(EmbeddedCheckoutResponse, `${org(orgId)}/billing/checkout`, { method: "POST", body: { planCode, uiMode: "embedded" } });
+
+/** The return from Checkout (DN-13 §6.3): the back reads the session at Stripe and applies it before the webhook arrives. */
+export const syncBilling = (orgId: string, sessionId: string) =>
+  json(OrgView, `${org(orgId)}/billing/sync`, { method: "POST", body: { sessionId } });
 
 export const portal = (orgId: string) => json(UrlResponse, `${org(orgId)}/billing/portal`, { method: "POST" });
 

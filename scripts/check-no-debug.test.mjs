@@ -130,6 +130,14 @@ describe('findSecretLeaks', () => {
     expect(findSecretLeaks(dir)).toEqual([]);
   });
 
+  // DN-13 §19: the embedded Checkout needs Stripe's publishable key in the bundle, beside Supabase's. Both are public by design.
+  it('lets the public keys through: a Stripe publishable key and a Supabase publishable key', () => {
+    writeFileSync(join(dir, 'static', 'chunks', 'keys.js'),
+      `const s="${'pk_'}test_${'51Hx9aBcDeFgHiJkLmNoPqRsTuVwXyZ'}",l="${'pk_'}live_${'51Hx9aBcDeFgHiJkLmNoPqRsTuVwXyZ'}",`
+      + `p="${'sb_'}publishable_${'a1B2c3D4e5F6g7H8i9J0kLmN'}";`);
+    expect(findSecretLeaks(dir)).toEqual([]);
+  });
+
   it.each(SECRET_SAMPLES)('reports %s in a shipped chunk and in a source map', (_name, key) => {
     const chunk = join(dir, 'static', 'chunks', 'app.js');
     const map = join(dir, 'server', 'app', 'page.js.map');
