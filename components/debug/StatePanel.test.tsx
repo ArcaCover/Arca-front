@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import type { DebugModeResponse, DebugScanState } from "@arca/contracts/debug";
+import type { DebugScanState } from "@arca/contracts/debug";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { DebugModeResponse } from "@/lib/debug/mode-contract";
 import { createDebugStore } from "@/lib/debug/store";
 import StatePanel from "./StatePanel";
 
@@ -31,7 +32,19 @@ const BACK: DebugModeResponse = {
   assessmentPlanner: "rules",
   signalLlmModel: null,
   inUse: { openai: false, apify: false, supabase: false },
+  webapp: "simulated",
+  billing: "simulated",
 };
+const REAL: DebugModeResponse = {
+  ...BACK,
+  mode: "live-debug",
+  sourceMode: "live",
+  storageBackend: "supabase",
+  inUse: { openai: true, apify: true, supabase: true },
+  webapp: "real",
+  billing: "test",
+};
+const webappRow = () => screen.getByText("Webapp").nextElementSibling as HTMLElement;
 
 // A reason scraped from a third-party site, written to look like markup.
 const HOSTILE = '<img src=x onerror="alert(1)">';
@@ -60,6 +73,7 @@ afterEach(() => {
   cleanup();
   sessionStorage.clear();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   navigation.pathname = "/score";
   navigation.search = "scan=scan-1";
 });
@@ -82,6 +96,58 @@ describe("StatePanel", () => {
     expect(page()).toContain("scan-1");
     expect(page()).not.toContain("@");
     expect(page()).not.toContain(TOKEN.split(".")[1]);
+  });
+
+  // DN-13 §8.4, T19: which webapp the back built, in words, from /__debug/mode.
+  it("says the webapp is simulated, and that it lives in the back's memory", () => {
+    render(<StatePanel store={createDebugStore()} probe={{ kind: "ok", body: BACK }} apiUrl="http://api" />);
+
+    expect(webappRow().textContent).toContain("Webapp: simulated · billing simulated");
+    expect(webappRow().textContent).toContain("reset when it restarts");
+    expect(webappRow().textContent).not.toContain("4242");
+    expect(webappRow().querySelector("a")).toBeNull();
+  });
+
+  it("on the real webapp, says Stripe test and how to pay and get the webhooks, linking to Stripe's docs", () => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", "true");
+    render(<StatePanel store={createDebugStore()} probe={{ kind: "ok", body: REAL }} apiUrl="http://127.0.0.1:8091" />);
+
+    expect(webappRow().textContent).toContain("Webapp: real · Stripe test");
+    expect(webappRow().textContent).toContain("4242 4242 4242 4242");
+    expect(webappRow().textContent).toContain("stripe listen --forward-to http://127.0.0.1:8091/billing/webhook");
+    const links = [...webappRow().querySelectorAll("a")];
+    expect(links.map(link => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Stripe test cards", "https://docs.stripe.com/testing#cards"],
+      ["stripe listen", "https://docs.stripe.com/cli/listen"],
+    ]);
+    for (const link of links) {
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toBe("noreferrer");
+    }
+    expect(webappRow().querySelector(".text-rojo")).toBeNull();
+  });
+
+  it.each([
+    { name: "a simulated build against the real back", env: undefined, body: REAL, says: "This front signs in with simulated accounts and the back runs real ones" },
+    { name: "a real build against the simulated back", env: "true", body: { ...BACK, mode: "live-debug" } as DebugModeResponse,
+      says: "This front signs in with real accounts and the back runs simulated ones" },
+  ])("warns when front and back disagree on the accounts: $name", ({ env, body, says }) => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "live-debug");
+    vi.stubEnv("NEXT_PUBLIC_WEBAPP_ENABLED", env);
+    render(<StatePanel store={createDebugStore()} probe={{ kind: "ok", body }} apiUrl="http://api" />);
+
+    const warning = webappRow().querySelector(".text-rojo");
+    expect(warning?.textContent).toContain(says);
+    expect(warning?.textContent).toContain("NEXT_PUBLIC_WEBAPP_ENABLED");
+  });
+
+  it("does not guess the webapp of a back that reported no mode", () => {
+    render(<StatePanel store={createDebugStore()} probe={{ kind: "absent" }} apiUrl="http://api" />);
+    expect(webappRow().textContent).toBe("Unknown until the back reports its mode");
+    cleanup();
+    render(<StatePanel store={createDebugStore()} probe={null} apiUrl="http://api" />);
+    expect(webappRow().textContent).toBe("Checking…");
   });
 
   it("fetches the internal state with the scan's token and shows third-party text as text", async () => {

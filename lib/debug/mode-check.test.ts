@@ -1,4 +1,4 @@
-import type { DebugModeResponse } from "@arca/contracts/debug";
+import type { DebugModeResponse } from "./mode-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { checkModes, probeBackMode } from "./mode-check";
@@ -11,6 +11,8 @@ const BACK: DebugModeResponse = {
   assessmentPlanner: "rules",
   signalLlmModel: null,
   inUse: { openai: false, apify: false, supabase: false },
+  webapp: "simulated",
+  billing: "simulated",
 };
 
 const answer = (status: number, body: unknown) =>
@@ -41,6 +43,9 @@ describe("probeBackMode", () => {
     // A back from before `inUse` replaced `configured` speaks another shape: never trusted as a mode.
     const { inUse, ...older } = BACK;
     expect(await probeBackMode("http://api", answer(200, { ...older, configured: inUse }))).toEqual({ kind: "absent" });
+    // Nor a back from before contracts 0.5.0, which does not say which webapp it built (DN-13 T19).
+    const { webapp: _webapp, billing: _billing, ...unnamed } = BACK;
+    expect(await probeBackMode("http://api", answer(200, unnamed))).toEqual({ kind: "absent" });
   });
 
   it("calls a network error unreachable", async () => {
@@ -70,24 +75,50 @@ describe("probeBackMode", () => {
 
 describe("checkModes", () => {
   it("never vouches for a back that did not answer with a mode", () => {
-    expect(checkModes("mock", { kind: "absent" })).toEqual({
+    expect(checkModes("mock", { kind: "absent" }, "simulated")).toEqual({
       state: "mismatch",
       label: "MODE MISMATCH · front=mock, back unreachable or production",
     });
-    expect(checkModes("live-debug", { kind: "unreachable" })).toEqual({
+    expect(checkModes("live-debug", { kind: "unreachable" }, "real")).toEqual({
       state: "mismatch",
       label: "MODE MISMATCH · front=live-debug, back unreachable or production",
     });
   });
 
   it("names both modes when the back runs another one", () => {
-    expect(checkModes("mock", { kind: "ok", body: { ...BACK, mode: "live-debug" } })).toEqual({
+    expect(checkModes("mock", { kind: "ok", body: { ...BACK, mode: "live-debug" } }, "simulated")).toEqual({
       state: "mismatch",
       label: "MODE MISMATCH · front=mock, back=live-debug",
     });
   });
 
-  it("matches when the back runs the front's mode", () => {
-    expect(checkModes("mock", { kind: "ok", body: BACK })).toEqual({ state: "match", mode: "mock" });
+  it("matches when the back runs the front's mode, and carries what the back says of its webapp", () => {
+    expect(checkModes("mock", { kind: "ok", body: BACK }, "simulated")).toEqual({
+      state: "match",
+      mode: "mock",
+      webapp: "simulated",
+      billing: "simulated",
+    });
+    const real = { ...BACK, mode: "live-debug", webapp: "real", billing: "test" } as const;
+    expect(checkModes("live-debug", { kind: "ok", body: real }, "real")).toEqual({
+      state: "match",
+      mode: "live-debug",
+      webapp: "real",
+      billing: "test",
+    });
+  });
+
+  // DN-13 §3.2: a Supabase token is refused by the simulated back, and a simulated one by the real back, so a front built
+  // for one kind of accounts against a back running the other cannot sign anyone in. The strip says so instead of a mode.
+  it("calls accounts that front and back disagree on a mismatch, naming both sides", () => {
+    const real = { ...BACK, mode: "live-debug", webapp: "real", billing: "test" } as const;
+    expect(checkModes("live-debug", { kind: "ok", body: real }, "simulated")).toEqual({
+      state: "mismatch",
+      label: "ACCOUNTS MISMATCH · front=simulated, back=real",
+    });
+    expect(checkModes("live-debug", { kind: "ok", body: { ...BACK, mode: "live-debug" } }, "real")).toEqual({
+      state: "mismatch",
+      label: "ACCOUNTS MISMATCH · front=real, back=simulated",
+    });
   });
 });

@@ -38,6 +38,9 @@ describe('findDebugLeaks', () => {
     ['the live-debug label', 'LIVE DEBUG · real scans · simulated accounts & billing'],
     ['what the live-debug label says of the webapp', 'real scans · simulated accounts & billing'],
     ['the mismatch label', 'MODE MISMATCH · front=mock'],
+    ['the accounts mismatch label', 'ACCOUNTS MISMATCH · front=real, back=simulated'],
+    ['what the live-debug label says of the real webapp', 'real scans · real accounts · Stripe test'],
+    ['the webhook hint of the panel', 'stripe listen --forward-to http://127.0.0.1:8091/billing/webhook'],
   ])('reports a source map that carries %s, which only debug-only modules hold', (_name, source) => {
     const map = join(dir, 'server', 'chunks', 'ssr', 'page.js.map');
     mkdirSync(join(dir, 'server', 'chunks', 'ssr'), { recursive: true });

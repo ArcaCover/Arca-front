@@ -1619,7 +1619,7 @@ cambia" en cuanto se enciende la variable.
   otro valor para el build, y `true` en `mock` también). Con `true`, `production` y `live-debug` inician sesión con
   Supabase Auth (`realAccounts()` en `lib/app/accounts.ts`). Sin ella todo sigue como antes: `mock` y `live-debug`
   simulados, `production` sin webapp. El back tiene que estar igual (`WEBAPP_ENABLED=true` en producción,
-  `WEBAPP_PROVIDERS=real` en live-debug); hasta T19 el front no puede comprobarlo. Orden de encendido: primero el back,
+  `WEBAPP_PROVIDERS=real` en live-debug); desde T19 la franja de depuración lo comprueba y dice `ACCOUNTS MISMATCH` si no coinciden. Orden de encendido: primero el back,
   después la variable en Vercel, solo en Production (nunca en Preview).
 - **Variables públicas:** `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (sustituye a la anon key, que
   ya no se lee). Ninguna de servidor. **`npm run build` falla en cualquier modo si el bundle lleva una clave secreta** de
