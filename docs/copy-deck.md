@@ -698,7 +698,31 @@ palabra "demo", que ya dice el aviso.*
 
 ### `/assessment/results` — guardar los resultados
 
-*Bloque "Keep these results." entre las notas y el pie. Sale en `mock` y en `live-debug`, y en
+*Rediseñado el 2026-11-21 (DN-13 §19): es la entrada al pre-checkout. Bloque marino entre las notas y el pie, con el botón
+dorado como única acción principal. Todo lo que promete existe hoy en `/app` (análisis guardados, plan de acción con
+responsable y fecha, miembros con roles, actividad); la monitorización no sale porque sus alertas siguen siendo de
+muestra. El precio sale de `GET /plans`, nunca escrito en el código.*
+
+| Elemento | Texto |
+|---|---|
+| Antetítulo | Keep these results |
+| Título | Keep {Firm}'s results and start closing the gaps. (sin nombre en el scan: Keep your firm's results and start closing the gaps.) |
+| Subtítulo (visitante) | Your ARCA workspace in five short steps. Nothing is charged before the last one. |
+| Resumen del resultado | {score} / 100 (o "– not scored") · insignia del tier · {n} next steps in your action plan (1: next step) |
+| Ventaja 1 | Your analysis, saved — This score and its evidence stay with the firm, past this tab's 24 hours. |
+| Ventaja 2 | An action plan to work through — Each next step with an owner, a due date and its status. |
+| Ventaja 3 | Your colleagues, with roles — Invite partners and staff as admins, members or viewers. |
+| Ventaja 4 | A record of every change — Who did what, in an activity log owners and admins can read. |
+| Botón (visitante) | Activate your account |
+| Botón (con sesión, a otra organización) | Save your results to a new organization |
+| Botón (con sesión, a su organización pagada) | Save your results |
+| Precio | From {mensual}/month · Annual saves {n} months (los meses salen de comparar 12 mensualidades con el anual; sin ahorro de al menos un mes, solo el mensual) |
+| Confianza | Secure payment by Stripe · Cancel anytime from Billing |
+| Vista previa (solo si la tarjeta es ancha, decorativa) | {Firm} · Owner · Action plan · las 3 primeras acciones del resultado en "To do" · Invite a colleague |
+
+*Antes: bloque blanco "Keep these results." con el botón "Save your results and activate your account".*
+
+*El bloque Sale en `mock` y en `live-debug`, y en
 producción solo con `NEXT_PUBLIC_WEBAPP_ENABLED=true` (cuentas reales, DN-13); sin ella, no sale.
 Con cuentas reales no lleva la línea de simulación. En
 `live-debug` (scan real, cuenta simulada) lleva debajo del botón una línea más, la misma que
@@ -815,13 +839,17 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 
 *Solo con `NEXT_PUBLIC_WEBAPP_ENABLED=true`. Las versiones simuladas de estas pantallas no cambian.*
 
+*Desde el 2026-11-21 (DN-13 §19) el login, el alta y la invitación usan el marco del embudo: columna editorial con el orbe
+y un titular a la izquierda (el h1), tarjeta a la derecha; en el móvil, apilados.*
+
 ### `/app/login`
 
 | Elemento | Texto |
 |---|---|
-| Título | Sign in |
-| Ayuda | We will email you a 6-digit code. There is no password. |
-| Botón | Email me a code |
+| Antetítulo · titular | Sign in · Welcome back. (tras pedir el código: Check your inbox.) |
+| Ayuda | We'll email you a 6-digit code to verify it's you. There is no password. (tras pedir el código: Type the 6-digit code from the email to sign in.) |
+| Tarjeta | Your work email · Enter your code |
+| Botón | Send my code |
 | Tras pedir el código (igual exista o no la cuenta) | If an account exists for {email}, we sent it a 6-digit code. It expires in 10 minutes. |
 | Código nuevo | If an account exists for {email}, we sent it a new code. |
 | Volver | Use a different email |
@@ -831,20 +859,66 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 | Elemento | Texto |
 |---|---|
 | Aviso (alta e invitación) | We sent a 6-digit code to {email}. It expires in 10 minutes. |
-| Campo | 6-digit code |
-| Botones | Continue · Send a new code |
+| Campo | Seis casillas, un grupo "Verification code" (lector: "Verification code, 6 digits"; cada casilla "Digit {n} of 6"). El sexto dígito verifica solo |
+| Botones | Verify · Send a new code (durante 30 s: Send a new code in 0:{ss}) |
+| Verificado | Verified. One moment… |
 | Código incorrecto | That code is not valid or has expired. Check the latest email, or send a new code. |
 | Código nuevo enviado / no enviado | We sent a new code to {email}. · We could not send a new code. Wait a minute and try again. |
-| Nota del enlace | The email also has a link. It opens a page where you confirm the sign-in, on this device or another one. |
+| Nota del enlace y spam | Can't find it? Check your spam or junk folder: the email comes from no-reply@arcacover.com. It also has a link, which opens a page where you confirm the sign-in, on this device or another one. |
 
-### `/app/signup` y `/app/invite/[token]`
+### `/app/signup` — el pre-checkout (DN-13 §19)
+
+*Cinco pasos: You, Your firm, Plan, Verify email, Payment. El antetítulo de la izquierda es el del alta ("Save your results
+and activate your account", o "Save your results to a new organization" con sesión); el titular cambia por paso. En los
+modos simulados los cuatro primeros pasos son los mismos y el quinto lleva al checkout simulado.*
+
+| Paso | Titular · ayuda (columna izquierda) | Tarjeta |
+|---|---|---|
+| 1 | Save your results in five short steps. · Tell us who you are and which firm the account is for. Nothing is charged before the last step. | Tell us about you: Work email (bloqueado; "From your scan. Your account uses this address.") · Full name · Your role (Managing partner, Partner, Office manager, Other) · Phone (optional) |
+| 2 | The firm behind the results. · The legal name and the address go on your invoices, so the payment form does not ask for them again. | Your firm: Firm legal name · EIN (optional; "It goes on your invoices as the firm's tax ID.") · Street address · City · State · ZIP code · Attorneys at the firm (1, 2–5, 6–20, 21–50, 50+) · States where the firm practices (Find a state; "{n} selected: …") |
+| 3 | Choose how you pay. · Monthly or annual, the same workspace. You can change plan or cancel from Billing. | Choose your plan: los planes de la API ("Billed every month" / "Billed once a year") · What {Firm} gets: The analysis you just ran, saved to {Firm}, with its action plan. · A workspace for your colleagues: invite them and choose what each one can do. · Manage or cancel the plan from Billing. · Billed in US dollars, by card. Nothing is charged before the payment step. |
+| 4 | One step from your results. · We'll send a 6-digit code to verify it's you. No password, now or later. (tras pedirlo: Check your inbox. · Type the 6-digit code we just sent. It creates your account and saves your results.; simulado: Confirm the email of your scan to create your account.) | Verify your email: chip con la inicial, el email y "From your scan" · We'll send a 6-digit code to this address to verify it's you — no password. The code creates your account. · Send my code · Back. Con sesión: "You're signed in as {email}, so there is no code to type." · Continue to payment. Simulado: Confirm {email} to create your account and your organization. · Create my account |
+| 5 | Last step: payment. · By card, through Stripe, in US dollars. Your account and your results are already saved. | Payment: Your account and {Firm} are ready. {plan}, {precio}. · Checkout de Stripe incrustado (simulado: Continue to payment) · Prefer to pay later? You can finish later from Billing. Go to Billing |
+| Columna izquierda (ancha) | Secure payment by Stripe: your card goes to Stripe, never to ARCA. · No password: you sign in with a code sent to your email. | |
+
+| Errores en línea | Texto |
+|---|---|
+| Nombre | Enter your full name. (más de 120: Use at most 120 characters.) |
+| Rol | Choose your role. |
+| Teléfono | Enter a phone number with 10 to 15 digits, or leave it empty. |
+| Razón social | Enter the firm's legal name. |
+| EIN | An EIN has 9 digits, like 12-3456789. You can leave it empty. |
+| Dirección | Enter the street address. · Enter the city. · Choose the state. · Enter a 5-digit ZIP code, or ZIP+4. |
+| Abogados | Choose how many attorneys work at the firm. |
+| Estados | Choose at least one state where the firm practices. |
+| Plan | Choose a plan. |
+| El pago no abre | (mensaje de la API) · Try again. Ya pagado: Your organization's plan is already active. · Go to your workspace. Sin clave de Stripe: Payments are not available in this environment yet. Your account is saved: you can pay later from Billing. |
+
+### `/app/billing/return` (nueva)
+
+| Estado | Texto |
+|---|---|
+| Título | Your payment |
+| Confirmando | Confirming your payment with Stripe… |
+| Tras 30 s | Your payment is being confirmed. This can take a minute; Billing shows it as soon as it is done. · Check again · Back to Billing |
+| Sin sesión de pago | There is no payment to confirm on this page. |
+| De otra organización | We could not find this payment for {org}. If you paid, it shows in Billing within a few minutes. |
+
+### `/app/billing` con cuentas reales
 
 | Elemento | Texto |
 |---|---|
-| Alta, primer paso | We will email a 6-digit code to this address to confirm it is yours. |
-| Invitación, primer paso | We will email a 6-digit code to the address this invitation was sent to. |
+| Tras "Pay" | Tarjeta "Payment" · {plan}, {precio}. · Checkout de Stripe incrustado · Choose another plan |
+
+### `/app/invite/[token]`
+
+| Elemento | Texto |
+|---|---|
+| Antetítulo · titular | Join an organization · You're invited. (tras pedir el código: Check your inbox.) |
+| Ayuda | Your colleagues already use ARCA. Verify your email to join them: no password. |
+| Primer paso | We'll send a 6-digit code to the address this invitation was sent to, to verify it's you. |
 | Invitación con otra sesión | Signed in as {email}. The invitation is for one email: for any other, we email a 6-digit code to the invited address. |
-| Botones | Email me a sign-in code · Accept invitation (con sesión) |
+| Botones | Send my code · Accept invitation (con sesión) |
 | Código no enviado | We could not send the code. Wait a minute and try again. |
 | Reclamo caducado o usado (410) | This link to save your results has expired or was already used. Run a new scan to save its results. |
 | Invitación que ya no vale (410) | This invitation is no longer valid. Ask the person who invited you to send a new one. |

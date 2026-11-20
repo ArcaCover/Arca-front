@@ -135,7 +135,8 @@ distintos hacia la misma lógica.
   (DN-13, ver la última sección).
 - **Auth:** sin contraseña nunca. Supabase Auth manda un **código de 6 dígitos** por email (con un
   enlace de respaldo que pide un clic); ver la sección de cuentas reales al final.
-- **Pagos:** Stripe (test mode para MVP). **No conectado aún.**
+- **Pagos:** Stripe en modo test, conectado detrás de `NEXT_PUBLIC_WEBAPP_ENABLED`: Checkout incrustado en el pre-checkout y en
+  `/app/billing` (DN-13 §19, ver la última sección).
 - **App móvil (fase posterior):** **Expo / React Native**, reutilizando lógica y
   validaciones en TypeScript.
 - **Hosting frontend:** **Vercel**.
@@ -1636,3 +1637,22 @@ cambia" en cuanto se enciende la variable.
 - **Regla de las puertas de depuración:** sigue igual (literal en el sitio). `realAccounts()` no es una puerta de
   depuración: es código de producción. Ningún comentario de un módulo de producción puede nombrar las rutas de depuración
   del back: el chequeo de fugas lee los source maps (pasó en `lib/app/accounts.ts`).
+
+### Actualización — noviembre 2026 (pre-checkout con Stripe incrustado, DN-13 §19)
+
+Detalle en `docs/implementation/real-accounts.md` y copy en `docs/copy-deck.md` §11 y §12.
+
+- **El alta es un pre-checkout de cinco pasos** en `/app/signup`: You, Your firm, Plan, Verify email, Payment. Nada se escribe
+  antes del código: los pasos 1–3 quedan en la pestaña (`sessionStorage`); con el código, `POST /orgs` crea la organización con
+  el perfil del despacho y se abre el pago. El perfil va a Stripe (nombre, email, teléfono, dirección y el EIN como `us_ein`), así
+  que Checkout no pide nada dos veces.
+- **Stripe incrustado** solo con cuentas reales (`@stripe/stripe-js/pure`: Stripe.js no se carga en los modos simulados, que
+  siguen con el checkout simulado). Variable pública nueva: `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_`). El chequeo de secretos
+  del build deja pasar `pk_` y `sb_publishable_`.
+- **Abandonar en el pago no pierde nada**: la cuenta y la organización existen, y `/app/billing` abre el mismo Checkout
+  incrustado. `/app/billing/return` sincroniza la sesión y espera al webhook.
+- **Pantallas de entrada** (`FunnelFrame`): el lenguaje del embudo, con orbe y titular a la izquierda, en el alta, el login y la
+  invitación. El código son seis casillas (pegar, autocompletar, Backspace, verificación al sexto dígito, reenvío a los 30 s).
+- **"Keep these results"** es ahora el momento de conversión: nombre del despacho, puntuación, tier, pasos del plan, ventajas que
+  la app cumple hoy y el precio leído de la API. Gold solo en "Activate your account".
+- **Contratos**: las formas nuevas están copiadas en `lib/app/checkout-contract.ts` hasta 0.5.0, como `enroll-contract.ts`.

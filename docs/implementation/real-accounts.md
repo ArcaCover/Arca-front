@@ -100,12 +100,86 @@ repositorio), porque T14/T15 no existen. El front corrió con `next dev --webpac
 
 Ocho de ocho comprobaciones, sin errores de página. Las capturas quedaron en el scratchpad de la sesión, no en el repo.
 
+## Pre-checkout con Stripe incrustado (DN-13 §19, 2026-11-21)
+
+Diseño aprobado por el usuario: cinco pasos en `/app/signup` y el pago dentro de la página. El back (rama `feat/real-accounts` de
+Arca-back) guarda el perfil del despacho (`org_profiles`) y abre Checkout en modo incrustado; detalle en DN-13 §19.
+
+| Paso | Qué pasa |
+|---|---|
+| 1. You | Email del reclamo bloqueado, nombre, rol (Managing partner / Partner / Office manager / Other) y teléfono opcional |
+| 2. Your firm | Razón social, EIN opcional, dirección de facturación de EE. UU., abogados (1 / 2–5 / 6–20 / 21–50 / 50+) y estados donde ejerce (filtro por nombre) |
+| 3. Plan | Los planes de `GET /plans` y lo que recibe el despacho |
+| 4. Verify email | Reales: `POST /auth/enroll` y el código de 6 dígitos; con el código, `POST /orgs` con el perfil. Simulados: el login simulado y el mismo `POST /orgs` |
+| 5. Payment | Reales: Checkout de Stripe incrustado (`@stripe/react-stripe-js` 7.0.1, `@stripe/stripe-js` 10.2.1, versiones exactas de hace más de dos semanas). Simulados: el checkout simulado de siempre, sin cargar Stripe.js |
+
+- **Nada se escribe antes del código.** Los pasos 1–3 viven en el estado de la página y en `sessionStorage` (clave
+  `arca.precheckout.<claimId>`), así que una recarga no los pierde y no sobreviven a la pestaña. Se borran al crear la organización.
+- **Validación**: las reglas de `OrgProfileInput` del back, copiadas en `lib/app/pre-checkout.ts` (mensajes por campo, foco en el
+  primero que falla, `aria-invalid` y `aria-describedby`). Los estados son uno solo, `lib/app/us-states.ts` (50 + DC).
+- **Contratos**: `lib/app/checkout-contract.ts` copia `OrgProfileInput`, `EmbeddedCheckoutResponse`, `ORG_CONTACT_ROLES` y
+  `ATTORNEY_RANGES` hasta 0.5.0, como `enroll-contract.ts`. El front sigue con el tarball 0.4.0.
+- **Stripe.js**: `lib/app/stripe.ts` usa la entrada `@stripe/stripe-js/pure`, que no carga nada al importarse; el script de Stripe
+  se pide la primera vez que se abre un pago real. La clave es `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (`pk_test_…` en Vercel y en
+  `.env.local`). Sin ella, el paso 5 dice que el pago no está disponible y que se puede pagar luego desde Billing. El chequeo de
+  secretos del build sigue dejando pasar `pk_` y `sb_publishable_` (test nuevo en `scripts/check-no-debug.test.mjs`).
+- **`EmbeddedPayment`** pide `POST /orgs/:id/billing/checkout { planCode, uiMode: "embedded" }` y monta
+  `EmbeddedCheckoutProvider` con `{ clientSecret }`. Un 409 de organización ya pagada lleva a `/app`; cualquier otro fallo ofrece
+  "Try again". Stripe devuelve a `/app/billing/return?session_id=…` al pagar.
+- **`/app/billing/return`** (nueva): `POST /orgs/:id/billing/sync`, y si aún no hay acceso, `GET /orgs/:id` cada 2 s hasta 30 s;
+  luego "Your payment is being confirmed" con "Check again". Con acceso, `/app?paid=1`.
+- **`/app/billing`**: con cuentas reales, "Pay" abre el mismo Checkout incrustado en la página ("Choose another plan" lo cierra).
+  Quien abandonó en el paso 5 ya tiene cuenta y organización, entra por `/app`, el paywall lo manda aquí y termina el pago. En los
+  modos simulados no cambia (redirección al checkout simulado).
+
+### Pantallas de entrada y código (petición del usuario del 2026-11-21)
+
+- **`FunnelFrame`** (`components/app/FunnelFrame.tsx`): el lenguaje del embudo (orbe, antetítulo, titular grande a la izquierda,
+  tarjeta a la derecha; apilado en el móvil). Lo usan el pre-checkout, `/app/login` y `/app/invite/[token]`. Las páginas públicas
+  de `/app` usan ahora el lienzo del embudo (`assessment-canvas`) y el logotipo.
+- **`IdentityChip`**: el email bloqueado como chip (inicial, email, "From your scan" o "From your invitation").
+- **`CodeEntry`**: seis casillas en un grupo con nombre ("Verification code, 6 digits"), avance automático, Backspace hacia atrás,
+  flechas, un código pegado o autocompletado en cualquier casilla las llena todas, el sexto dígito verifica solo, un código
+  incorrecto conserva los dígitos (la última casilla queda seleccionada), estado "Verified" antes de seguir, reenvío con cuenta
+  atrás de 30 s, caducidad de 10 minutos y la pista del spam con el remitente `no-reply@arcacover.com` (el de DN-13 §4.9/F11: con el
+  correo por defecto de Supabase el remitente real es otro hasta configurar el SMTP propio). `inputmode="numeric"`,
+  `autocomplete="one-time-code"` en la primera casilla, transiciones solo con `motion-safe`.
+- **Botones**: "Send my code" en el alta, el login y la invitación (antes "Email me a code" / "Email me a sign-in code"); "Verify"
+  en el código (antes "Continue").
+
+### Tarjeta "Keep these results" (petición del usuario del 2026-11-21)
+
+`components/app/SaveResultsCta.tsx`, al final de `/assessment/results`: bloque marino con el nombre del despacho que encontró el
+scan (`identity.firmName`, leído con el token de la pestaña; sin nombre, "your firm"), la puntuación, el tier y los pasos del plan de
+este resultado, cuatro ventajas que la app cumple hoy (la monitorización no, sus alertas son de muestra), el precio desde `GET /plans`
+(`priceTeaser`: el mensual más barato y los meses que ahorra el anual) y "Activate your account" como única acción dorada. La vista
+previa del espacio de trabajo (decorativa, `aria-hidden`) solo sale cuando la tarjeta es ancha: el diseño responde al ancho de la
+tarjeta (consultas de contenedor), no al de la ventana, porque vive en la columna derecha de los resultados. Copy en
+`docs/copy-deck.md` §11 y §12.
+
+### Pruebas
+
+Escritas antes que el código y vistas fallar: `components/app/pre-checkout.test.tsx` (23: cada paso, validación, foco, borrador en la
+pestaña, código, `POST /orgs` con el perfil, el traspaso a Stripe con sus componentes simulados, reintento, sin clave, modos
+simulados sin Stripe, producción sin webapp, `/app/billing` incrustado y simulado, y `/app/billing/return`),
+`lib/app/pre-checkout.test.ts` (6), `components/app/code-entry.test.tsx` (8: grupo y etiquetas, avance, pegar, autocompletar,
+Backspace, error que conserva los dígitos, cuenta atrás, modo neutro) y `components/app/save-results-cta.test.tsx` (6: precio desde
+la API, posesivo, nombre del despacho, cuentas, ventajas sin promesas de cobertura, singular y sin puntuación). Se adaptaron
+`real-accounts`, `app-flow`, `overview-analyses` y `assessment-flow` al flujo nuevo. `npm test`: 55 archivos, 1140 tests;
+`typecheck` limpio; `lint` 0 errores y los 6 avisos de siempre; `npm run build` con y sin `NEXT_PUBLIC_WEBAPP_ENABLED=true`:
+`0 secret key(s)`, `0 debug leak(s)`. `scripts/webapp-demo-smoke.mjs` recorre ahora el pre-checkout.
+
+Capturas (escritorio y móvil, `mock` y las pantallas reales con la API y Supabase respondidos en el propio script, sin red) en el
+scratchpad de la sesión, carpeta `pre-checkout\`. **Falta el recorrido real en modo test** (Stripe test + el proyecto compartido),
+que necesita la migración `20261121000000_org_profiles.sql` aplicada.
+
 ## Pendiente
 
+- **El recorrido real del pre-checkout** en modo test, con la migración de §19 aplicada (lo aplica el coordinador).
 - **T19:** que `/__debug/mode` diga `webapp`/`billing` y que el panel y la franja lo lean, en vez de la variable.
-- **T16:** con cuentas reales, el checkout simulado de `live-debug` no puede pagar (`/__debug/billing/pay` da 404); el cobro
-  real es de T14–T16.
-- **T18:** cambiar `lib/app/enroll-contract.ts` por el import de 0.5.0 y la URL de la release.
+- ~~**T16**~~: hecho con el pre-checkout (arriba): `/app/billing` incrustado y `/app/billing/return`. Falta mostrar `BillingView`
+  (fin del periodo, cancelación programada) en `/app/billing`.
+- **T18:** cambiar `lib/app/enroll-contract.ts` y `lib/app/checkout-contract.ts` por el import de 0.5.0 y la URL de la release.
 - **T30:** `Referrer-Policy` en `/app/*` (el `?claim=` ya se quita de la barra, el token de invitación sigue en la ruta).
 - Las cookies del verificador PKCE que deja `signInWithOtp` siguen tras entrar por el código o el enlace (no son sesión).
 - `/app/members` todavía no dice "Invitation email sent"; llega con `emailSent` en 0.5.0.
