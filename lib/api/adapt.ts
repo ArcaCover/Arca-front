@@ -48,6 +48,9 @@ export type ScoreView = {
   decisionWithheld: boolean;
   /** Set when the score is withheld: the number and the tier are not shown, only why. Null when the firm is rated. */
   notRated: NotRatedView | null;
+  /** The line that says Professional Standing covers Florida only, when some of the firm's attorneys are licensed
+      elsewhere and were left out of the Florida Bar rules. Null otherwise. */
+  floridaOnly: string | null;
 };
 
 type PreScore = Pick<Layer1Result["preScore"], "confidence" | "categories" | "flags">;
@@ -68,6 +71,30 @@ export function hasInsufficientEvidence(preScore: PreScore): boolean {
   return preScore.confidence === "LOW"
     && evaluatedAreas(preScore) < 2
     && !preScore.flags.includes("WEBSITE_UNAVAILABLE");
+}
+
+/** The API's flag for a firm with attorneys licensed outside Florida: they neither add to nor subtract from the Florida
+    Bar rules (DN-12 §15 in Arca-back). */
+export const ATTORNEYS_OUTSIDE_FLORIDA = "ATTORNEYS_OUTSIDE_FLORIDA";
+
+// The API puts the count in the reason of rule B3, a free string of the contract, in this one sentence.
+const OUTSIDE_COUNT = /(\d+) of (\d+) website attorneys are licensed outside /;
+
+/** How many of the firm's attorneys the Florida Bar rules left out as licensed elsewhere, out of how many. Null without
+    the flag or when the count cannot be read. The Quick Scan PDF reads it the same way (outsideBarState in @arca/scoring). */
+export function attorneysOutsideFlorida(preScore: Pick<PreScore, "categories" | "flags">): { outside: number; total: number } | null {
+  if (!preScore.flags.includes(ATTORNEYS_OUTSIDE_FLORIDA)) return null;
+  const reason = preScore.categories.professionalStanding.rules.find(rule => rule.id === "B3")?.reason ?? "";
+  const found = OUTSIDE_COUNT.exec(reason);
+  return found ? { outside: Number(found[1]), total: Number(found[2]) } : null;
+}
+
+/** The line /score shows for that flag. The PDF says the same in the third person (FLORIDA_ONLY_NOTE in Arca-back). */
+export function floridaOnlyNote(count: { outside: number; total: number } | null): string {
+  return count
+    ? `Professional Standing covers Florida only. ${count.outside} of your ${count.total} attorneys are licensed outside `
+      + "Florida, so they were not scored against the Florida Bar."
+    : "Professional Standing covers Florida only. Attorneys licensed outside Florida were not scored against the Florida Bar.";
 }
 
 /** The sentence that stands in for the score when it is not shown. The PDF prints the same words. */
@@ -163,5 +190,9 @@ export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"
       : hasInsufficientEvidence(preScore)
         ? { reason: "thin_evidence", evaluated: evaluatedAreas(preScore) }
         : null,
+    // An unreadable website has no Professional Standing to qualify.
+    floridaOnly: preScore.flags.includes(ATTORNEYS_OUTSIDE_FLORIDA) && evidence.kind !== "website_unavailable"
+      ? floridaOnlyNote(attorneysOutsideFlorida(preScore))
+      : null,
   };
 }

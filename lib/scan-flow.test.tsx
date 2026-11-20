@@ -10,7 +10,7 @@ import { ApiError, downloadReport, pollScan, startAssessment } from "@/lib/api/c
 import { saveFile } from "@/lib/api/download";
 import { fixtureResult } from "@/lib/api/fixture";
 import { recallSession, rememberSession } from "@/lib/api/session";
-import { thinEvidenceResult } from "@/lib/test-fixtures/layer1";
+import { multiStateResult, thinEvidenceResult } from "@/lib/test-fixtures/layer1";
 
 // What a visitor reads on the two screens around the Layer 1 result: the evidence notice and the report button on
 // /score, and what /quote/scanning says when a scan fails.
@@ -373,6 +373,29 @@ describe("/score with too little evidence to rate", () => {
     expect(screen.getAllByRole("button", { name: "Refine your score" })).toHaveLength(1);
     expect(comesBefore(state, refine)).toBe(true);
     expect(comesBefore(refine, screen.getByRole("heading", { name: "Score breakdown" }))).toBe(true);
+  });
+});
+
+describe("/score for a firm with attorneys licensed outside Florida", () => {
+  const LINE = "Professional Standing covers Florida only. 10 of your 14 attorneys are licensed outside Florida, "
+    + "so they were not scored against the Florida Bar.";
+
+  it("says once, under the score breakdown, that Professional Standing covers Florida only", async () => {
+    await showScore(multiStateResult(), "PARTIAL");
+
+    const line = screen.getByText(LINE);
+    const breakdown = screen.getByRole("heading", { name: "Score breakdown" }).closest("section")!;
+    expect(breakdown.contains(line)).toBe(true);
+    expect(comesBefore(within(breakdown).getByText("Professional Standing"), line)).toBe(true);
+    expect(screen.getAllByText(/covers Florida only/)).toHaveLength(1);
+    expect(screen.getByText("75% of the firm's Florida attorneys matched a Florida Bar record")).toBeTruthy();
+    expect(document.body.textContent ?? "").not.toMatch(/ATTORNEYS_OUTSIDE_FLORIDA/);
+  });
+
+  it("says nothing of it for a firm without the flag", async () => {
+    await showScore();
+
+    expect(screen.queryByText(/covers Florida only/)).toBeNull();
   });
 });
 

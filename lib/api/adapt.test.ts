@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { WEBSITE_UNREAD_NOTICE, adaptScore, evaluatedAreas, hasInsufficientEvidence, notRatedText } from "@/lib/api/adapt";
+import {
+  WEBSITE_UNREAD_NOTICE,
+  adaptScore,
+  attorneysOutsideFlorida,
+  evaluatedAreas,
+  hasInsufficientEvidence,
+  notRatedText,
+} from "@/lib/api/adapt";
 import { fixtureResult } from "@/lib/api/fixture";
-import { thinEvidenceResult } from "@/lib/test-fixtures/layer1";
+import { multiStateResult, thinEvidenceResult } from "@/lib/test-fixtures/layer1";
 
 describe("adaptScore", () => {
   it("shows the four categories Layer 1 measures, against their own ceilings", () => {
@@ -224,5 +231,34 @@ describe("notRatedText", () => {
     expect(WEBSITE_UNREAD_NOTICE).toBe("We could not read your firm's website, so we have no public evidence to score. "
       + "The assessment below gives you a score based on your answers, marked as low confidence.");
     expect(WEBSITE_UNREAD_NOTICE).not.toMatch(/highest-risk|manual review/);
+  });
+});
+
+describe("adaptScore for a firm with attorneys licensed outside Florida", () => {
+  it("says Professional Standing covers Florida only, and how many attorneys it left out", () => {
+    expect(adaptScore(multiStateResult(), "PARTIAL").floridaOnly).toBe(
+      "Professional Standing covers Florida only. 10 of your 14 attorneys are licensed outside Florida, "
+        + "so they were not scored against the Florida Bar.",
+    );
+  });
+
+  it("says the same without a number when the count cannot be read", () => {
+    expect(adaptScore(multiStateResult("Evaluated from observed evidence"), "PARTIAL").floridaOnly).toBe(
+      "Professional Standing covers Florida only. Attorneys licensed outside Florida were not scored against the Florida Bar.",
+    );
+  });
+
+  it("says nothing for a firm without the flag, or one whose website could not be read", () => {
+    expect(adaptScore(fixtureResult(), "COMPLETED").floridaOnly).toBeNull();
+    const unread = multiStateResult();
+    unread.preScore.flags.push("WEBSITE_UNAVAILABLE");
+    expect(adaptScore(unread, "PARTIAL").floridaOnly).toBeNull();
+  });
+
+  it("reads the count from the B3 rule only when the flag is there", () => {
+    expect(attorneysOutsideFlorida(multiStateResult().preScore)).toEqual({ outside: 10, total: 14 });
+    const unflagged = multiStateResult();
+    unflagged.preScore.flags = [];
+    expect(attorneysOutsideFlorida(unflagged.preScore)).toBeNull();
   });
 });

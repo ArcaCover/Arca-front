@@ -183,7 +183,7 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
     );
   }
 
-  const { firm, score, tier, confidence, categories, signals, evidence, notRated } = state.view;
+  const { firm, score, tier, confidence, categories, signals, evidence, notRated, floridaOnly } = state.view;
   // With no score to show there is little below to look at, so the assessment comes first.
   const assessmentFirst = notRated !== null;
   const location = [firm.city, firm.state].filter(Boolean).join(", ");
@@ -311,6 +311,13 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
               />
             ))}
           </div>
+          {/* Some attorneys are licensed outside Florida and were left out of the Florida Bar rules: said once, here. */}
+          {floridaOnly && (
+            <p className="mt-5 flex items-start gap-2 text-sm text-marino/60">
+              <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{floridaOnly}</span>
+            </p>
+          )}
         </section>
 
         <section className="mt-16">
