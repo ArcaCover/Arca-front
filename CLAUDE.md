@@ -829,6 +829,20 @@ cambia: su tier es el del compuesto, y la Capa 1 solo aparece como número en "P
 Layer 1" (el resultado de la Capa 2 no trae la confianza ni las categorías para aplicar la
 regla). Textos en `docs/copy-deck.md` §10.
 
+**Abogados con licencia fuera de Florida** (noviembre 2026, decisión de Jesús, DN-12 §15 en
+Arca-back). Solo los abogados de Florida cuentan para las reglas del Florida Bar; los que el sitio
+de la firma o su perfil de Avvo muestran con licencia solo en otros estados quedan fuera de
+cobertura: ni suman ni restan. La API lo marca con el flag `ATTORNEYS_OUTSIDE_FLORIDA` y escribe
+la cuenta en el motivo (`reason`) de la regla B3, un texto libre del contrato: no hubo cambio de
+contrato. `adaptScore` devuelve `floridaOnly` (la frase, o `null`) y `/score` la pinta una vez
+bajo las barras de categoría: "Professional Standing covers Florida only. 10 of your 14 attorneys
+are licensed outside Florida, so they were not scored against the Florida Bar." Con el flag, la
+tarjeta B3 dice "…of the firm's Florida attorneys matched a Florida Bar record". El PDF del Quick
+Scan dice lo mismo en tercera persona (`FLORIDA_ONLY_NOTE` en el back): **cualquier cambio de
+texto se hace en los dos**. La lectura de la cuenta (`attorneysOutsideFlorida`) depende de la frase
+exacta del back (`outsideSentence` en `@arca/scoring`); si no casa, sale la frase sin número.
+Textos en `docs/copy-deck.md` §10.
+
 **El informe en PDF es un botón secundario arriba**, "Download report (PDF)", debajo del
 nombre de la firma y con su error al lado. Era un enlace gris al final de la página, por
 debajo del CTA dorado, a unos 1.900px del borde superior. Medido en la app real, en Chromium
@@ -1499,6 +1513,9 @@ pantalla** (IntersectionObserver), y todo efecto debe respetar
   Quick Scan sin número ni tier; el assessment puntúa solo con las respuestas (`layer1Score`
   null, flag `LAYER1_UNAVAILABLE`) y lo dice en una línea. Sin "highest-risk group" ni "manual
   review".
+- **Abogados con licencia fuera de Florida** (noviembre 2026, §9.2, DN-12 §15 en Arca-back): no
+  cuentan para las reglas del Florida Bar; `/score` y el PDF lo dicen en una línea a partir del
+  flag `ATTORNEYS_OUTSIDE_FLORIDA`, sin cambio de contrato.
 - **Sin número ni tier con muy poca evidencia** (noviembre 2026, §9.2): confianza baja y menos de
   2 de 4 categorías evaluadas → "Not enough evidence to rate" en `/score`, en el PDF del Quick
   Scan y en las tarjetas de la webapp. La web ilegible tiene su propio estado hermano.

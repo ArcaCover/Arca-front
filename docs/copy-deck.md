@@ -520,6 +520,37 @@ bloque del score. El dorado queda para "Refine your score".*
 - **Barras de categoría:** "partial evidence" cuando la categoría se puntuó a medias y
   "no evidence" cuando no se pudo puntuar *(antes las dos decían "partial evidence")*
 
+### `/score` — abogados con licencia fuera de Florida
+
+*Noviembre de 2026, tras el scan real de lemonlawgrouppartners.com (firma de lemon law con oficinas
+en Florida y abogados con licencia en otros estados). La regla la fija la API (DN-12 §15 en
+Arca-back): solo los abogados de Florida cuentan para las reglas del Florida Bar; los que tienen
+licencia solo fuera de Florida ni suman ni restan. La API lo marca con el flag
+`ATTORNEYS_OUTSIDE_FLORIDA` y pone la cuenta en el motivo de la regla B3; la pantalla nunca
+imprime el flag.*
+
+**Línea bajo las barras de "Score breakdown"** *(texto marino al 60%, icono de información; una
+sola vez)*
+
+> Professional Standing covers Florida only. *[N]* of your *[total]* attorneys are licensed
+> outside Florida, so they were not scored against the Florida Bar.
+
+Si la cuenta no se puede leer:
+
+> Professional Standing covers Florida only. Attorneys licensed outside Florida were not scored
+> against the Florida Bar.
+
+No sale con la web ilegible: ahí no hay Professional Standing que matizar.
+
+**Tarjeta de señal B3** — con el flag, el porcentaje es de los abogados de Florida:
+
+> *[X]*% of the firm's Florida attorneys matched a Florida Bar record
+
+*(sin el flag sigue siendo "[X]% of the firm's attorneys matched a bar record").*
+
+**PDF del Quick Scan** — la misma línea en tercera persona, entre las notas bajo el score: "10 of
+the firm's 14 attorneys…", y la misma tarjeta B3.
+
 ---
 
 ## 11 · Capa 2 — `/assessment` y `/assessment/results`
