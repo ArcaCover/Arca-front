@@ -44,3 +44,43 @@ export function thinEvidenceResult(overrides: Record<string, unknown> = {}) {
     ...overrides,
   });
 }
+
+/**
+ * The shape of the live scan of lemonlawgrouppartners.com (2026-11-18): ten of the firm's fourteen attorneys are licensed
+ * outside Florida, so the Bar rules counted only the other four, and B3 says so in its reason (DN-12 §15 in Arca-back).
+ */
+export function multiStateResult(reason = "Measured on the 4 attorneys expected in Florida; 10 of 14 website attorneys "
+  + "are licensed outside Florida and were not scored against the Florida Bar") {
+  const base = fixtureResult();
+  return fixtureResult({
+    domain: "harborlemon.example",
+    preScore: {
+      ...base.preScore,
+      total: 22,
+      tier: "CRITICAL",
+      decision: "UNKNOWN",
+      confidence: "MEDIUM",
+      assessmentStatus: "INSUFFICIENT_EVIDENCE",
+      categories: {
+        ...base.preScore.categories,
+        professionalStanding: {
+          score: 3, max: 30, status: "PARTIAL",
+          rules: [
+            { id: "B1", points: null, reason: "Evidence unavailable or ambiguous" },
+            { id: "B2_clean", points: 0, reason: "Evaluated from observed evidence" },
+            { id: "B3", points: 0, reason },
+            { id: "B4", points: 3, reason: "Evaluated from observed evidence" },
+            { id: "B2_sanction", points: null, reason: "Evidence unavailable or ambiguous" },
+          ],
+        },
+      },
+      flags: ["INCOMPLETE_SOURCES", "PARTIAL_ATTORNEY_DATA", "ATTORNEYS_OUTSIDE_FLORIDA", "INCOMPLETE_EVIDENCE",
+        "COMMERCIAL_DECISION_BLOCKED"],
+    },
+    signals: {
+      ...base.signals,
+      bar: { B1_allActive: null, B2_worstDisciplinary: "public_reprimand", B3_consistency: 0.75, B4_avgExperience: 17.2,
+        attorneys: [] },
+    },
+  });
+}

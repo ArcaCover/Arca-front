@@ -174,6 +174,11 @@ const DESCRIPTORS: Array<{ rule: string; source: string; label: (s: Signals) => 
   },
 ];
 
+// With attorneys licensed outside Florida, the engine measured B3 on the firm's Florida attorneys only (DN-12 §15 in
+// Arca-back), so the card says whose share it is.
+const floridaShare = ({ bar }: Signals) => bar.B3_consistency === null ? null
+  : `${percent(bar.B3_consistency)} of the firm's Florida attorneys matched a Florida Bar record`;
+
 export function signalsToCards(result: Layer1Result): SignalView[] {
   // The engine already decided what each rule was worth. Collect those verdicts once.
   const points = new Map<string, number>();
@@ -187,7 +192,9 @@ export function signalsToCards(result: Layer1Result): SignalView[] {
   for (const descriptor of DESCRIPTORS) {
     const score = points.get(descriptor.rule);
     if (score === undefined) continue;
-    const label = descriptor.label(result.signals);
+    const label = descriptor.rule === "B3" && result.preScore.flags.includes("ATTORNEYS_OUTSIDE_FLORIDA")
+      ? floridaShare(result.signals)
+      : descriptor.label(result.signals);
     if (label === null) continue;
     cards.push({ id: descriptor.rule, label, source: descriptor.source, positive: score > 0 });
   }
