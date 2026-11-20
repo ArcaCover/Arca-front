@@ -100,7 +100,7 @@ repositorio), porque T14/T15 no existen. El front corrió con `next dev --webpac
 
 Ocho de ocho comprobaciones, sin errores de página. Las capturas quedaron en el scratchpad de la sesión, no en el repo.
 
-## Pre-checkout con Stripe incrustado (DN-13 §19, 2026-11-21)
+## Pre-checkout con Stripe incrustado (DN-13 §19, 2026-11-20)
 
 Diseño aprobado por el usuario: cinco pasos en `/app/signup` y el pago dentro de la página. El back (rama `feat/real-accounts` de
 Arca-back) guarda el perfil del despacho (`org_profiles`) y abre Checkout en modo incrustado; detalle en DN-13 §19.
@@ -132,7 +132,7 @@ Arca-back) guarda el perfil del despacho (`org_profiles`) y abre Checkout en mod
   Quien abandonó en el paso 5 ya tiene cuenta y organización, entra por `/app`, el paywall lo manda aquí y termina el pago. En los
   modos simulados no cambia (redirección al checkout simulado).
 
-### Pantallas de entrada y código (petición del usuario del 2026-11-21)
+### Pantallas de entrada y código (petición del usuario del 2026-11-20)
 
 - **`FunnelFrame`** (`components/app/FunnelFrame.tsx`): el lenguaje del embudo (orbe, antetítulo, titular grande a la izquierda,
   tarjeta a la derecha; apilado en el móvil). Lo usan el pre-checkout, `/app/login` y `/app/invite/[token]`. Las páginas públicas
@@ -147,7 +147,7 @@ Arca-back) guarda el perfil del despacho (`org_profiles`) y abre Checkout en mod
 - **Botones**: "Send my code" en el alta, el login y la invitación (antes "Email me a code" / "Email me a sign-in code"); "Verify"
   en el código (antes "Continue").
 
-### Tarjeta "Keep these results" (petición del usuario del 2026-11-21)
+### Tarjeta "Keep these results" (petición del usuario del 2026-11-20)
 
 `components/app/SaveResultsCta.tsx`, al final de `/assessment/results`: bloque marino con el nombre del despacho que encontró el
 scan (`identity.firmName`, leído con el token de la pestaña; sin nombre, "your firm"), la puntuación, el tier y los pasos del plan de
@@ -170,12 +170,30 @@ la API, posesivo, nombre del despacho, cuentas, ventajas sin promesas de cobertu
 `0 secret key(s)`, `0 debug leak(s)`. `scripts/webapp-demo-smoke.mjs` recorre ahora el pre-checkout.
 
 Capturas (escritorio y móvil, `mock` y las pantallas reales con la API y Supabase respondidos en el propio script, sin red) en el
-scratchpad de la sesión, carpeta `pre-checkout\`. **Falta el recorrido real en modo test** (Stripe test + el proyecto compartido),
-que necesita la migración `20261121000000_org_profiles.sql` aplicada.
+scratchpad de la sesión, carpeta `pre-checkout\`.
+
+### Recorrido real en modo test (2026-11-20)
+
+Con la migración aplicada: el front en `live-debug` con cuentas reales (`localhost:3010`), la API real de `live-debug` del back (Supabase
+compartido, Stripe test, fuentes de scan simuladas), `stripe listen` y Playwright sin cabeza, en escritorio (1440×1000) y en móvil
+(390×844). Ningún correo enviado: la petición del código se respondió en el script y el código salió del admin de Auth. Detalle, ids y
+datos creados en DN-13 §19.9 de Arca-back.
+
+- Scan → resultados → "Activate your account" → pasos 1–3 → código en las seis casillas → `POST /orgs` con el perfil → Checkout
+  incrustado → 4242 → `/app/billing/return` → `/app?paid=1` con "Payment received. Your organization is active." En la base, la
+  organización `active`, su `org_profiles` completo y la suscripción activa.
+- Abandono: con el Checkout abierto, ir a `/app` lleva a `/app/billing`; "Pay with Monthly" abre la misma sesión y el pago termina igual.
+- Checkout trae el email del cliente relleno y bloqueado, y el cliente de Stripe tiene razón social, teléfono, dirección y el EIN como
+  `us_ein`. El primer intento pedía otra vez la dirección entera y ofrecía Link con pago por banco: se arregló en el back (dirección
+  `auto` con perfil, Link apagado). Stripe sigue pidiendo el titular y el ZIP de la tarjeta: Checkout no los rellena desde el cliente
+  (DN-13 §19.6).
+- Capturas en el scratchpad, carpeta `pre-checkout\walk\shots\` (`desktop-step5-embedded-checkout`, `desktop-app-after-payment`,
+  `resume-billing-embedded-checkout`, `resume-app-after-payment` y las de cada paso).
 
 ## Pendiente
 
-- **El recorrido real del pre-checkout** en modo test, con la migración de §19 aplicada (lo aplica el coordinador).
+- La tarjeta "Billing contact" de `/app/billing` sigue siendo de muestra y vacía, aunque el perfil del despacho ya existe: debería
+  leerlo (falta una ruta que lo devuelva).
 - **T19:** que `/__debug/mode` diga `webapp`/`billing` y que el panel y la franja lo lean, en vez de la variable.
 - ~~**T16**~~: hecho con el pre-checkout (arriba): `/app/billing` incrustado y `/app/billing/return`. Falta mostrar `BillingView`
   (fin del periodo, cancelación programada) en `/app/billing`.
