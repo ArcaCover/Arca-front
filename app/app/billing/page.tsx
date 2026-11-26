@@ -6,7 +6,10 @@ import { CreditCard, Download } from "lucide-react";
 import type { PlanView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
+import EmbeddedPayment from "@/components/app/EmbeddedPayment";
+import SimulationNotice from "@/components/app/SimulationNotice";
 import { Badge, Card, PageHeader, ReadOnlyNotice, buttonClass, formatDate, inputClass, usePreview } from "@/components/app/ui";
+import { realAccounts } from "@/lib/app/accounts";
 import { seesSampleInvoices, useAccess } from "@/lib/app/access";
 import { checkout, getPlans, portal } from "@/lib/app/client";
 import { BILLING_STATUS_LABEL } from "@/lib/app/labels";
@@ -21,6 +24,9 @@ export default function BillingPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contact, setContact] = useState({ name: "", email: "", address: "" });
+  // The plan whose payment is open in this page: with the real accounts, Stripe's Checkout is embedded here (DN-13 §19), so an
+  // owner who left the sign-up before paying finishes it where they land.
+  const [paying, setPaying] = useState<PlanView | null>(null);
 
   // The prices come from the API's plans table, so a price changed there shows here on the next visit. A paid organization
   // is not offered them: the back answers 409 to a second checkout.
@@ -57,8 +63,8 @@ export default function BillingPage() {
     setError(null);
     try {
       const { url } = await page();
-      // The provider's checkout or portal is another page (in mock, /app/billing/mock-checkout or this page again),
-      // reached by a full navigation.
+      // The provider's checkout or portal is another page (in the debug modes, /app/billing/mock-checkout or this page
+      // again), reached by a full navigation.
       window.location.assign(url);
     } catch (cause) {
       setError(fail(cause));
@@ -74,6 +80,7 @@ export default function BillingPage() {
   return (
     <>
       <PageHeader eyebrow="Organization" title="Billing" description={description} />
+      <SimulationNotice className="mb-6" />
       {!canPay && <ReadOnlyNotice>Only the owner can manage billing.</ReadOnlyNotice>}
       {error && (
         <p role="alert" className="mb-6 text-sm text-rojo">
@@ -113,7 +120,18 @@ export default function BillingPage() {
         </div>
       </Card>
 
-      {!org.paidAccess &&
+      {!org.paidAccess && paying && (
+        <Card className="mt-6" title="Payment" description={`${paying.name}, ${formatPrice(paying)}.`}
+          actions={
+            <button type="button" onClick={() => setPaying(null)} className={buttonClass.secondary}>
+              Choose another plan
+            </button>
+          }>
+          <EmbeddedPayment key={paying.code} orgId={org.id} planCode={paying.code} />
+        </Card>
+      )}
+
+      {!org.paidAccess && !paying &&
         (plans === null ? (
           !error && (
             <p role="status" className="mt-6 text-sm text-marino/70">
@@ -131,7 +149,7 @@ export default function BillingPage() {
                   <button
                     type="button"
                     aria-label={`Pay with ${plan.name}`}
-                    onClick={() => leaveFor(() => checkout(org.id, plan.code))}
+                    onClick={() => (realAccounts() ? setPaying(plan) : leaveFor(() => checkout(org.id, plan.code)))}
                     disabled={busy}
                     className={`${buttonClass.primary} mt-5 self-start`}
                   >

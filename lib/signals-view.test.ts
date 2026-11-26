@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fixtureResult } from "@/lib/api/fixture";
 import { signalsToCards } from "@/lib/signals-view";
+import { multiStateResult } from "@/lib/test-fixtures/layer1";
 
 describe("signalsToCards", () => {
   it("takes the verdict from the rule's points, never from the signal itself", () => {
@@ -70,5 +71,14 @@ describe("signalsToCards", () => {
     expect(cards.find(card => card.id === "W4")?.label).toBe("2 AI-related articles published");
     expect(cards.find(card => card.id === "A3")?.label).toBe("20 client reviews, averaging 4.5 out of 5");
     expect(cards.find(card => card.id === "B3")?.label).toBe("100% of the firm's attorneys matched a bar record");
+  });
+});
+
+describe("signalsToCards for a firm with attorneys licensed outside Florida", () => {
+  it("measures the bar-record share on the firm's Florida attorneys", () => {
+    const card = signalsToCards(multiStateResult()).find(item => item.id === "B3");
+
+    expect(card).toEqual({ id: "B3", label: "75% of the firm's Florida attorneys matched a Florida Bar record",
+      source: "Florida Bar", positive: false });
   });
 });

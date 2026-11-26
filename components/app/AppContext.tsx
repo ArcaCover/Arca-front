@@ -19,7 +19,7 @@ export type AppState = {
 
 export const AppContext = createContext<AppState | null>(null);
 
-/** What sign-in and sign-up say when signIn answers not_configured: only the mock sign-in exists before Supabase Auth. */
+/** What sign-in and sign-up say when signIn answers not_configured: before Supabase Auth, only the debug modes sign in. */
 export const SIGN_IN_NOT_AVAILABLE = "Sign-in is not available yet in this environment.";
 
 export function useApp(): AppState {

@@ -38,7 +38,11 @@ For a local demonstration, run the backend in mock/rules/memory mode with an exp
 - Back navigation, review, per-answer editing, explicit attestation and in-flight submit guards are implemented. Completion is also idempotent on the backend.
 - The bearer token and ID-only resume convenience live in `sessionStorage`. Access is limited to the current tab and the server's 24-hour scan expiry. Closing the tab loses access. There is no email/magic-link or cross-tab recovery claim.
 - `/assessment/results?scan=…&a=…` fetches the saved result. It uses the server's score/tier, six domain scores, and suggested action plan. A missing combined score is shown as absent, not zero. Unfinished results link back to the assessment.
-- Demo disclaimers are prominent. Invented firm details, benchmarks, premium projections, pricing cards, nonfunctional bind/broker/PDF buttons and the legacy questionnaire/results mocks were removed from Layer 2.
+- Each Layer 2 screen carries exactly one demo disclosure, the notice at the top of the shell: the questions and the scoring are provisional, results are illustrative, and nothing is an insurance offer, a price or an underwriting decision. Nothing inside the shell repeats it; the bank and scoring versions appear once, as one small footer line on the results (`Question bank X · Scoring model Y`), and no longer on each question. Each action's detail from the API now carries only its own next step (`Next step: …`); a follow-up's help can still carry the caveat, so the question card prints each sentence once.
+- The question card shows a context sentence once: when it is the text of cited evidence, those items leave the evidence list and their source links (one per distinct address) move into the context box. A follow-up's help loses only the sentence that repeats the “Context only” label.
+- “Notes for review” on the results words an allowlist of flags a visitor can act on (`components/assessment/result-notes.ts`). Any other flag, internal or new, renders nothing. A result scored on the answers alone (flag `LAYER1_UNAVAILABLE`, set by the API when the firm website could not be read) shows `layer1Score` as “Not scored”, the composite equal to the Layer 2 score, and one line under the heading: “Based only on your answers; no public evidence could be verified (low confidence).” There is no separate website notice, no risk group and no manual review any more (DN-12 §14 in Arca-back, which replaces the earlier highest-risk treatment).
+- “Download report (PDF)” in the top result card calls `GET /assessment/:assessmentId/report.pdf` with the scan session token and saves the file the API names. It works during the 24-hour scan session.
+- Invented firm details, benchmarks, premium projections, pricing cards, nonfunctional bind/broker buttons and the legacy questionnaire/results mocks were removed from Layer 2.
 - The existing marino/cielo/oro tokens, Space Grotesk/Mulish typography, gauge, tier and domain bars are retained. Mobile layout, native form controls, visible keyboard focus and reduced-motion preferences are supported.
 
 ## Verification
@@ -58,7 +62,8 @@ Tests cover the shared API boundary, answer presentation, exclusivity, unsafe ev
 - Live scanning, paid model calls or new external services
 - Final business-approved question content, scoring weights/formulas or flag policy
 - Real underwriting decisions, insurance offers, prices or comparison benchmarks
-- Long-term login, magic links, tab-close recovery or report PDF generation
+- Long-term login, magic links or tab-close recovery
+- Generating the report PDF in the frontend: the API renders it from the stored assessment
 
 ## Verified in this isolated checkout
 

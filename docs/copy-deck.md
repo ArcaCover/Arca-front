@@ -3,8 +3,8 @@
 Transcripción literal de la landing tal como está hoy en el código. Nada reescrito, nada corregido.
 Los textos del sitio van en **inglés** porque ese es el mercado; las etiquetas y notas de este documento van en español.
 
-- **Última actualización:** 28 agosto 2026 ("Start a conversation" ya abre Calendly)
-- **Secciones:** 10, en orden de lectura
+- **Última actualización:** 9 noviembre 2026 (se añaden la sección 10: el fallo de `/quote/scanning`, y el aviso de evidencia y el botón del PDF de `/score`; y la sección 11: el aviso único de demo, la tarjeta de pregunta, las notas y el botón del PDF de la Capa 2)
+- **Secciones:** 13 — las 10 de la landing, en orden de lectura, una del embudo de cotización, una de la Capa 2 y una de las cuentas reales de la webapp
 - **Estado:** pre-lanzamiento
 
 > Si cambias un texto en el código, **actualízalo también aquí**. Este archivo está
@@ -333,6 +333,438 @@ Feed en bucle 🔴 *(eventos inventados)*:
 
 ---
 
+## 10 · Embudo de cotización — `/quote/scanning` y `/score`
+
+*Fuera de la landing. Aquí solo están los textos que se reescribieron en noviembre de 2026
+tras el primer scan real del fundador: el fallo del scan, el aviso de evidencia y la descarga
+del informe. El cuestionario y sus resultados están en la sección 11. El resto del embudo
+(formulario de `/quote`, mensajes de espera, tarjetas de señales) sigue sin transcribir.*
+
+### `/quote/scanning` — cuando el scan falla
+
+**Titular**
+
+> We couldn't finish your scan
+
+**Texto** — el motivo y, siempre, la misma frase final:
+
+> *[motivo]* Please try again shortly.
+
+| Cuándo | Motivo |
+|---|---|
+| El scan termina `FAILED` | Something went wrong on our side, or a source we rely on was temporarily unavailable. |
+| Pasan 11 minutos sin resultado | The scan is taking longer than expected. |
+| Se pierde el contacto con la API (sin red, o la API no responde) | We lost contact with the scan service. Check your connection. |
+| La API responde con un error hasta agotar la espera | El mensaje de la API |
+
+**Botón**
+- Try another scan → `/quote`
+
+> **Qué cambió.** Antes decía "We could not read enough about your firm to score it. This
+> usually means the site blocked us…". Ya no es verdad: una web que no se puede leer **por
+> ninguna causa del propio sitio** (el `robots.txt` lo prohíbe, 401/403 o una página de
+> verificación, DNS que no resuelve, conexión rechazada, plazo agotado, 5xx, `robots.txt`
+> inalcanzable) ya **no** hace fallar el scan. Termina con resultado y pasa a `/score` (ver
+> abajo). `FAILED` queda para fallos nuestros (almacenamiento, el pipeline, la extracción del
+> modelo sobre páginas que sí se leyeron, nuestro plazo), y por eso el texto pide reintentar y
+> no sugiere usar otra dirección. Antes de noviembre de 2026 solo las causas definitivas
+> terminaban con resultado; las transitorias también fallaban (DN-12 §14 en Arca-back).
+
+### `/score` — aviso de evidencia
+
+*Un solo bloque, siempre visible, encima del nombre de la firma. Dice cuál de los tres casos
+aplica (con evidencia insuficiente para puntuar cambia su cierre; ver la subsección siguiente). Nunca imprime flags ni códigos internos, y nunca nombra una decisión ni un precio.*
+
+**Caso 1 — respondieron las tres fuentes** *(fondo bruma, icono de información)*
+
+> All three public sources answered: your website, the Florida Bar register and Avvo.
+
+Si aun así la evidencia no alcanza para suscribir, se añade:
+
+> What they show is not enough for a coverage decision on its own.
+
+*(Esta segunda frase antes no salía cuando todas las fuentes habían respondido: el aviso
+entero solo aparecía si faltaba alguna fuente.)*
+
+**Caso 2 — faltó alguna fuente** *(fondo oro suave, icono de aviso)*
+
+Una frase por tipo de hueco, en este orden, y después el cierre:
+
+| Qué pasó | Frase |
+|---|---|
+| La web se leyó solo en parte | We could only read part of your website. |
+| Un directorio no respondió (error o tiempo agotado) | The Florida Bar register did not answer. · Avvo did not answer. · The Florida Bar register and Avvo did not answer. |
+| Un directorio respondió a medias | The Florida Bar register answered only in part. · Avvo answered only in part. |
+| Un directorio no se llegó a consultar (no había datos suficientes de la firma para buscarla) | We could not look your firm up in the Florida Bar register. · …on Avvo. · …in the Florida Bar register or on Avvo. |
+
+**Cierre**
+
+> This score rests on less evidence than usual.
+
+Y, si la evidencia no alcanza para suscribir:
+
+> It is not enough for a coverage decision on its own.
+
+Si el scan quedó parcial pero ninguna fuente lo explica, la frase es una sola:
+
+> Part of the public evidence could not be read, so this score rests on less evidence than usual.
+
+**Caso 3 — no se pudo leer la web de la firma** *(fondo oro suave, icono de aviso)*
+
+*Sale cuando el resultado trae el flag `WEBSITE_UNAVAILABLE` o cuando la fuente web no se pudo
+usar. Es el único aviso de la pantalla para este caso. En el lugar del score no hay número ni
+tier: sale el estado "No score from public evidence" (subsección siguiente). La tarjeta "Refine
+your score" sube y queda justo debajo: el cuestionario es la acción principal.*
+
+> We could not read your firm's website, so we have no public evidence to score. The
+> assessment below gives you a score based on your answers, marked as low confidence. This is
+> not a coverage decision.
+
+Es igual para cualquier causa (negativa del sitio, DNS, plazo, 5xx…) y para cualquier tier que
+mande la API: la API sigue enviando 0 y `CRITICAL`, pero la pantalla no los enseña.
+
+> **Qué cambió (decisión de Jesús del 2026-11-17, DN-12 §14 en Arca-back).** Antes decía que lo no
+> verificado "places your firm in the highest-risk group for now" y que el caso "will need a
+> manual review", con el 0 y el `CRITICAL` en el gauge. Esa era la decisión D4: una web ilegible
+> como grupo de mayor riesgo con revisión manual (override `REFERRAL_SENIOR`). Se sustituyó: una
+> web que no se pudo leer no dice nada malo de la firma, solo que no tenemos evidencia pública.
+> Se presenta como **confianza baja**, no como alto riesgo, y el cuestionario puntúa solo con las
+> respuestas. Nunca volver a escribir "highest-risk group" ni "manual review" para este caso.
+
+### `/score` — sin evidencia suficiente para puntuar
+
+*Dos estados hermanos, los dos sin número, sin tier y sin el gauge (`notRated` en
+`lib/api/adapt.ts`, con `reason`). El PDF del Quick Scan aplica los mismos (`scoreWithheld`,
+DN-12 §12 y §14 en Arca-back).*
+
+**Web ilegible (`reason: "website_unavailable"`)** — *caso 3 del aviso; va primero, también para
+una web caída sin flag.* Un bloque bruma con icono de ayuda:
+
+> **No score from public evidence**
+>
+> Confidence: low
+
+*No repite la frase del aviso: el porqué se dice una vez, arriba.*
+
+**Evidencia escasa (`reason: "thin_evidence"`)** — *sale cuando la confianza es baja (`LOW`) y la
+Capa 1 pudo evaluar menos de 2 de sus 4 categorías (cuenta toda categoría que no esté
+`UNKNOWN`, también las parciales). No sale con la web ilegible, que tiene el estado de arriba.
+La regla vive en `hasInsufficientEvidence`.*
+
+En lugar del gauge, el tier y la línea de confianza, un bloque bruma con icono de ayuda:
+
+**Titular**
+
+> Not enough evidence to rate
+
+**Texto**
+
+> We could evaluate only *{n}* of 4 areas from public sources, so we are not showing a score.
+> The assessment below fills in what public sources cannot show.
+
+Si no se pudo evaluar ninguna, la primera frase es:
+
+> We could not evaluate any of the 4 areas from public sources, so we are not showing a score.
+
+*"Refine your score" sube justo debajo, como en el caso 3: es la acción principal. Las barras
+de categoría, las señales y el botón del PDF no cambian.*
+
+**Aviso de evidencia en este caso.** Solo dice qué fuentes fallaron y cierra con la frase de
+decisión; no habla de "this score", porque no hay score en pantalla:
+
+> *[frases de hueco del caso 2]* This is not a coverage decision.
+
+Con las tres fuentes respondiendo:
+
+> All three public sources answered: your website, the Florida Bar register and Avvo. This is
+> not a coverage decision.
+
+Si ninguna fuente explica el hueco: "Part of the public evidence could not be read. This is not
+a coverage decision."
+
+**Webapp (`/app`).** Un análisis guardado solo con scan en cualquiera de los dos estados no
+muestra número ni tier de riesgo: la lista y la comparación dicen "—" y "NOT SCORED", y la
+tarjeta muestra el gauge vacío con "NOT SCORED" y, en lugar de la línea de decisión, una frase
+(`notRatedText`):
+
+| Estado | Frase |
+|---|---|
+| Web ilegible | We could not read your firm's website, so we have no public evidence to score. |
+| Evidencia escasa | We could evaluate only *{n}* of 4 areas from public sources, so we are not showing a score. |
+
+Un análisis con assessment de una web ilegible (flag `LAYER1_UNAVAILABLE`) enseña el score de
+las respuestas y su tier, con la línea de `/assessment/results`: "Based only on your answers; no
+public evidence could be verified (low confidence)."
+
+> **Por qué (noviembre 2026).** Un scan real de hklaw.com mostró "3 / 100 CRITICAL" cuando solo
+> se pudo evaluar una de las cuatro categorías (Professional Standing, parcial) y la confianza
+> era baja. Se leía como un juicio sobre la firma y era un hueco en lo que pudimos ver.
+
+### `/score` — descarga del informe
+
+*Botón secundario (contorno marino, icono de descarga) debajo del nombre de la firma, en el
+bloque del score. El dorado queda para "Refine your score".*
+
+| Estado | Texto |
+|---|---|
+| Normal | Download report (PDF) |
+| Generando | Preparing your report… |
+| Error (junto al botón) | We could not prepare your report. Please try again. |
+
+*Antes era el enlace gris "Download Quick Scan Report", al final de la página.*
+
+### `/score` — otros textos retocados
+
+- **Confianza:** Confidence: high · Confidence: medium · Confidence: low *(antes el valor
+  salía en mayúsculas, tal cual llega de la API)*
+- **Barras de categoría:** "partial evidence" cuando la categoría se puntuó a medias y
+  "no evidence" cuando no se pudo puntuar *(antes las dos decían "partial evidence")*
+
+### `/score` — abogados con licencia fuera de Florida
+
+*Noviembre de 2026, tras el scan real de lemonlawgrouppartners.com (firma de lemon law con oficinas
+en Florida y abogados con licencia en otros estados). La regla la fija la API (DN-12 §15 en
+Arca-back): solo los abogados de Florida cuentan para las reglas del Florida Bar; los que tienen
+licencia solo fuera de Florida ni suman ni restan. La API lo marca con el flag
+`ATTORNEYS_OUTSIDE_FLORIDA` y pone la cuenta en el motivo de la regla B3; la pantalla nunca
+imprime el flag.*
+
+**Línea bajo las barras de "Score breakdown"** *(texto marino al 60%, icono de información; una
+sola vez)*
+
+> Professional Standing covers Florida only. *[N]* of your *[total]* attorneys are licensed
+> outside Florida, so they were not scored against the Florida Bar.
+
+Si la cuenta no se puede leer:
+
+> Professional Standing covers Florida only. Attorneys licensed outside Florida were not scored
+> against the Florida Bar.
+
+No sale con la web ilegible: ahí no hay Professional Standing que matizar.
+
+**Tarjeta de señal B3** — con el flag, el porcentaje es de los abogados de Florida:
+
+> *[X]*% of the firm's Florida attorneys matched a Florida Bar record
+
+*(sin el flag sigue siendo "[X]% of the firm's attorneys matched a bar record").*
+
+**PDF del Quick Scan** — la misma línea en tercera persona, entre las notas bajo el score: "10 of
+the firm's 14 attorneys…", y la misma tarjeta B3.
+
+---
+
+## 11 · Capa 2 — `/assessment` y `/assessment/results`
+
+*Fuera de la landing. Textos de las pantallas del cuestionario y de sus resultados tal como
+quedaron en noviembre de 2026, tras el primer scan real del fundador. Las preguntas, sus
+opciones, las ayudas y el texto de cada paso del plan los manda la API (banco de preguntas
+provisional) y no se transcriben aquí.*
+
+### Aviso de demo — uno solo por pantalla
+
+*Bloque dorado suave con icono de escudo, arriba de la columna principal, en **todas** las
+pantallas de Capa 2 (carga, pregunta, repaso, error, resultados). Es el único sitio donde la
+pantalla dice que es una demo, y es lo que cumple la regla de honestidad (CLAUDE.md §7).*
+
+> **Demo assessment.** The questions and the scoring are provisional, so your results are
+> illustrative. This is not an insurance offer, a price or an underwriting decision.
+
+> **Qué cambió.** La misma idea salía 3-4 veces en cada pregunta, 6 en el repaso y entre 14 y
+> 24 en los resultados. Se retiraron las repeticiones:
+>
+> | Antes | Ahora |
+> |---|---|
+> | Etiqueta "DEMO WORKSPACE" junto al logo | *(retirada)* |
+> | Demo question bank 0.1.0-demo.1 · 8 scored questions · Follow-ups add context | *(retirada; un tiempo quedó "Question bank 0.1.0-demo.1")* |
+> | Review your answers before we calculate your demo score. | Review your answers before we calculate your score. |
+> | …I understand this uses provisional demo rules and is not an insurance application or coverage decision. | …I understand this is not an insurance application or a coverage decision. |
+> | See my demo score | See my score |
+> | Your demo outlook | Your outlook |
+> | This combined score uses the demo scoring model. It is a starting point… | This score combines the public evidence with your answers. It is a starting point… |
+> | Commercial decisions are blocked for this demo. This score does not establish eligibility for insurance. | *(retirada: lo dice el aviso)* |
+> | Point gains reflect the provisional demo model, not a promised outcome. | Each point gain is an estimate on its own, not a promised outcome. |
+> | Illustrative next step: X. This estimate is independent of other steps and is not a pricing or coverage promise. *(en cada paso)* | Next step: X. |
+> | Up to +N demo points | Up to +N points |
+> | No additional improvements were identified by this demo model. | No additional improvements were identified from your answers. |
+>
+> Las versiones del banco y del modelo llevan la palabra "demo" dentro de su identificador
+> (`0.1.0-demo.1`, `layer2-demo-fixed-coverage-0.1.0`). Desde la segunda revisión (hallazgo 13)
+> las preguntas y el repaso **ya no muestran la versión del banco**, y los resultados la dejan
+> en una sola línea pequeña del pie con el número y sin la palabra: "Question bank 0.1.0 ·
+> Scoring model 0.1.0". Los identificadores completos siguen en el PDF y en el panel State de
+> depuración.
+
+### `/assessment` — tarjeta de pregunta
+
+*Cada frase sale una sola vez, aunque la API la mande repetida.*
+
+| Elemento | Texto | Cuándo |
+|---|---|---|
+| Etiqueta junto al dominio | Context only · does not affect your score | Preguntas de seguimiento, que no puntúan. La frase de la ayuda de la API que repite esto ("This follow-up adds context and does not change the demo score.") no se imprime; si la ayuda dice algo más, el resto se conserva. |
+| Caja de contexto | *(frase de la API)* + enlace **View source** | El enlace sale cuando la evidencia citada tiene dirección; si la misma frase se cita con varias direcciones, sale un enlace por cada una. Esa evidencia ya no se repite en la lista de abajo. |
+| Desplegable | Evidence from your quick scan (N) | Solo si queda evidencia distinta de la frase de contexto. N cuenta lo que se lista. |
+| Evidencia con enlace | View source | |
+| Evidencia sin enlace | Recorded scan signal · no source link | |
+| Selección múltiple | Select all that apply. | Solo si la ayuda de la API no lo dice ya. |
+| Sugerencia | A suggestion to review · Public evidence may be incomplete. Confirm this yourself, or choose a different answer below. · Use this answer | *(sin cambios)* |
+
+*Bajo la tarjeta ya no hay nada: la línea "Question bank [versión]" se retiró.*
+
+### `/assessment` — repaso final
+
+**Titular**
+
+> One last look.
+
+**Texto**
+
+> Review your answers before we calculate your score. You can still change anything.
+
+**Casilla de confirmación**
+
+> I confirm these answers are accurate to the best of my knowledge. I understand this is not
+> an insurance application or a coverage decision.
+
+**Botón**
+- See my score *(mientras calcula: Calculating…)*
+
+### `/assessment/results` — tarjeta superior
+
+**Etiqueta**
+
+> Your outlook
+
+**Titular y texto**
+
+| Caso | Titular | Texto |
+|---|---|---|
+| Hay score combinado | Your practices, in perspective. | This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices. |
+| La web no se pudo leer (flag `LAYER1_UNAVAILABLE`): el score es solo el de las respuestas | Your practices, in perspective. | Based only on your answers; no public evidence could be verified (low confidence). |
+| No hay score combinado | More evidence is needed. | The quick scan did not support a combined score. Your questionnaire score is still available below. |
+
+**Descarga del informe** — *botón secundario (contorno marino, icono de descarga) dentro de la
+tarjeta superior. Desde sm, a la derecha del score y bajo el texto; en un móvil, justo debajo
+de la insignia del tier y antes del texto, para que quepa en la primera pantalla como en
+`/score` (en 390×844 queda a 672-714 px; antes a ~910). En móvil los resultados ocultan además
+la descripción de la columna lateral. El PDF lo genera la API con los datos guardados.*
+
+| Estado | Texto |
+|---|---|
+| Normal | Download report (PDF) |
+| Generando | Preparing your report… |
+| Bajo el botón, siempre | The download works during this 24-hour session. |
+| Error (junto al botón) | We could not prepare your report. Please try again. |
+| La sesión del scan terminó | This session has ended, so the report can no longer be downloaded here. |
+
+**Web ilegible** — *ya no hay bloque de aviso aparte. Con el flag `LAYER1_UNAVAILABLE` (la API lo
+pone cuando la Capa 1 traía `WEBSITE_UNAVAILABLE`) el score combinado es el de la Capa 2, la
+casilla "Public evidence · Layer 1" dice "Not scored" y la línea bajo el titular es:*
+
+> Based only on your answers; no public evidence could be verified (low confidence).
+
+*Una sola vez en la pantalla. El PDF de la Capa 2 la imprime en tercera persona: "Based only on
+the firm's answers; no public evidence could be verified (low confidence)."*
+
+> **Qué cambió (decisión de Jesús del 2026-11-17, DN-12 §14 en Arca-back).** Antes salía un bloque
+> oro con "This outlook is in the highest-risk group… needs a manual review whatever your
+> answers show" (o "Until it can be read, this outlook needs a manual review…"), y el compuesto
+> era Capa 1 × 0,3 + Capa 2 × 0,7 con la Capa 1 a 0, así que no pasaba de 70. Ahora el compuesto
+> es la Capa 2 entera y la pantalla lo dice como confianza baja, sin grupo de riesgo ni revisión
+> manual.
+
+### `/assessment/results` — plan de acción
+
+**Titular**
+
+> A path forward.
+
+**Texto** — *la única advertencia del plan; antes se repetía en cada paso*
+
+> Suggested improvements based on your answers. Each point gain is an estimate on its own, not
+> a promised outcome.
+
+**Cada paso:** el título (la pregunta), **Next step:** *[opción siguiente, de la API]* y la
+etiqueta **Up to +N points**.
+
+**Sin pasos**
+
+> No additional improvements were identified from your answers. This is not an assurance that
+> all risks are addressed.
+
+### `/assessment/results` — Notes for review
+
+*Desplegable "Notes for review (N)". Antes imprimía todos los flags internos del resultado en
+minúsculas ("provider cost unknown", "demo bank not approved"…). Ahora solo redacta los flags de
+esta lista, en este orden; cualquier otro flag, conocido o nuevo, no imprime nada, y si no
+aplica ninguno el bloque no aparece.*
+
+| Flag | Frase |
+|---|---|
+| `NO_AI_POLICY` | Your answers say the firm has no AI policy yet. |
+| `CONSUMER_AI_IN_CLIENT_WORK` | Free or personal AI accounts are used for client work. |
+| `NO_HUMAN_REVIEW` | AI-assisted work reaches clients without a lawyer’s review. |
+| `NO_CITATION_REVIEW` | AI-generated citations are not checked consistently. |
+| `NO_DATA_SAFEGUARDS` | No consistent safeguards protect client information in AI tools. |
+| `ANSWER_CONTRADICTS_WEBSITE` | One answer does not match what the scan read on the firm’s website. |
+| `INCOMPLETE_SCORED_COVERAGE` | Some areas were scored on fewer answers than planned. |
+| `INCOMPLETE_SOURCES` | The quick scan could not gather all the public evidence, so that part of the score rests on less than usual. |
+| `INCOMPLETE_EVIDENCE` o `INSUFFICIENT_EVIDENCE`, sin `INCOMPLETE_SOURCES` | The public evidence about the firm was limited, so that part of the score rests on less than usual. |
+
+*De las dos últimas sale como mucho una: si falta una fuente, la primera; si todas
+respondieron pero la evidencia fue escasa (el perfil `minimal`), la segunda, que cuadra con lo
+que dice `/score` en ese caso ("All three public sources answered… not enough for a coverage
+decision on its own"). Antes las tres flags compartían la primera frase, que daba a entender un
+fallo de recogida que no había ocurrido (hallazgo 12). Ninguna de las dos sale con la web
+ilegible: la línea "Based only on your answers…" ya lo dice.*
+
+**Pie** — *dos líneas pequeñas*
+
+> Completed *[fecha]*
+>
+> Question bank *[versión]* · Scoring model *[versión]*
+
+*La fecha va en la zona horaria del visitante, no en UTC: una firma de Florida que termina por
+la noche ya no lee la fecha de mañana. Las versiones son solo el número (`0.1.0`), sin la
+palabra "demo", que ya dice el aviso.*
+
+### `/assessment/results` — guardar los resultados
+
+*Rediseñado el 2026-11-21 (DN-13 §19): es la entrada al pre-checkout. Bloque marino entre las notas y el pie, con el botón
+dorado como única acción principal. Todo lo que promete existe hoy en `/app` (análisis guardados, plan de acción con
+responsable y fecha, miembros con roles, actividad); la monitorización no sale porque sus alertas siguen siendo de
+muestra. El precio sale de `GET /plans`, nunca escrito en el código.*
+
+| Elemento | Texto |
+|---|---|
+| Antetítulo | Keep these results |
+| Título | Keep {Firm}'s results and start closing the gaps. (sin nombre en el scan: Keep your firm's results and start closing the gaps.) |
+| Subtítulo (visitante) | Your ARCA workspace in five short steps. Nothing is charged before the last one. |
+| Resumen del resultado | {score} / 100 (o "– not scored") · insignia del tier · {n} next steps in your action plan (1: next step) |
+| Ventaja 1 | Your analysis, saved — This score and its evidence stay with the firm, past this tab's 24 hours. |
+| Ventaja 2 | An action plan to work through — Each next step with an owner, a due date and its status. |
+| Ventaja 3 | Your colleagues, with roles — Invite partners and staff as admins, members or viewers. |
+| Ventaja 4 | A record of every change — Who did what, in an activity log owners and admins can read. |
+| Botón (visitante) | Activate your account |
+| Botón (con sesión, a otra organización) | Save your results to a new organization |
+| Botón (con sesión, a su organización pagada) | Save your results |
+| Precio | From {mensual}/month · Annual saves {n} months (los meses salen de comparar 12 mensualidades con el anual; sin ahorro de al menos un mes, solo el mensual) |
+| Confianza | Secure payment by Stripe · Cancel anytime from Billing |
+| Vista previa (solo si la tarjeta es ancha, decorativa) | {Firm} · Owner · Action plan · las 3 primeras acciones del resultado en "To do" · Invite a colleague |
+
+*Antes: bloque blanco "Keep these results." con el botón "Save your results and activate your account".*
+
+*El bloque Sale en `mock` y en `live-debug`, y en
+producción solo con `NEXT_PUBLIC_WEBAPP_ENABLED=true` (cuentas reales, DN-13); sin ella, no sale.
+Con cuentas reales no lleva la línea de simulación. En
+`live-debug` (scan real, cuenta simulada) lleva debajo del botón una línea más, la misma que
+muestran `/app/login`, `/app/signup`, la invitación, `/app/billing` y el checkout simulado:*
+
+> Simulated in live-debug: this account and its payment are held in memory for this debug session and reset when the API restarts.
+
+*En `mock` esa línea no sale: la franja ya dice que nada es real.*
+
+---
+
 ## ⌦ Apéndice — texto retirado de la landing
 
 Sigue en el código, ya no se ve en la página. Se guarda aquí porque el destino previsto es
@@ -421,7 +853,8 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 - **La landing sigue sin decir qué cubre**, y es deliberado: las 8 coberturas salieron con
   la cinta vieja y las sustituyen 8 escenarios de riesgo, que describen el problema, no la
   póliza. El detalle vive ahora en `/coverage`, a donde lleva el menú "Coverages" del
-  navbar. Ese copy no está transcrito aquí: este documento es solo de la landing.
+  navbar. Ese copy no está transcrito aquí: fuera de la landing, este documento solo
+  recoge los avisos del embudo (sección 10) y las pantallas de la Capa 2 (sección 11).
 - **La aclaración de Lloyd's salió de la landing** junto con "How we operate" (ver apéndice).
 
 ### Resuelto en revisiones anteriores
@@ -430,3 +863,124 @@ Todo lo marcado arriba, reunido. Es texto que hoy afirma cosas que no han ocurri
 - La página ya no mezcla tres audiencias: metadatos, badge, titular y subtítulo hablan
   todos a abogados. Accounting y consulting salieron del texto visible.
 - Ya existe imagen al compartir el enlace.
+
+---
+
+## 12 · Webapp — cuentas reales (Supabase Auth, DN-13)
+
+*Solo con `NEXT_PUBLIC_WEBAPP_ENABLED=true`. Las versiones simuladas de estas pantallas no cambian.*
+
+*Desde el 2026-11-21 (DN-13 §19) el login, el alta y la invitación usan el marco del embudo: columna editorial con el orbe
+y un titular a la izquierda (el h1), tarjeta a la derecha; en el móvil, apilados.*
+
+### `/app/login`
+
+| Elemento | Texto |
+|---|---|
+| Antetítulo · titular | Sign in · Welcome back. (tras pedir el código: Check your inbox.) |
+| Ayuda | We'll email you a 6-digit code to verify it's you. There is no password. (tras pedir el código: Type the 6-digit code from the email to sign in.) |
+| Tarjeta | Your work email · Enter your code |
+| Botón | Send my code |
+| Tras pedir el código (igual exista o no la cuenta) | If an account exists for {email}, we sent it a 6-digit code. It expires in 10 minutes. |
+| Código nuevo | If an account exists for {email}, we sent it a new code. |
+| Volver | Use a different email |
+
+### Paso del código (login, alta e invitación)
+
+| Elemento | Texto |
+|---|---|
+| Aviso (alta e invitación) | We sent a 6-digit code to {email}. It expires in 10 minutes. |
+| Campo | Seis casillas, un grupo "Verification code" (lector: "Verification code, 6 digits"; cada casilla "Digit {n} of 6"). El sexto dígito verifica solo |
+| Botones | Verify · Send a new code (durante 30 s: Send a new code in 0:{ss}) |
+| Verificado | Verified. One moment… |
+| Código incorrecto | That code is not valid or has expired. Check the latest email, or send a new code. |
+| Código nuevo enviado / no enviado | We sent a new code to {email}. · We could not send a new code. Wait a minute and try again. |
+| Nota del enlace y spam | Can't find it? Check your spam or junk folder: the email comes from no-reply@arcacover.com. It also has a link, which opens a page where you confirm the sign-in, on this device or another one. |
+
+### `/app/signup` — el pre-checkout (DN-13 §19)
+
+*Cinco pasos: You, Your firm, Plan, Verify email, Payment. El antetítulo de la izquierda es el del alta ("Save your results
+and activate your account", o "Save your results to a new organization" con sesión); el titular cambia por paso. En los
+modos simulados los cuatro primeros pasos son los mismos y el quinto lleva al checkout simulado.*
+
+| Paso | Titular · ayuda (columna izquierda) | Tarjeta |
+|---|---|---|
+| 1 | Save your results in five short steps. · Tell us who you are and which firm the account is for. Nothing is charged before the last step. | Tell us about you: Work email (bloqueado; "From your scan. Your account uses this address.") · Full name · Your role (Managing partner, Partner, Office manager, Other) · Phone (optional) |
+| 2 | The firm behind the results. · The legal name and the address go on your invoices, so the payment form does not ask for them again. | Your firm: Firm legal name · EIN (optional; "It goes on your invoices as the firm's tax ID.") · Street address · City · State · ZIP code · Attorneys at the firm (1, 2–5, 6–20, 21–50, 50+) · States where the firm practices (Find a state; "{n} selected: …") |
+| 3 | Choose how you pay. · Monthly or annual, the same workspace. You can change plan or cancel from Billing. | Choose your plan: los planes de la API ("Billed every month" / "Billed once a year") · What {Firm} gets: The analysis you just ran, saved to {Firm}, with its action plan. · A workspace for your colleagues: invite them and choose what each one can do. · Manage or cancel the plan from Billing. · Billed in US dollars, by card. Nothing is charged before the payment step. |
+| 4 | One step from your results. · We'll send a 6-digit code to verify it's you. No password, now or later. (tras pedirlo: Check your inbox. · Type the 6-digit code we just sent. It creates your account and saves your results.; simulado: Confirm the email of your scan to create your account.) | Verify your email: chip con la inicial, el email y "From your scan" · We'll send a 6-digit code to this address to verify it's you — no password. The code creates your account. · Send my code · Back. Con sesión: "You're signed in as {email}, so there is no code to type." · Continue to payment. Simulado: Confirm {email} to create your account and your organization. · Create my account |
+| 5 | Last step: payment. · By card, through Stripe, in US dollars. Your account and your results are already saved. | Payment: Your account and {Firm} are ready. {plan}, {precio}. · Checkout de Stripe incrustado (simulado: Continue to payment) · Prefer to pay later? You can finish later from Billing. Go to Billing |
+| Columna izquierda (ancha) | Secure payment by Stripe: your card goes to Stripe, never to ARCA. · No password: you sign in with a code sent to your email. | |
+
+| Errores en línea | Texto |
+|---|---|
+| Nombre | Enter your full name. (más de 120: Use at most 120 characters.) |
+| Rol | Choose your role. |
+| Teléfono | Enter a phone number with 10 to 15 digits, or leave it empty. |
+| Razón social | Enter the firm's legal name. |
+| EIN | An EIN has 9 digits, like 12-3456789. You can leave it empty. |
+| Dirección | Enter the street address. · Enter the city. · Choose the state. · Enter a 5-digit ZIP code, or ZIP+4. |
+| Abogados | Choose how many attorneys work at the firm. |
+| Estados | Choose at least one state where the firm practices. |
+| Plan | Choose a plan. |
+| El pago no abre | (mensaje de la API) · Try again. Ya pagado: Your organization's plan is already active. · Go to your workspace. Sin clave de Stripe: Payments are not available in this environment yet. Your account is saved: you can pay later from Billing. |
+
+### `/app/billing/return` (nueva)
+
+| Estado | Texto |
+|---|---|
+| Título | Your payment |
+| Confirmando | Confirming your payment with Stripe… |
+| Tras 30 s | Your payment is being confirmed. This can take a minute; Billing shows it as soon as it is done. · Check again · Back to Billing |
+| Sin sesión de pago | There is no payment to confirm on this page. |
+| De otra organización | We could not find this payment for {org}. If you paid, it shows in Billing within a few minutes. |
+
+### `/app/billing` con cuentas reales
+
+| Elemento | Texto |
+|---|---|
+| Tras "Pay" | Tarjeta "Payment" · {plan}, {precio}. · Checkout de Stripe incrustado · Choose another plan |
+
+### `/app/invite/[token]`
+
+| Elemento | Texto |
+|---|---|
+| Antetítulo · titular | Join an organization · You're invited. (tras pedir el código: Check your inbox.) |
+| Ayuda | Your colleagues already use ARCA. Verify your email to join them: no password. |
+| Primer paso | We'll send a 6-digit code to the address this invitation was sent to, to verify it's you. |
+| Invitación con otra sesión | Signed in as {email}. The invitation is for one email: for any other, we email a 6-digit code to the invited address. |
+| Botones | Send my code · Accept invitation (con sesión) |
+| Código no enviado | We could not send the code. Wait a minute and try again. |
+| Reclamo caducado o usado (410) | This link to save your results has expired or was already used. Run a new scan to save its results. |
+| Invitación que ya no vale (410) | This invitation is no longer valid. Ask the person who invited you to send a new one. |
+| Demasiados intentos (429) | Too many attempts. Try again in {n} minutes. |
+| Auth caído (503) | Sign-in is temporarily unavailable. Please try again in a moment. |
+
+### `/app/auth/confirm` (nueva)
+
+| Elemento | Texto |
+|---|---|
+| Título | Confirm your sign-in |
+| Ayuda | Press the button to finish signing in on this device. |
+| Botón | Continue signing in |
+| Enlace usado o caducado | This link has expired or was already used. Sign in again to get a new code. |
+| Enlace incompleto | This sign-in link is incomplete. Open the latest email again, or sign in to get a new code. |
+| Modos simulados | Sign-in links are not used in this environment. |
+| Enlace | Sign in |
+
+### `/app/settings` — "Your account" (todos los modos)
+
+| Elemento | Texto |
+|---|---|
+| Tarjeta | Your account · Signed in as {email}. |
+| Texto | Deleting your account signs you out and removes you from every organization you belong to. The organizations, their analyses and their activity stay with their other members. |
+| Botón | Delete my account |
+| Diálogo | Delete your account? · This cannot be undone. You will be signed out, and an organization would have to invite you again. |
+| Botones del diálogo | Cancel · Yes, delete my account (tras un 503: Try again) |
+| Único owner (409) | You are the only owner of an organization. Make another member an owner on the Members page, or request the organization's deletion, before deleting your account. |
+| Cuenta cerrada a medias (503) | Your account is closed, but we could not finish removing your sign-in. Try again to finish. |
+| Tarjeta Security (cambiado) | ARCA signs you in with a 6-digit code sent to your email. There is no password to set, change or leak. |
+
+### Franja de `live-debug` con cuentas reales
+
+> LIVE DEBUG · real scans · real accounts

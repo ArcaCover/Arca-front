@@ -3,13 +3,13 @@
 // each site rather than import a mode from here.
 //
 // `demo` answers every API call in the browser from a recording of the mock back (lib/demo/), so the whole product can be
-// clicked through with no back and no real data. It is the mode of the `Dev` branch's Vercel preview, where the founder
+// clicked through with no back and no real data. It is the mode of the `dev` branch's Vercel preview, where the founder
 // works on the UX, and it can never build for production.
 export const ARCA_MODES = ["production", "live-debug", "mock", "demo"] as const;
 export type ArcaMode = (typeof ARCA_MODES)[number];
 
 /** The branch whose Vercel previews build in demo without anyone setting a variable. */
-export const DEMO_BRANCH = "Dev";
+export const DEMO_BRANCH = "dev";
 
 export function resolveArcaMode(env: Record<string, string | undefined>): ArcaMode {
   const onDemoPreview = env.VERCEL_ENV === "preview" && env.VERCEL_GIT_COMMIT_REF === DEMO_BRANCH;
@@ -28,4 +28,21 @@ export function resolveArcaMode(env: Record<string, string | undefined>): ArcaMo
     throw new Error("NEXT_PUBLIC_ARCA_MODE=demo builds only on a Vercel preview, never for production");
   }
   return mode;
+}
+
+/**
+ * Whether the build runs the private webapp on the real accounts (DN-13 §3.2, §8.2). Production keeps the webapp hidden
+ * until the back is turned on (§7.6 step 4); live-debug uses it against a back started with WEBAPP_PROVIDERS=real. Like the
+ * mode, next.config.ts resolves it once and inlines it, so a typo, or a mock build that asks for real accounts (the back
+ * refuses that combination too), stops the build instead of shipping a webapp no one can sign in to.
+ */
+export function resolveWebappEnabled(env: Record<string, string | undefined>, mode: ArcaMode): boolean {
+  const value = env.NEXT_PUBLIC_WEBAPP_ENABLED || "false";
+  if (value !== "true" && value !== "false") {
+    throw new Error(`NEXT_PUBLIC_WEBAPP_ENABLED="${value}" must be true or false`);
+  }
+  if (value === "true" && mode === "mock") {
+    throw new Error("NEXT_PUBLIC_WEBAPP_ENABLED=true needs real accounts, and mock never uses a real service; unset it for mock");
+  }
+  return value === "true";
 }

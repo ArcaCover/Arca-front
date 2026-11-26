@@ -5,11 +5,21 @@ The design, the security rules and the verification record live in the backend r
 | Mode | `NEXT_PUBLIC_ARCA_MODE` (front) / `ARCA_MODE` (back) | What it uses | Banner |
 |---|---|---|---|
 | production | unset or `production` | whatever `.env.local` configures | none |
-| live-debug | `live-debug` | real APIs and the Supabase shared with production | `LIVE DEBUG · real APIs & real database` |
+| live-debug | `live-debug` | real APIs and the Supabase shared with production for scans and assessments; accounts, organizations and billing simulated in the back's memory (`webapp.md`) | `LIVE DEBUG · real scans · simulated accounts & billing` |
 | mock | `mock` | fixtures and in-memory storage, no external API | `MOCK · no real APIs · in-memory data` |
-| demo (front only) | `demo`; the default on the `Dev` branch's Vercel previews | a recording of the mock back, replayed in the browser (`lib/demo/`); no back at all | `DEMO` pill at the bottom |
+| demo (front only) | `demo`; the default on the `dev` branch's Vercel previews | a recording of the mock back, replayed in the browser (`lib/demo/`); no back at all | `DEMO` pill at the bottom |
 
 An unknown value stops `next dev` and `next build`. A Vercel build (`VERCEL` set) fails in mock and live-debug; demo builds only on a Vercel preview, never on the production deployment. The debug code is only loaded when the mode is not production, and `npm run build` fails if a production build ships any of it (`scripts/check-no-debug.mjs`).
+
+What each mode has of the private webapp:
+
+| | production | live-debug | mock |
+|---|---|---|---|
+| "Keep these results" on `/assessment/results`, sign-up, sign-in, billing, simulated checkout | no (sign-in says it is not available yet; the checkout page is a 404) | yes, simulated, with a line that says so on each of those screens | yes, simulated |
+| Demo seed, "Sign in as <role>" and "Show forbidden actions" in the State panel; platform admin sign-in on `/app/login` | no | no | yes |
+| With `NEXT_PUBLIC_WEBAPP_ENABLED=true` | real accounts (Supabase Auth, emailed code) | real accounts; the strip reads `LIVE DEBUG · real scans · real accounts` and the simulation line is gone | refused: `next dev` and `next build` stop |
+
+The flag, the real sign-in and how it was verified: `real-accounts.md`.
 
 ## Run (Windows PowerShell)
 
@@ -61,6 +71,6 @@ Stop the debug processes. Then run `npm run stack -- production` from Arca-back,
 
 ## Demo (front only)
 
-No back needed: `npm run dev:demo`. On Vercel, every preview of the `Dev` branch builds in demo by itself. To refresh the
+No back needed: `npm run dev:demo`. On Vercel, every preview of the `dev` branch builds in demo by itself. To refresh the
 recording after the back changes, run `npm run stack -- mock` in Arca-back and then `npm run demo:record` here. See the
-"Branch `Dev` and the demo mode" section of `CLAUDE.md`.
+"Branch `dev` and the demo mode" section of `CLAUDE.md`.

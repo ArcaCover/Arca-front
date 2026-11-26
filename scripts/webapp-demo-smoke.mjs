@@ -123,15 +123,30 @@ async function signUpFromResults({ owner: { page } }) {
   demo.score = Math.round(compositeScore);
   await setPanel(page, false);
   await gauge(page, demo.score).waitFor();
-  await page.getByRole('button', { name: 'Save your results and activate your account' }).click();
+  await page.getByRole('button', { name: 'Activate your account' }).click();
   await page.waitForURL(onPath('/app/signup'));
-  const email = page.getByLabel('Email');
+  const email = page.getByLabel('Work email');
   if ((await email.inputValue()) !== demo.ownerEmail || (await email.getAttribute('readonly')) === null) {
     throw new Error('The sign-up email is not the scan email, locked');
   }
-  await page.getByLabel('Organization name').fill(ORG_NAME);
-  await page.getByRole('button', { name: 'Create organization' }).click();
-  await page.waitForURL(onPath('/app/billing'));
+  // The pre-checkout (DN-13 §19): you, your firm, the plan; then the simulated sign-in creates the organization at step 4.
+  await page.getByLabel('Full name').fill('Robin Owner');
+  await page.getByRole('radio', { name: 'Managing partner' }).check({ force: true });
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Firm legal name').fill(ORG_NAME);
+  await page.getByLabel('Street address').fill('100 Main St');
+  await page.getByLabel('City').fill('Miami');
+  await page.getByLabel('State', { exact: true }).selectOption('FL');
+  await page.getByLabel('ZIP code').fill('33101');
+  await page.getByRole('radio', { name: '6–20' }).check({ force: true });
+  await page.getByRole('checkbox', { name: 'Florida' }).check();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('radio', { name: new RegExp(MONTHLY.replace(/[()]/g, '\\$&')) }).check({ force: true });
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Create my account' }).click();
+  // Step 5 offers the payment; point 2 pays from Billing, where an owner who left before paying lands.
+  await page.getByRole('button', { name: 'Continue to payment' }).waitFor();
+  await page.goto(`${frontendUrl}/app/billing`);
   await page.getByText('Pending payment').waitFor();
   await page.getByText(ORG_NAME, { exact: true }).waitFor();
   await shot(page, '1-signed-up');

@@ -38,8 +38,9 @@ export default function ScoreGauge({ score, tier }: { score: number | null; tier
           strokeLinecap="round"
         />
         {/* An unscored result leaves the track empty rather than drawing a zero, which would
-            read as a terrible score instead of an absent one. */}
-        {value !== null && (
+            read as a terrible score instead of an absent one. A real zero has no arc either:
+            a dash of no length still paints its round cap, as a dot at the full-score end. */}
+        {value !== null && value > 0 && (
           <path
             d={ARC}
             pathLength={100}

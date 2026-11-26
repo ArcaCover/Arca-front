@@ -8,7 +8,7 @@ import AssessmentPage from "@/app/assessment/page";
 import QuotePage from "@/app/quote/page";
 import ScanningPage from "@/app/quote/scanning/page";
 import ScorePage from "@/app/score/page";
-import { ApiError, getAssessment, pollScan, saveAnswer, startAssessment, startScan } from "@/lib/api/client";
+import { ApiError, downloadReport, getAssessment, pollScan, saveAnswer, startAssessment, startScan } from "@/lib/api/client";
 import { fixtureResult } from "@/lib/api/fixture";
 import { rememberSession } from "@/lib/api/session";
 import { fixtureAssessment } from "@/lib/test-fixtures/assessment";
@@ -32,7 +32,9 @@ vi.mock("@/lib/api/client", async importOriginal => ({
   startAssessment: vi.fn(),
   getAssessment: vi.fn(),
   saveAnswer: vi.fn(),
+  downloadReport: vi.fn(),
 }));
+vi.mock("@/lib/api/download", () => ({ saveFile: vi.fn() }));
 
 let store: DebugStore;
 
@@ -123,6 +125,32 @@ describe("state the pages publish", () => {
       },
       identity: { status: result.identity?.status ?? null },
     });
+    expect(JSON.stringify(store.getSnapshot())).not.toContain(result.email);
+  });
+
+  it("/score publishes how the report download ended, beside what the poll answered", async () => {
+    rememberSession("sc_fixture", "synthetic-test-capability");
+    vi.mocked(startAssessment).mockResolvedValue({ assessmentId: "as_demo", status: "READY" });
+    const result = fixtureResult();
+    vi.mocked(pollScan).mockResolvedValue({ scanId: "sc_fixture", status: "COMPLETED", cached: false, result });
+    vi.mocked(downloadReport)
+      .mockRejectedValueOnce(new ApiError("report_unavailable", "The report could not be generated"))
+      .mockResolvedValueOnce({ blob: new Blob(["%PDF"]), filename: "arca-quick-scan-smithlaw.com-2026-09-11.pdf" });
+
+    render(<ScorePage />);
+    const download = await screen.findByRole("button", { name: "Download report (PDF)" });
+    expect(store.getSnapshot().score).not.toHaveProperty("download");
+
+    await userEvent.click(download);
+    await waitFor(() => expect(store.getSnapshot().score).toMatchObject({
+      scanId: "sc_fixture", status: "COMPLETED", sources: result.sources, download: { status: "error: report_unavailable" },
+    }));
+
+    await userEvent.click(download);
+    await waitFor(() => expect(store.getSnapshot().score).toMatchObject({
+      scanId: "sc_fixture", status: "COMPLETED", sources: result.sources,
+      download: { status: "saved", filename: "arca-quick-scan-smithlaw.com-2026-09-11.pdf" },
+    }));
     expect(JSON.stringify(store.getSnapshot())).not.toContain(result.email);
   });
 

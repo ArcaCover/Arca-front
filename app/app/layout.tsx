@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import type { MeResponse } from "@arca/contracts";
 
 import { ActionsProvider } from "@/components/app/ActionsState";
+import { ArcaWordmark } from "@/components/brand/ArcaWordmark";
 import { AppContext, activeOrg, type AppState } from "@/components/app/AppContext";
 import { SampleStateProvider } from "@/components/app/SampleState";
 import { OrgNotices, RoleGate } from "@/components/app/shell/OrgNotices";
@@ -15,12 +16,13 @@ import TopBar from "@/components/app/shell/TopBar";
 import { ToastProvider } from "@/components/app/ui";
 import { ApiError } from "@/lib/api/client";
 import { canOpen, useForbiddenShown } from "@/lib/app/access";
-import { signOut } from "@/lib/app/auth";
+import { forgetSession, signOut } from "@/lib/app/auth";
 import { getMe } from "@/lib/app/client";
-import { loadAppSession, rememberOrg } from "@/lib/app/session";
+import { currentAppSession, rememberOrg, watchSessionEnd } from "@/lib/app/session";
 
-// Sign-in, sign-up and an invitation are where a visitor gets a session, so they are the only pages open without one.
-const PUBLIC = ["/app/login", "/app/signup", "/app/invite/"];
+// Sign-in, sign-up, an invitation and the confirmation of a sign-in link (DN-13 §4.1) are where a visitor gets a session, so
+// they are the only pages open without one.
+const PUBLIC = ["/app/login", "/app/signup", "/app/invite/", "/app/auth/confirm"];
 const isPublic = (pathname: string) => PUBLIC.some(path => pathname === path || pathname.startsWith(path));
 // The ARCA staff page needs a session but no organization: a platform admin need not belong to one.
 const STAFF = "/app/admin";
@@ -40,23 +42,27 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const forbiddenShown = useForbiddenShown();
 
   const leave = useCallback(() => {
-    signOut();
+    void signOut();
     setState({ kind: "loading" });
     router.replace("/app/login");
   }, [router]);
   const reload = useCallback(() => setVersion(value => value + 1), []);
 
-  // Asked again on every private page, so a payment or a new organization shows as soon as the user moves on.
+  // Asked again on every private page, so a payment or a new organization shows as soon as the user moves on. The session is
+  // the Supabase client's with the real accounts (DN-13 §4.3), which may refresh it on the way, so it is read asynchronously.
   useEffect(() => {
     if (open) return;
-    if (!loadAppSession()) {
-      router.replace("/app/login");
-      return;
-    }
     let cancelled = false;
-    getMe()
-      .then(me => {
-        if (!cancelled) setState({ kind: "ready", me });
+    currentAppSession()
+      .then(session => {
+        if (cancelled) return;
+        if (!session) {
+          router.replace("/app/login");
+          return;
+        }
+        return getMe().then(me => {
+          if (!cancelled) setState({ kind: "ready", me });
+        });
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
@@ -68,6 +74,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     };
   }, [open, pathname, version, router, leave]);
 
+  // A real session can also end outside this page: a refresh token that stopped working, a sign-out in another tab. It is
+  // already gone, so only what this browser keeps is forgotten; asking Supabase to sign out again would announce another end.
+  useEffect(() => {
+    if (open) return;
+    return watchSessionEnd(() => {
+      forgetSession();
+      setState({ kind: "loading" });
+      router.replace("/app/login");
+    });
+  }, [open, router]);
+
   const org = useMemo(() => {
     if (state.kind !== "ready") return null;
     const { organizations } = state.me;
@@ -78,7 +95,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     [state, org, reload, leave],
   );
 
-  if (open) return <Frame>{children}</Frame>;
+  if (open) return <Frame wide>{children}</Frame>;
 
   if (state.kind === "ready" && context) {
     const organization =
@@ -192,17 +209,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 const debugStrip = () =>
   process.env.NEXT_PUBLIC_ARCA_MODE === "mock" || process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
 
-/** The plain frame of the public pages, the loading and failed states and the staff page. */
-function Frame({ header, children }: { header?: ReactNode; children: ReactNode }) {
+/**
+ * The plain frame of the loading and failed states and the staff page. `wide` is the public pages' (sign-in, sign-up, invitation):
+ * the funnel's lit canvas and room for its two columns (FunnelFrame).
+ */
+function Frame({ header, wide = false, children }: { header?: ReactNode; wide?: boolean; children: ReactNode }) {
   return (
-    <div className={`min-h-screen text-marino${debugStrip() ? " pt-6" : ""}`}>
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-marino/10 bg-white px-6 py-4">
-        <Link href="/app" className="font-heading text-lg font-semibold">
-          Arca
+    <div className={`min-h-screen text-marino${wide ? " assessment-canvas" : ""}${debugStrip() ? " pt-6" : ""}`}>
+      <header className={`flex flex-wrap items-center justify-between gap-4 px-6 py-4${wide ? " mx-auto max-w-[1240px] sm:px-8 lg:px-12" : " border-b border-marino/10 bg-white"}`}>
+        <Link href="/app" aria-label="Arca" className="rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-marino">
+          <ArcaWordmark className="h-6 w-auto text-marino" />
         </Link>
         {header}
       </header>
-      <main className="mx-auto max-w-4xl px-6 py-10">{children}</main>
+      <main className={wide ? "mx-auto max-w-[1240px] px-5 pb-16 pt-4 sm:px-8 lg:px-12 lg:pt-8" : "mx-auto max-w-4xl px-6 py-10"}>{children}</main>
     </div>
   );
 }

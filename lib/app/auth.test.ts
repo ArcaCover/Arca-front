@@ -20,8 +20,9 @@ afterEach(() => {
 });
 
 describe("signIn", () => {
-  it("signs in through the debug bridge in mock, and keeps the session it gets", async () => {
-    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", "mock");
+  // In live-debug the back keeps the webapp in memory beside the real scans, with the same simulated login as mock.
+  it.each(["mock", "live-debug"])("signs in through the debug bridge in %s, and keeps the session it gets", async mode => {
+    vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
     const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
     fetchMock.mockResolvedValueOnce(Response.json({ token: "mock-jwt", user: { userId: "u_1", email: "ana@smithlaw.com" }, expiresAt }));
 
@@ -41,8 +42,8 @@ describe("signIn", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ email: "ana@arca.test", platformAdmin: true });
   });
 
-  // Supabase Auth arrives after the demo: until then only the simulated login exists.
-  it.each([undefined, "production", "live-debug"])("is not configured when the mode is %s: no request, no session", async mode => {
+  // Supabase Auth arrives after the demo: until then only the debug modes' simulated login exists.
+  it.each([undefined, "production"])("is not configured when the mode is %s: no request, no session", async mode => {
     vi.stubEnv("NEXT_PUBLIC_ARCA_MODE", mode);
 
     await expect(signIn("ana@smithlaw.com")).resolves.toBe("not_configured");

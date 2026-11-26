@@ -1,5 +1,10 @@
+import { getSupabase } from "@/lib/supabase";
+
+import { realAccounts } from "./accounts";
+
 // What the private webapp keeps in the browser (DN-10). Three things, each in the storage that fits it:
-// - the app session (localStorage): the signed-in user's token, which has to survive closing the tab;
+// - the app session: with the real accounts (DN-13 §4.3), the Supabase client's, in cookies it manages and refreshes;
+//   with the simulated ones of the debug modes, the simulated token in localStorage, which has to survive closing the tab;
 // - the pending claim (sessionStorage): the ticket that carries a funnel analysis through sign-up, which belongs to
 //   one tab and has no reason to outlive it;
 // - the last organization used (localStorage): only a convenience, the API decides what the user may open.
@@ -111,4 +116,59 @@ export function recallOrg(): string | null {
 
 export function forgetOrg(): void {
   remove(local, ORG_KEY);
+}
+
+/** What an API call needs of the signed-in person: the Bearer token, and the email it was issued for. */
+export type SignedIn = { token: string; email: string };
+
+/**
+ * The session the API calls carry, read again before each one (DN-13 §4.3). With the real accounts it is the Supabase
+ * client's, which refreshes an expiring access token on the way; the simulated storage is never read then. Otherwise it is
+ * the simulated session of the debug modes. null when there is none, or the client could not read or refresh it.
+ */
+export async function currentAppSession(): Promise<SignedIn | null> {
+  if (!realAccounts()) {
+    const stored = loadAppSession();
+    return stored && { token: stored.token, email: stored.email };
+  }
+  try {
+    const { data, error } = await getSupabase().auth.getSession();
+    const session = data.session;
+    if (error || !session?.access_token || !session.user.email) return null;
+    return { token: session.access_token, email: session.user.email };
+  } catch {
+    return null;
+  }
+}
+
+// True while this tab ends its own real session: whoever asked for it (the sign-out button, a deleted account) also says where
+// to go next, so the watchers below stay out of it.
+let endingHere = false;
+
+/** Ends the real session on this browser only (`scope: 'local'`), without waking the watchers of watchSessionEnd. */
+export async function endRealSession(): Promise<void> {
+  endingHere = true;
+  try {
+    await getSupabase().auth.signOut({ scope: "local" });
+  } finally {
+    endingHere = false;
+  }
+}
+
+/**
+ * Calls `onEnd` when the real session ends outside the page's own doing: a refresh token that no longer works, or a sign-out
+ * in another tab. Returns the unsubscribe. The simulated session has no such events. The call is deferred, because the
+ * client's own listeners must not call back into it while it notifies them.
+ */
+export function watchSessionEnd(onEnd: () => void): () => void {
+  if (!realAccounts()) return () => {};
+  let watching = true;
+  const { data } = getSupabase().auth.onAuthStateChange(event => {
+    // A call still pending when the watcher is dropped is dropped with it.
+    if (event === "SIGNED_OUT" && !endingHere) setTimeout(() => watching && onEnd(), 0);
+  });
+  return () => {
+    watching = false;
+    data.subscription.unsubscribe();
+  };
 }

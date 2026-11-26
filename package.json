@@ -20,8 +20,11 @@
     "test:browser:roles": "node scripts/role-views-smoke.mjs"
   },
   "dependencies": {
-    "@arca/contracts": "https://github.com/ArcaCover/Arca-back/releases/download/contracts-v0.4.0/arca-contracts-0.4.0.tgz",
-    "@supabase/supabase-js": "^2.110.0",
+    "@arca/contracts": "https://github.com/ArcaCover/Arca-back/releases/download/contracts-v0.5.0/arca-contracts-0.5.0.tgz",
+    "@stripe/react-stripe-js": "7.0.1",
+    "@stripe/stripe-js": "10.2.1",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "lucide-react": "^1.23.0",
     "next": "^16.2.10",
     "react": "^19.2.7",

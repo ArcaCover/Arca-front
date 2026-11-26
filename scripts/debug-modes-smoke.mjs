@@ -187,7 +187,7 @@ async function apifyOutOfCredit(page, seen) {
   if (quote?.sentScenario?.bar !== 'apify_quota' || quote.sentScenario.avvo !== 'apify_quota' || quote.scanId === undefined) {
     throw new Error(`/quote published ${JSON.stringify(quote)}`);
   }
-  await page.getByText('One or more sources did not answer').waitFor();
+  await page.getByText('The Florida Bar register and Avvo did not answer.').waitFor();
   await shot(page, '2-apify-out-of-credit');
   await setPanel(page, true);
   const state = await published(page, value => value.sources !== undefined, 'the sources in the panel on /score');

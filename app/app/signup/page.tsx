@@ -1,103 +1,82 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { SIGN_IN_NOT_AVAILABLE, useBrowser } from "@/components/app/AppContext";
-import { ApiError } from "@/lib/api/client";
-import { signIn } from "@/lib/app/auth";
-import { createOrg } from "@/lib/app/client";
-import { clearPendingClaim, loadAppSession, loadPendingClaim, rememberOrg } from "@/lib/app/session";
+import { useBrowser } from "@/components/app/AppContext";
+import PreCheckout from "@/components/app/PreCheckout";
+import SimulationNotice from "@/components/app/SimulationNotice";
+import { buttonClass } from "@/components/app/ui";
+import { realAccounts } from "@/lib/app/accounts";
+import { currentAppSession, loadAppSession, loadPendingClaim, type SignedIn } from "@/lib/app/session";
 
-// Sign-up exists only to save the results of an analysis (DN-10 §3): the claim ticket the results page kept in this tab
-// carries the email the account is created for, so it is shown locked.
+const sameEmail = (a: string | undefined, b: string) => a !== undefined && a.toLowerCase() === b.toLowerCase();
+
+// Sign-up exists only to save the results of an analysis (DN-10 §3): the claim ticket the results page kept in this tab carries
+// the email the account is created for, shown locked. It is the pre-checkout of DN-13 §19: who you are, your firm, the plan, the
+// emailed code (the real accounts) or the simulated sign-in (the debug modes), and the payment.
 function SignupScreen() {
   const router = useRouter();
   const requested = useSearchParams().get("claim");
   const browser = useBrowser();
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const real = realAccounts();
+  // Kept after the address bar loses it.
+  const [linked] = useState(requested);
+  // The Supabase session of the real accounts: undefined until the client answers. The simulated one is read at once.
+  const [session, setSession] = useState<SignedIn | null | undefined>(undefined);
 
-  const pending = browser ? loadPendingClaim() : null;
-  const claim = pending && (!requested || requested === pending.claimId) ? pending : null;
+  // The fallback link of the email comes back here with the claim in the URL (DN-13 §4.7), maybe on a tab or a device without the
+  // pending claim: the page uses the URL's claim and the session's email, and drops the claim from the address bar at once.
+  useEffect(() => {
+    if (real && requested) router.replace("/app/signup");
+  }, [real, requested, router]);
 
-  if (!browser) return null;
-  if (!claim) {
-    return (
-      <section className="max-w-md">
-        <h1 className="font-heading text-2xl">Create your organization</h1>
-        <p className="mt-3 text-sm text-marino/70">
-          An account starts from the results of an analysis. Run a scan and an assessment, then save your results.
-        </p>
-        <Link href="/quote" className="mt-4 inline-flex rounded-full bg-oro px-4 py-2 text-sm font-semibold">
-          Start an analysis
-        </Link>
-      </section>
-    );
-  }
-  const { claimId, email } = claim;
-  // Someone already signed in with the claim's email has an account: the sign-up only starts a new organization for them,
-  // as the button that led here said (SaveResultsCta). Anyone else is signed in as the claim's email on submit.
-  const hasAccount = loadAppSession()?.email.toLowerCase() === email.toLowerCase();
+  useEffect(() => {
+    if (!real) return;
+    let cancelled = false;
+    void currentAppSession().then(current => {
+      if (!cancelled) setSession(current);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [real]);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage(null);
-    try {
-      const signedInAs = loadAppSession()?.email.toLowerCase();
-      if (signedInAs !== email.toLowerCase() && (await signIn(email)) !== "signed_in") {
-        setMessage(SIGN_IN_NOT_AVAILABLE);
-        setBusy(false);
-        return;
-      }
-      const org = await createOrg(name.trim(), claimId);
-      clearPendingClaim();
-      rememberOrg(org.id);
-      router.push("/app/billing");
-    } catch (cause) {
-      // The claim stays in the tab: the API refused this attempt, and nothing was created.
-      setMessage(cause instanceof ApiError ? cause.message : "We could not create your organization. Please try again.");
-      setBusy(false);
-    }
-  }
+  if (!browser || (real && session === undefined)) return null;
+  const pending = loadPendingClaim();
+  const fromUrl = real ? linked : requested;
+  const fromTab = pending && (!fromUrl || fromUrl === pending.claimId) ? pending : null;
+  // Only the real accounts take a claim from the URL alone: the back checks the session's email against the ticket's.
+  const claimId = fromTab?.claimId ?? (real ? linked : null);
+  if (!claimId) return <NoClaim />;
+  const live = real ? session ?? null : loadAppSession();
+  const email = fromTab?.email ?? live?.email ?? null;
+  // Someone already signed in as the claim's email (or, with a claim from the URL, whoever is signed in) needs no code.
+  const signedInAs = live && (fromTab ? sameEmail(live.email, fromTab.email) : real) ? live.email : null;
 
   return (
+    <PreCheckout key={claimId} claimId={claimId} email={email} signedInAs={signedInAs} real={real} notice={<SimulationNotice className="mb-4" />}
+      eyebrow={signedInAs ? "Save your results to a new organization" : "Save your results and activate your account"} />
+  );
+}
+
+function NoClaim() {
+  return (
     <section className="max-w-md">
-      <h1 className="font-heading text-2xl">
-        {hasAccount ? "Save your results to a new organization" : "Save your results and activate your account"}
-      </h1>
-      <form onSubmit={submit} className="mt-6 space-y-4">
-        <label className="block text-sm">
-          Email
-          <input
-            type="email"
-            value={email}
-            readOnly
-            className="mt-1 block w-full rounded-xl border border-marino/20 bg-bruma/40 px-3 py-2"
-          />
-        </label>
-        <label className="block text-sm">
-          Organization name
-          <input
-            required
-            maxLength={120}
-            value={name}
-            onChange={event => setName(event.target.value)}
-            className="mt-1 block w-full rounded-xl border border-marino/20 bg-white px-3 py-2"
-          />
-        </label>
-        <button type="submit" disabled={busy} className="rounded-full bg-oro px-5 py-2 text-sm font-semibold disabled:opacity-60">
-          Create organization
-        </button>
-      </form>
-      {message && (
-        <p role="alert" className="mt-4 text-sm">
-          {message}
-        </p>
-      )}
+      <h1 className="font-heading text-2xl">Create your organization</h1>
+      <p className="mt-3 text-sm text-marino/70">
+        An account starts from the results of an analysis. Run a scan and an assessment, then save your results.
+      </p>
+      <Link href="/quote" className={`${buttonClass.primary} mt-4`}>
+        Start an analysis
+      </Link>
+      <p className="mt-6 text-sm text-marino/70">
+        Already created your organization?{" "}
+        <Link href="/app/billing" className="font-semibold underline underline-offset-2">
+          Finish the payment from Billing
+        </Link>
+      </p>
     </section>
   );
 }
