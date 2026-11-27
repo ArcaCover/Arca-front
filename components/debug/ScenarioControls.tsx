@@ -56,13 +56,21 @@ function typeInto(input: HTMLInputElement, value: string): void {
 const PRIMARY = "rounded-full bg-marino px-3 py-1 font-semibold text-white";
 const SECONDARY = "rounded-full border border-marino px-3 py-1 font-semibold";
 
+/** A scenario the demo's recording holds (lib/demo/replay.ts demoScenarios). */
+export type RecordedScenario = { key: string; label: string; kind: "preset" | "firm"; domain: string; scenario: Record<string, unknown> | null };
+
 type Props = {
   apiUrl: string;
+  /**
+   * The demo only: the scenarios its recording holds. The panel then offers those and nothing else, since the demo can only
+   * replay a scan the recorder made; the axes and the reset, which need a back, are left out.
+   */
+  recorded?: RecordedScenario[];
   /** Called after every change to the stored scenario, so the strip can show what the next scan injects. */
   onScenarioChange?: () => void;
 };
 
-export default function ScenarioControls({ apiUrl, onScenarioChange }: Props) {
+export default function ScenarioControls({ apiUrl, onScenarioChange, recorded }: Props) {
   // In live-debug the default branch of each axis is the real source, and latency does not apply.
   const live = process.env.NEXT_PUBLIC_ARCA_MODE === "live-debug";
   const id = useId();
@@ -106,6 +114,56 @@ export default function ScenarioControls({ apiUrl, onScenarioChange }: Props) {
   }
 
   const injected = injectedAxes(scenario, live);
+
+  // A mock firm is a website, not a fault: it fills the form and clears any preset, so the scan asks for that firm.
+  function fillFirm(firm: RecordedScenario) {
+    const email = document.querySelector<HTMLInputElement>('input[aria-label="Work email"]');
+    const domain = document.querySelector<HTMLInputElement>('input[aria-label="Firm website"]');
+    if (!email || !domain) {
+      setNotice("The quote form is not on this page");
+      return;
+    }
+    apply(DEFAULTS);
+    typeInto(email, `demo+${firm.key}@arca.example`);
+    typeInto(domain, firm.domain);
+    setNotice(`Next scan: ${firm.label} (${firm.domain})`);
+  }
+
+  if (recorded) {
+    const presets = recorded.filter(item => item.kind === "preset" && item.scenario);
+    const firms = recorded.filter(item => item.kind === "firm");
+    return (
+      <div className="mt-3 border-t border-bruma pt-3">
+        <p className="font-semibold">Scenario for the next scan (recorded)</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {presets.map(item => (
+            <button key={item.key} type="button" onClick={() => apply(DebugScenario.parse(item.scenario))} className={SECONDARY}>
+              {item.label}
+            </button>
+          ))}
+          <button type="button" onClick={() => apply(DEFAULTS)} className={SECONDARY}>
+            Clear
+          </button>
+        </div>
+        <p className="mt-3 font-semibold">Mock firm for the next scan</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {firms.map(item => (
+            <button key={item.key} type="button" onClick={() => fillFirm(item)} className={SECONDARY}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2">
+          {injected.length ? `Next scan injects: ${injected.join(" · ")}` : "Next scan: no scenario injected"}
+        </p>
+        <p className="mt-2">
+          The demo replays scans the recorder made against the mock back: a scenario shows its scan and its Pre-Score, not an
+          assessment. Any other website replays the demo firm.
+        </p>
+        {notice && <p className="mt-2">{notice}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="mt-3 border-t border-bruma pt-3">

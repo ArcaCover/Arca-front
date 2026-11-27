@@ -1,11 +1,15 @@
 "use client";
 
+import type { AnswerValue, RenderedQuestion } from "@arca/contracts";
 import { DebugScanState } from "@arca/contracts/debug";
+import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { realAccounts } from "@/lib/app/accounts";
+import { recallAssessment } from "@/lib/api/assessment-session";
 import { recallSession } from "@/lib/api/session";
+import { assessmentHref } from "@/lib/assessment";
 import type { DebugSection } from "@/lib/debug/bridge";
 import type { BackModeProbe } from "@/lib/debug/mode-check";
 import type { DebugModeResponse } from "@/lib/debug/mode-contract";
@@ -13,7 +17,7 @@ import type { DebugStore } from "@/lib/debug/store";
 import { tokenTimes, type TokenTimes } from "@/lib/debug/token";
 import AssessmentControls from "./AssessmentControls";
 import RoleControls from "./RoleControls";
-import ScenarioControls from "./ScenarioControls";
+import ScenarioControls, { type RecordedScenario } from "./ScenarioControls";
 
 // The state that pages keep invisible today (DN-09 §6.3). Everything is rendered as text, never as HTML: reasons and
 // names come from third-party sites.
@@ -58,9 +62,54 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-type Props = { store: DebugStore; probe: BackModeProbe | null; apiUrl: string; onScenarioChange?: () => void };
+/** The demo's stand-ins for what the panel asks the back in mock: the recorded scenarios and the recorded answers. */
+export type DemoPanel = { scenarios: RecordedScenario[]; choose: (question: RenderedQuestion) => AnswerValue };
+type Props = {
+  store: DebugStore; probe: BackModeProbe | null; apiUrl: string; onScenarioChange?: () => void;
+  /** The demo only (DemoDebugRoot): there is no back, so the panel works from the recording. */
+  demo?: DemoPanel;
+};
 
-export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: Props) {
+const JUMP = "rounded-full border border-marino px-3 py-1 font-semibold";
+
+/** The scan this tab works with: the one in the URL, or else the last one this tab started. */
+function currentScan(fromUrl: string | null): string | null {
+  if (fromUrl) return fromUrl;
+  try {
+    const keys = Object.keys(sessionStorage).filter(key => key.startsWith("arca.scan."));
+    return keys.length ? keys[keys.length - 1]!.slice("arca.scan.".length) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Every screen of the funnel and the webapp in one row, for the scan this tab holds: a review can go straight to any of
+// them, in any order. A screen that needs a scan or an assessment the tab has not made yet is left out.
+function JumpTo({ scanId }: { scanId: string | null }) {
+  const [targets, setTargets] = useState<Array<[string, string]>>([["Quote", "/quote"], ["App", "/app"]]);
+  useEffect(() => {
+    const scan = currentScan(scanId);
+    const assessment = scan ? recallAssessment(scan) : null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- keeps storage out of render, for one extra render.
+    setTargets([
+      ["Quote", "/quote"],
+      ...(scan ? [["Score", `/score?scan=${encodeURIComponent(scan)}`] as [string, string]] : []),
+      ...(scan && assessment ? [["Assessment", assessmentHref(scan, assessment)], ["Results", assessmentHref(scan, assessment, true)]] as Array<[string, string]> : []),
+      ["App", "/app"],
+    ]);
+  }, [scanId]);
+  return (
+    <div className="flex flex-wrap gap-2">
+      {targets.map(([label, href]) => (
+        <Link key={label} href={href} className={JUMP}>
+          {label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export default function StatePanel({ store, probe, apiUrl, onScenarioChange, demo }: Props) {
   const pathname = usePathname();
   const scanId = useSearchParams().get("scan");
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
@@ -82,27 +131,39 @@ export default function StatePanel({ store, probe, apiUrl, onScenarioChange }: P
         {section && (
           <Row label="Published state">{published ? <Json value={published} /> : empty}</Row>
         )}
-        <Row label="Back mode">
-          {probe === null ? "Checking…" : probe.kind === "ok" ? <Json value={probe.body} /> : BACK_MODE[probe.kind]}
+        <Row label="Jump to">
+          <JumpTo scanId={scanId} />
         </Row>
-        <Row label="Webapp">
-          {probe === null ? (
-            "Checking…"
-          ) : probe.kind === "ok" ? (
-            <Webapp back={probe.body} apiUrl={apiUrl} />
-          ) : (
-            "Unknown until the back reports its mode"
-          )}
-        </Row>
+        {demo ? (
+          <>
+            <Row label="Back mode">None: every answer comes from the demo&apos;s recording of the mock back</Row>
+            <Row label="Webapp">Replayed: accounts, organizations and payments are the recorded ones, and nothing is saved</Row>
+          </>
+        ) : (
+          <>
+            <Row label="Back mode">
+              {probe === null ? "Checking…" : probe.kind === "ok" ? <Json value={probe.body} /> : BACK_MODE[probe.kind]}
+            </Row>
+            <Row label="Webapp">
+              {probe === null ? (
+                "Checking…"
+              ) : probe.kind === "ok" ? (
+                <Webapp back={probe.body} apiUrl={apiUrl} />
+              ) : (
+                "Unknown until the back reports its mode"
+              )}
+            </Row>
+          </>
+        )}
         <Row label="Scan">{scanId ?? "No scan in the URL"}</Row>
       </dl>
-      {section === "quote" && <ScenarioControls apiUrl={apiUrl} onScenarioChange={onScenarioChange} />}
-      {section === "assessment" && scanId && <AssessmentControls scanId={scanId} />}
+      {section === "quote" && <ScenarioControls apiUrl={apiUrl} onScenarioChange={onScenarioChange} recorded={demo?.scenarios} />}
+      {section === "assessment" && scanId && <AssessmentControls scanId={scanId} choose={demo?.choose} />}
       {/* DN-11 §6.4: on every private page, apart from SECTIONS, and in mock only. The live-debug back simulates the webapp
           but has no demo seed (it answers 404), so there are no seeded roles to sign in as. */}
       {process.env.NEXT_PUBLIC_ARCA_MODE === "mock" && pathname.startsWith("/app") && <RoleControls />}
       {/* Keyed by scan, so a new scan starts from a fresh token reading and no internal state from the last one. */}
-      {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} />}
+      {scanId && <ScanDetails key={scanId} scanId={scanId} apiUrl={apiUrl} internal={!demo} />}
     </section>
   );
 }
@@ -157,7 +218,8 @@ type Internal =
   | { kind: "error"; message: string }
   | { kind: "ok"; state: DebugScanState };
 
-function ScanDetails({ scanId, apiUrl }: { scanId: string; apiUrl: string }) {
+/** `internal`: whether the back can be asked for the scan's internal state; the demo has no back to ask. */
+function ScanDetails({ scanId, apiUrl, internal: canAsk = true }: { scanId: string; apiUrl: string; internal?: boolean }) {
   const [token, setToken] = useState<Token>({ kind: "reading" });
   const [internal, setInternal] = useState<Internal>({ kind: "idle" });
 
@@ -206,14 +268,14 @@ function ScanDetails({ scanId, apiUrl }: { scanId: string; apiUrl: string }) {
                 : "Reading…"}
         </Row>
       </dl>
-      <button
+      {canAsk && <button
         type="button"
         onClick={() => void viewInternalState()}
         disabled={token.kind !== "read" || internal.kind === "loading"}
         className="mt-3 rounded-full bg-marino px-3 py-1 font-semibold text-white disabled:opacity-50"
       >
         View internal state
-      </button>
+      </button>}
       {internal.kind === "loading" && <p className="mt-2">Loading…</p>}
       {internal.kind === "error" && <p className="mt-2 text-rojo">{internal.message}</p>}
       {internal.kind === "ok" && (

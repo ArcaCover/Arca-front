@@ -1,5 +1,6 @@
 "use client";
 
+import type { AnswerValue, RenderedQuestion } from "@arca/contracts";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -15,7 +16,11 @@ type Access = { token: string; assessmentId: string };
 
 const BUTTON = "rounded-full bg-marino px-3 py-1 font-semibold text-white disabled:opacity-50";
 
-export default function AssessmentControls({ scanId }: { scanId: string }) {
+export default function AssessmentControls({ scanId, choose }: {
+  scanId: string;
+  /** The demo only: the recorded answer for a question, since the demo replays the answers the recorder saved. */
+  choose?: (question: RenderedQuestion) => AnswerValue;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export default function AssessmentControls({ scanId }: { scanId: string }) {
   }
 
   async function answerAll({ token, assessmentId }: Access) {
-    await autoAnswer(assessmentId, token);
+    await autoAnswer(assessmentId, token, undefined, choose);
     // The page keeps its own copy of the assessment, so it reloads to read the saved answers back from the API.
     location.reload();
   }

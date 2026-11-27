@@ -4,7 +4,7 @@ export type DebugSection = "quote" | "scanning" | "score" | "assessment" | "resu
 
 declare global {
   interface Window {
-    // Installed by lib/debug/store.ts, which only a mock or live-debug build loads.
+    // Installed by lib/debug/store.ts, which only a mock, live-debug or demo build loads (the demo for its debug strip).
     __arcaDebug?: { publish(section: DebugSection, data: Record<string, unknown>): void };
     // The panel loads lazily, after pages have published on mount: the last state per section waits here until the
     // store installs and adopts it.
@@ -15,7 +15,8 @@ declare global {
 export const SCENARIO_STORAGE_KEY = "arca.debug.scenario";
 
 export function publishDebugState(section: DebugSection, data: Record<string, unknown>): void {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return;
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug" &&
+    process.env.NEXT_PUBLIC_ARCA_MODE !== "demo") return;
   try {
     if (window.__arcaDebug) window.__arcaDebug.publish(section, data);
     else window.__arcaDebugPending = { ...window.__arcaDebugPending, [section]: data };
@@ -30,7 +31,8 @@ let lastSentScenario: string | null = null;
 // One-shot (DN-09 §5.3, §6.4): the scenario rides on the next POST /scan only. Taking it removes it from the tab, so a
 // leftover can never keep changing later scans unseen.
 export function takeDebugScenarioHeaders(): Record<string, string> {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return {};
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug" &&
+    process.env.NEXT_PUBLIC_ARCA_MODE !== "demo") return {};
   lastSentScenario = null;
   try {
     const scenario = sessionStorage.getItem(SCENARIO_STORAGE_KEY);
@@ -47,7 +49,8 @@ export function takeDebugScenarioHeaders(): Record<string, string> {
 
 /** The scenario the last call above handed to a scan, parsed when it can be; null when it sent none. */
 export function sentDebugScenario(): unknown {
-  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug") return null;
+  if (process.env.NEXT_PUBLIC_ARCA_MODE !== "mock" && process.env.NEXT_PUBLIC_ARCA_MODE !== "live-debug" &&
+    process.env.NEXT_PUBLIC_ARCA_MODE !== "demo") return null;
   if (lastSentScenario === null) return null;
   try {
     return JSON.parse(lastSentScenario);

@@ -7,6 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { chromium } from '../../Arca-back/node_modules/playwright/index.mjs';
+import { DEBUG_PRESETS, DebugScenario } from '@arca/contracts/debug';
 
 const frontendUrl = process.env.ARCA_FRONTEND_URL ?? 'http://localhost:3000';
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
@@ -23,6 +24,47 @@ if (mode?.mode !== 'mock') {
 }
 
 // A clean back: no scan left over from earlier runs, and the scan rate limit back at zero.
+await fetch(`${apiUrl}/__debug/reset`, { method: 'POST', headers: { 'X-Arca-Debug': '1' } });
+
+// 0. The scenarios the debug panel offers (its presets and the mock firms), each scanned once through the back and kept
+// apart from the story below: the demo serves one when the panel picks it (lib/demo/replay.ts). Only the scan and its
+// result are kept, so /quote/scanning and /score show the scenario; its assessment is not part of the demo.
+const FIRMS = {
+  minimal: { label: 'Minimal evidence', domain: 'minimal.arca.example' },
+  sanctioned: { label: 'Sanctioned attorney', domain: 'sanctioned.arca.example' },
+  partial_sources: { label: 'Partial sources', domain: 'partial.arca.example' },
+  blocked: { label: 'Website blocks us', domain: 'blocked.arca.example' },
+  down: { label: 'Website down', domain: 'down.arca.example' },
+  failed: { label: 'Scan fails on our side', domain: 'failed.arca.example' },
+};
+const asExchange = (method, requestPath, status, body) =>
+  ({ method, path: requestPath, auth: null, requestBody: null, status, contentType: 'application/json', body, encoding: 'json' });
+async function recordScenario(key, label, kind, domain, scenario) {
+  const headers = { 'Content-Type': 'application/json', ...(scenario ? { 'X-Arca-Debug-Scenario': JSON.stringify(scenario) } : {}) };
+  const start = await fetch(`${apiUrl}/scan`, { method: 'POST', headers,
+    body: JSON.stringify({ email: `demo+${key}@arca.example`, domain }) });
+  const started = await start.json();
+  const exchanges = [asExchange('POST', '/scan', start.status, started)];
+  if (start.ok) {
+    let response, body;
+    for (let attempt = 0; attempt < 240; attempt++) {
+      response = await fetch(`${apiUrl}/scan/${encodeURIComponent(started.scanId)}`, { headers: { Authorization: `Bearer ${started.sessionToken}` } });
+      body = await response.json().catch(() => null);
+      if (response.status !== 200 || body?.status !== 'RUNNING') break;
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    exchanges.push(asExchange('GET', `/scan/${encodeURIComponent(started.scanId)}`, response.status, body));
+  }
+  console.log(`  scenario ${key}: ${exchanges.map(exchange => exchange.status).join(' → ')}`);
+  return { label, kind, domain, scenario: scenario ?? null, exchanges };
+}
+const scenarios = {};
+for (const [key, preset] of Object.entries(DEBUG_PRESETS)) {
+  scenarios[key] = await recordScenario(key, preset.label, 'preset', 'robust.arca.example', DebugScenario.parse(preset.scenario));
+}
+// The mock back allows ten scans an hour: a reset between the two groups, and another before the story starts.
+await fetch(`${apiUrl}/__debug/reset`, { method: 'POST', headers: { 'X-Arca-Debug': '1' } });
+for (const [key, firm] of Object.entries(FIRMS)) scenarios[key] = await recordScenario(key, firm.label, 'firm', firm.domain, null);
 await fetch(`${apiUrl}/__debug/reset`, { method: 'POST', headers: { 'X-Arca-Debug': '1' } });
 
 const entries = [];
@@ -204,5 +246,5 @@ for (const user of seed.users) {
 
 await browser.close();
 mkdirSync(path.dirname(out), { recursive: true });
-writeFileSync(out, `${JSON.stringify({ recordedAt: new Date().toISOString(), seed, scanning, entries }, null, 1)}\n`);
+writeFileSync(out, `${JSON.stringify({ recordedAt: new Date().toISOString(), seed, scanning, scenarios, entries }, null, 1)}\n`);
 console.log(`${entries.length} API exchanges recorded in ${path.relative(process.cwd(), out)}`);

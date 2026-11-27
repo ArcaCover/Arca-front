@@ -112,3 +112,41 @@ describe("the demo's replay", () => {
     expect(data.entries.filter(entry => entry.status >= 400 && entry.status !== 402)).toEqual([]);
   });
 });
+
+describe("the demo's recorded scenarios", () => {
+  let now = 1_000_000;
+  const clock = () => now;
+  const allDown = { website: "error", bar: "error", avvo: "error", latency: "instant", http: { start: "none", poll: "none", report: "none" }, planner: "default" };
+  const scenarios: Recording = {
+    ...story,
+    scenarios: {
+      all_down: { label: "Every source down", kind: "preset", domain: "robust.arca.example", scenario: allDown, exchanges: [
+        exchange("POST", "/scan", { scanId: "sc_down" }, { status: 202 }),
+        exchange("GET", "/scan/sc_down", { scanId: "sc_down", status: "FAILED" }),
+      ] },
+      blocked: { label: "Website blocks us", kind: "firm", domain: "blocked.arca.example", scenario: null, exchanges: [
+        exchange("POST", "/scan", { scanId: "sc_blocked" }, { status: 202 }),
+        exchange("GET", "/scan/sc_blocked", { scanId: "sc_blocked", status: "PARTIAL" }),
+      ] },
+    },
+  };
+  const start = (headers: Record<string, string>, domain = "firm.example") =>
+    ({ method: "POST", headers, body: JSON.stringify({ email: "a@b.example", domain }) });
+
+  beforeEach(() => sessionStorage.clear());
+
+  it("serves the preset the scan's header asks for, whatever order its keys come in, and its result once the scan has run", async () => {
+    const answer = createReplay(scenarios, clock);
+    const header = JSON.stringify({ http: { report: "none", poll: "none", start: "none" }, planner: "default", latency: "instant", avvo: "error", bar: "error", website: "error" });
+    expect(await answer("/scan", start({ "X-Arca-Debug-Scenario": header })).json()).toEqual({ scanId: "sc_down" });
+    expect((await answer("/scan/sc_down").json()).status).toBe("RUNNING");
+    now += DEMO_SCAN_MS;
+    expect((await answer("/scan/sc_down").json()).status).toBe("FAILED");
+  });
+
+  it("serves the mock firm the website names, and the story for any other website", async () => {
+    const answer = createReplay(scenarios, clock);
+    expect(await answer("/scan", start({}, "https://www.Blocked.arca.example/")).json()).toEqual({ scanId: "sc_blocked" });
+    expect(await answer("/scan", start({})).json()).toEqual({ scanId: "sc_1" });
+  });
+});
