@@ -73,7 +73,9 @@ async function answerAll(page) {
     const suggestion = page.getByRole('button', { name: 'Use this answer' });
     if (await suggestion.isVisible()) await suggestion.click();
     else if (await page.locator('label:has(input[type=radio]), label:has(input[type=checkbox])').count()) {
-      await page.locator('label:has(input[type=radio]), label:has(input[type=checkbox])').first().click();
+      const open = page.locator('textarea#text-answer');
+      if (await open.isVisible()) await open.fill('A filing deadline missed because of a wrong date.');
+      else await page.locator('label:has(input[type=radio]), label:has(input[type=checkbox])').first().click();
     } else if (await page.getByRole('spinbutton').isVisible()) {
       const min = (await page.getByRole('spinbutton').getAttribute('min')) ?? '1';
       await page.getByRole('spinbutton').fill(String(Math.max(Number(min), 5)));
@@ -89,7 +91,8 @@ async function answerAll(page) {
 
 async function visitApp(page, label) {
   for (const route of APP_PAGES) {
-    await page.goto(`${frontendUrl}${route}`);
+    // A page that redirects on load (the payment return lands on /app and moves on) aborts the first navigation: try again.
+    await page.goto(`${frontendUrl}${route}`).catch(async () => { await page.waitForTimeout(1500); await page.goto(`${frontendUrl}${route}`); });
     await settle(page);
     await page.waitForTimeout(800);
   }
@@ -132,7 +135,7 @@ let scanning;
   await settle(page);
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 30_000 }).catch(() => null),
-    page.getByRole('button', { name: /Download Quick Scan Report/ }).click(),
+    page.getByRole('button', { name: /Download report \(PDF\)/ }).click(),
   ]);
   if (!download) console.warn('  the Quick Scan Report did not download');
   await page.getByRole('button', { name: 'Refine your score' }).click();
@@ -140,24 +143,34 @@ let scanning;
   step('assessment');
   await answerAll(page);
   await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'See my demo score' }).click();
+  await page.getByRole('button', { name: 'See my score' }).click();
   await page.waitForURL(onPath('/assessment/results'));
   step('results');
   await settle(page);
-  await page.getByRole('button', { name: 'Save your results and activate your account' }).click();
+  await page.getByRole('button', { name: 'Activate your account' }).click();
   await page.waitForURL(onPath('/app/signup')).catch(async error => {
     if (process.env.DEMO_FAIL_SHOT) await page.screenshot({ path: process.env.DEMO_FAIL_SHOT, fullPage: true });
     throw error;
   });
   step('sign-up');
-  await page.getByLabel('Organization name').fill('Robust Law');
-  await page.getByRole('button', { name: 'Create organization' }).click();
-  await page.waitForURL(onPath('/app/billing'));
-  await settle(page);
-  await page.goto(`${frontendUrl}/app`);
-  await page.waitForURL(onPath('/app/billing'));
-  await settle(page);
-  await page.getByRole('button', { name: /^Pay with / }).first().click();
+  // The pre-checkout's five steps (You, Your firm, Plan, Verify email, Payment), simulated as in mock.
+  const next = () => page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByLabel('Full name').fill('Jordan Smith');
+  await page.locator('input[name=contactRole]').first().check({ force: true });
+  await next();
+  await page.getByLabel('Firm legal name').fill('Robust Law LLP');
+  await page.getByLabel('Street address').fill('100 Main St');
+  await page.getByLabel('City').fill('Miami');
+  await page.locator('select[autocomplete="address-level1"]').selectOption('FL');
+  await page.getByLabel('ZIP code').fill('33101');
+  await page.locator('input[name=attorneyRange]').first().check({ force: true });
+  await page.getByPlaceholder('Find a state').fill('Florida');
+  await page.locator('label:has-text("Florida") input[type=checkbox]').first().check({ force: true });
+  await next();
+  await page.locator('input[name=plan]').first().check({ force: true });
+  await next();
+  await page.getByRole('button', { name: 'Create my account' }).click();
+  await page.getByRole('button', { name: 'Continue to payment' }).click();
   await page.waitForURL(onPath('/app/billing/mock-checkout'));
   step('checkout');
   await page.getByRole('button', { name: 'Simulated payment' }).click();
