@@ -1694,6 +1694,13 @@ Pre-Score (PDF included) → assessment → results → sign-up → simulated pa
   Vercel production. The replay is loaded behind literal comparisons, so a production build carries none of it —
   verified with `npm run build` (0 leaks, no demo chunk). Merging `dev` into `main` is therefore safe.
 - **Locally, with no back:** `npm run dev:demo`.
+- **Debug strip in the demo (2026-11-27, Jesús's request):** besides the pill, `components/debug/DemoDebugRoot.tsx` shows the
+  debug strip at the top ("DEMO · recorded answers · nothing is saved", State button). It **folds** into a small "Debug" tab
+  at the top right, and the browser remembers it, so it does not have to sit over the navbar of the pages being redesigned.
+  The State panel works from the recording: the page's published state, **Jump to** (Quote, Score, Assessment, Results,
+  App), the **recorded scenarios** (the five fault presets and six mock firms, scanned once each by the recorder; they show
+  the scan and `/score`, not an assessment) and Auto-answer with the recorded answers. Any other website replays the demo
+  firm. A reload mid-assessment now shows the answers saved so far.
 - **When the back changes, record again:** run the mock stack (`npm run stack -- mock` in Arca-back), then
   `npm run demo:record` here, and commit the new `recording.json`. The recorder resets the back's limits, walks the
   funnel and every role, and needs the Playwright that Arca-back installs (as the other browser scripts do).

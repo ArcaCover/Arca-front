@@ -79,7 +79,8 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["components/debug/**", "lib/debug/**"],
+    // scripts/ is Node tooling (the demo recorder, the leak check), never part of a bundle: the boundary guards bundles.
+    ignores: ["components/debug/**", "lib/debug/**", "scripts/**"],
     rules: { "no-restricted-imports": DEBUG_BOUNDARY, "no-restricted-syntax": DEBUG_DYNAMIC_IMPORT },
   },
 );

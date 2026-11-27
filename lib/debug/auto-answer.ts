@@ -41,6 +41,8 @@ export async function autoAnswer(
   assessmentId: string,
   token: string,
   client = { getAssessment, saveAnswer },
+  /** How each answer is chosen. The demo passes the recorded answer, since it can only replay the path it recorded. */
+  choose: (question: RenderedQuestion) => AnswerValue = chooseAnswer,
 ): Promise<AssessmentView> {
   let view = await client.getAssessment(assessmentId, token);
   for (let saved = 0; ; saved++) {
@@ -49,6 +51,6 @@ export async function autoAnswer(
     if (saved === MAX_ANSWERS) {
       throw new Error(`Auto-answer stopped after ${MAX_ANSWERS} answers with questions still pending`);
     }
-    view = await client.saveAnswer(assessmentId, pending.id, chooseAnswer(pending), token);
+    view = await client.saveAnswer(assessmentId, pending.id, choose(pending), token);
   }
 }
