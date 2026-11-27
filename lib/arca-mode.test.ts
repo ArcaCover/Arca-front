@@ -19,6 +19,12 @@ describe("resolveArcaMode", () => {
   it("refuses a debug mode on Vercel, which only builds production", () => {
     expect(() => resolveArcaMode({ NEXT_PUBLIC_ARCA_MODE: "mock", VERCEL: "1" })).toThrow(/local-only/);
     expect(resolveArcaMode({ VERCEL: "1" })).toBe("production");
+    // The pilot branch's previews run live-debug; never mock, never another branch, never Vercel production.
+    const pilot = { NEXT_PUBLIC_ARCA_MODE: "live-debug", VERCEL: "1", VERCEL_GIT_COMMIT_REF: "pilot", VERCEL_ENV: "preview" };
+    expect(resolveArcaMode(pilot)).toBe("live-debug");
+    expect(() => resolveArcaMode({ ...pilot, NEXT_PUBLIC_ARCA_MODE: "mock" })).toThrow(/local-only/);
+    expect(() => resolveArcaMode({ ...pilot, VERCEL_GIT_COMMIT_REF: "feature" })).toThrow(/local-only/);
+    expect(() => resolveArcaMode({ ...pilot, VERCEL_ENV: "production" })).toThrow(/local-only/);
   });
 
   it("builds the dev branch's Vercel previews in demo without any variable", () => {

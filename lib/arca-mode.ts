@@ -7,6 +7,8 @@
 // works on the UX, and it can never build for production.
 export const ARCA_MODES = ["production", "live-debug", "mock", "demo"] as const;
 export type ArcaMode = (typeof ARCA_MODES)[number];
+/** The branch whose Vercel previews run live-debug: pilot.arcacover.com. */
+export const PILOT_BRANCH = "pilot";
 
 /** The branch whose Vercel previews build in demo without anyone setting a variable. */
 export const DEMO_BRANCH = "dev";
@@ -19,8 +21,11 @@ export function resolveArcaMode(env: Record<string, string | undefined>): ArcaMo
   if (mode === undefined) {
     throw new Error(`NEXT_PUBLIC_ARCA_MODE="${value}" is not a mode; use one of ${ARCA_MODES.join(", ")}`);
   }
-  // Every Vercel build, preview or production, defines VERCEL; the debug modes need a local back and are local-only.
-  if ((mode === "mock" || mode === "live-debug") && env.VERCEL !== undefined) {
+  // Every Vercel build, preview or production, defines VERCEL; mock needs a local back and is local-only. live-debug is too,
+  // with one exception: a preview of the branch named pilot, behind its password and its API's access token (DN-14 §5 in
+  // Arca-back). No debug mode ever builds for Vercel production.
+  const pilot = mode === "live-debug" && env.VERCEL_GIT_COMMIT_REF === PILOT_BRANCH && env.VERCEL_ENV !== "production";
+  if ((mode === "mock" || mode === "live-debug") && env.VERCEL !== undefined && !pilot) {
     throw new Error(`NEXT_PUBLIC_ARCA_MODE=${mode} is local-only and cannot build on Vercel`);
   }
   // The demo may run on a preview, never on the production deployment.
