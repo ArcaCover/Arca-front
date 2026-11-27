@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Download, FileSearch, ListChecks, RotateCw } from "lucide-react";
-import type { AnalysisView } from "@arca/contracts";
+import { DOMAIN_LABELS, isUnderwritingResult, type AnalysisView } from "@arca/contracts";
 
 import { useActions } from "@/components/app/ActionsState";
 import AnalysisCard from "@/components/app/AnalysisCard";
@@ -79,7 +79,10 @@ function Detail({ analysis, back }: { analysis: AnalysisView; back: ReactNode })
   const { kind } = headline(analysis);
   const signals = signalsToCards(analysis.layer1);
   const plan = analysis.assessment?.actionPlan ?? [];
-  const domainLabel = (key: string) => analysis.assessment?.domains.find(domain => domain.key === key)?.label ?? key;
+  const assessment = analysis.assessment;
+  const domainLabel = (key: string) => (assessment && !isUnderwritingResult(assessment)
+    ? assessment.domains.find(domain => domain.key === key)?.label : undefined)
+    ?? DOMAIN_LABELS[key as keyof typeof DOMAIN_LABELS] ?? key;
 
   return (
     <>

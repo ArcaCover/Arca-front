@@ -302,7 +302,9 @@ function ScoreScreen({ scanId }: { scanId: string | null }) {
                 score={category.score}
                 max={category.max}
                 caption={
-                  category.status === "KNOWN"
+                  !category.scored
+                    ? "context only, not scored"
+                    : category.status === "KNOWN"
                     ? undefined
                     : category.status === "UNKNOWN"
                       ? "no evidence"

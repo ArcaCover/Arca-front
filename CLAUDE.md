@@ -1673,3 +1673,30 @@ Detalle en `docs/implementation/real-accounts.md` y copy en `docs/copy-deck.md` 
 - **"Keep these results"** es ahora el momento de conversión: nombre del despacho, puntuación, tier, pasos del plan, ventajas que
   la app cumple hoy y el precio leído de la API. Gold solo en "Activate your account".
 - **Contratos**: las formas nuevas vienen de 0.5.0; `lib/app/checkout-contract.ts` solo las reexporta.
+
+### Actualización — 27 de noviembre de 2026 (Capa 2, banco 4.0)
+
+Sustituye lo que digan sobre la Capa 2 las secciones de arriba. Diseño y decisiones: DN-14 en Arca-back
+(`docs/design-notes/DN-14-capa2-banco-4.md`). Instala `@arca/contracts` 0.6.0; hasta su release final, la pre-release
+`contracts-v0.6.0-dev.1`.
+
+- **El cuestionario es el banco 4.0 del founder**: primero qué herramientas usa la firma y para qué (G1, G2), que la
+  clasifican en un perfil P0–P4. Nunca pregunta "¿usan IA?". Son como mucho 10 preguntas y la selección la hace la API;
+  el front solo pinta `view.questions`, que crecen al responder G1 y G2. Hay una pregunta abierta (`type: "text"`) que
+  nunca puntúa.
+- **El resultado (`isUnderwritingResult`)**: un score 0–100 en tres categorías (AI & Data Governance 40, Professional
+  Standing 35, Firm Maturity 25), la confianza (alta, media o baja) y un desenlace. Hay tres desenlaces:
+  - una cotización indicativa, con selector de límite y hasta 3 condiciones;
+  - una agenda con underwriter, con el enlace y **sin ninguna cifra**;
+  - un rechazo, con enlace y sin cifras.
+
+  Lo pinta `components/assessment/UnderwritingOutcome.tsx`. Las primas las calcula la API para cada límite y el front
+  solo cambia entre ellas.
+- **Los resultados anteriores** (6 dominios) siguen leyéndose igual: `/assessment/results`, las tarjetas de la webapp y
+  la página de análisis aceptan los dos tipos.
+- **El aviso único** de la Capa 2 dice ahora "Provisional assessment… Any premium shown is an indicative estimate, not an
+  offer of insurance." (§7). `/score` sigue sin mencionar precios: una prueba lo exige.
+- **`/score`**: la Capa 1 se reescala a 40/35/25 y Reputation aparece como "context only, not scored".
+- **El plan de acción** incluye todas las respuestas que perdieron puntos. Si el paso no sube el score, porque la evidencia
+  pública ya llena la categoría, no se muestra la insignia "+0".
+- **Las acciones nuevas** de la webapp se asignan a las tres categorías (`ACTION_DOMAINS`).
