@@ -14,7 +14,8 @@ const MODES = ['production', 'live-debug', 'mock'];
 function resolveArcaMode(env) {
   const mode = env.NEXT_PUBLIC_ARCA_MODE || 'production';
   if (!MODES.includes(mode)) throw new Error(`NEXT_PUBLIC_ARCA_MODE="${mode}" is not a mode; use one of ${MODES.join(', ')}`);
-  if (mode !== 'production' && env.VERCEL !== undefined) throw new Error(`NEXT_PUBLIC_ARCA_MODE=${mode} is local-only and cannot build on Vercel`);
+  const pilot = mode === 'live-debug' && env.VERCEL_GIT_COMMIT_REF === 'pilot' && env.VERCEL_ENV !== 'production';
+  if (mode !== 'production' && env.VERCEL !== undefined && !pilot) throw new Error(`NEXT_PUBLIC_ARCA_MODE=${mode} is local-only and cannot build on Vercel`);
   return mode;
 }
 

@@ -123,8 +123,13 @@ export async function apiFailure(response: Response): Promise<ApiError> {
 /** `timeoutMs` is for the rare route that is slow by design, such as the mock seed, which runs a whole scan. */
 export async function apiSend(path: string, init: RequestInit, timeoutMs = 15000): Promise<Response> {
   try {
+    // Pilot's API refuses every request without its access token (DN-14 §5 in Arca-back). The token rides in the bundle
+    // of pilot.arcacover.com, which its password keeps private; no other deployment sets it.
+    const pilotToken = process.env.NEXT_PUBLIC_PILOT_ACCESS_TOKEN;
+    const headers = pilotToken ? { ...(init.headers as Record<string, string> | undefined), "X-Arca-Pilot-Token": pilotToken } : init.headers;
     return await fetch(`${baseUrl()}${path}`, {
       ...init,
+      headers,
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (cause) {
