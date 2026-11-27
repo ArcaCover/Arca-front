@@ -23,7 +23,8 @@ export default function UnderwritingOutcome({ outcome }: { outcome: Underwriting
       <section className="mt-7 rounded-[28px] border border-marino/8 bg-white p-6 sm:p-8" aria-labelledby="quote-heading">
         <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-marino/70">Your estimate</p>
         <h2 id="quote-heading" className="mt-2 font-heading text-2xl font-medium tracking-tight">
-          {quote.conditions.length ? "Ready to cover, with a few steps." : "Ready to cover."}
+          {/* Never a promise of coverage (spec §5, CLAUDE.md §7): there is no carrier yet, only an estimate. */}
+          {quote.conditions.length ? "Your indicative estimate, with a few steps." : "Your indicative estimate."}
         </h2>
         <fieldset className="mt-6">
           <legend className="text-xs text-marino/70">Limit per claim</legend>
