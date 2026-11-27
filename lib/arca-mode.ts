@@ -3,6 +3,8 @@
 // import a mode from here.
 export const ARCA_MODES = ["production", "live-debug", "mock"] as const;
 export type ArcaMode = (typeof ARCA_MODES)[number];
+/** The branch whose Vercel previews run live-debug: pilot.arcacover.com. */
+export const PILOT_BRANCH = "pilot";
 
 export function resolveArcaMode(env: Record<string, string | undefined>): ArcaMode {
   const value = env.NEXT_PUBLIC_ARCA_MODE || "production";
@@ -11,8 +13,11 @@ export function resolveArcaMode(env: Record<string, string | undefined>): ArcaMo
   if (mode === undefined) {
     throw new Error(`NEXT_PUBLIC_ARCA_MODE="${value}" is not a mode; use one of ${ARCA_MODES.join(", ")}`);
   }
-  // Every Vercel build, preview or production, defines VERCEL; the debug modes are local-only.
-  if (mode !== "production" && env.VERCEL !== undefined) {
+  // Every Vercel build, preview or production, defines VERCEL; the debug modes are local-only, with one exception: a
+  // preview of the branch named pilot builds live-debug, behind its password and its API's access token (DN-14 §5 in
+  // Arca-back). mock never builds on Vercel, and no debug mode ever builds for Vercel production.
+  const pilot = mode === "live-debug" && env.VERCEL_GIT_COMMIT_REF === PILOT_BRANCH && env.VERCEL_ENV !== "production";
+  if (mode !== "production" && env.VERCEL !== undefined && !pilot) {
     throw new Error(`NEXT_PUBLIC_ARCA_MODE=${mode} is local-only and cannot build on Vercel`);
   }
   return mode;
