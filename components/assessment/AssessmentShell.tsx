@@ -15,10 +15,11 @@ export function DemoNotice() {
     >
       <ShieldCheck aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
       <p>
-        <strong className="font-semibold">Demo assessment.</strong> The
-        questions and the scoring are provisional, so your results are
-        illustrative. This is not an insurance offer, a price or an
-        underwriting decision.
+        {/* Bank 4.0 can show an indicative premium, so the notice says what such a number is (CLAUDE.md §7). */}
+        <strong className="font-semibold">Provisional assessment.</strong> The
+        questions, the weights and the rates are provisional until a carrier
+        sets them. Any premium shown is an indicative estimate, not an offer
+        of insurance.
       </p>
     </div>
   );

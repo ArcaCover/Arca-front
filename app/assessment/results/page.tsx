@@ -11,9 +11,10 @@ import {
   Loader2,
   RotateCcw,
 } from "lucide-react";
-import type { AssessmentResult } from "@arca/contracts";
+import { isUnderwritingResult, type AssessmentResult } from "@arca/contracts";
 import SaveResultsCta from "@/components/app/SaveResultsCta";
 import AssessmentShell from "@/components/assessment/AssessmentShell";
+import UnderwritingOutcome from "@/components/assessment/UnderwritingOutcome";
 import { completedOn, versionLine } from "@/components/assessment/result-meta";
 import {
   ANSWERS_ONLY_LINE,
@@ -121,12 +122,15 @@ function ResultsScreen() {
         published.current = {
           scanId: value.scanId,
           layer1Score: value.layer1Score,
-          layer2Score: value.layer2Score,
           compositeScore: value.compositeScore,
           tier: value.tier,
           flags: value.flags,
           bankVersion: value.bankVersion,
           scoringVersion: value.scoringVersion,
+          ...(isUnderwritingResult(value)
+            ? { configVersion: value.configVersion, confidence: value.confidence, exposure: value.exposure,
+                outcome: value.outcome, audit: value.audit, underwriterSummary: value.underwriterSummary }
+            : { layer2Score: value.layer2Score }),
         };
         publishDebugState("results", published.current);
         setResult(value);
@@ -245,7 +249,9 @@ function ResultsScreen() {
                       ? ANSWERS_ONLY_LINE
                       : result.compositeScore === null
                         ? "The quick scan did not support a combined score. Your questionnaire score is still available below."
-                        : "This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices."}
+                        : isUnderwritingResult(result)
+                          ? "Your public evidence plus your answers, category by category. The score is how well your firm manages the risk; confidence is how much of it we could verify."
+                          : "This score combines the public evidence with your answers. It is a starting point for reviewing your AI practices."}
                   </p>
                 </div>
                 {/* Secondary on purpose: gold stays for the primary action of a screen. */}
@@ -294,35 +300,49 @@ function ResultsScreen() {
                     </span>
                   </p>
                 </div>
-                <div className="rounded-2xl bg-bruma/35 p-4">
-                  <p className="text-[11px] text-marino/70">
-                    Your answers · Layer 2
-                  </p>
-                  <p className="mt-2 font-heading text-2xl font-medium tabular-nums">
-                    {result.layer2Score}
-                    <span className="ml-1 text-xs font-normal text-marino/70">
-                      / 100
-                    </span>
-                  </p>
-                </div>
+                {isUnderwritingResult(result) ? (
+                  <div className="rounded-2xl bg-bruma/35 p-4">
+                    <p className="text-[11px] text-marino/70">Confidence</p>
+                    <p className="mt-2 font-heading text-2xl font-medium capitalize">
+                      {result.confidence.level.toLowerCase()}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-bruma/35 p-4">
+                    <p className="text-[11px] text-marino/70">
+                      Your answers · Layer 2
+                    </p>
+                    <p className="mt-2 font-heading text-2xl font-medium tabular-nums">
+                      {result.layer2Score}
+                      <span className="ml-1 text-xs font-normal text-marino/70">
+                        / 100
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
+            {isUnderwritingResult(result) && <UnderwritingOutcome outcome={result.outcome} />}
             <section className="mt-7 rounded-[28px] border border-marino/8 bg-white p-6 sm:p-8">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-marino/70">
-                Six areas. One picture.
+                {isUnderwritingResult(result) ? "Three categories. One score." : "Six areas. One picture."}
               </p>
               <h2 className="mt-2 font-heading text-2xl font-medium tracking-tight">
                 Your governance profile
               </h2>
               <div className="mt-7 space-y-6">
-                {result.domains.map((domain) => (
-                  <DomainBar
-                    key={domain.key}
-                    name={domain.label}
-                    score={domain.score}
-                    caption={`${domain.weight}% weight${domain.status === "PARTIAL" ? " · partial evidence" : ""}`}
-                  />
-                ))}
+                {isUnderwritingResult(result)
+                  ? result.categories.map((category) => (
+                      <DomainBar key={category.key} name={category.label} score={category.score} max={category.max} />
+                    ))
+                  : result.domains.map((domain) => (
+                      <DomainBar
+                        key={domain.key}
+                        name={domain.label}
+                        score={domain.score}
+                        caption={`${domain.weight}% weight${domain.status === "PARTIAL" ? " · partial evidence" : ""}`}
+                      />
+                    ))}
               </div>
             </section>
             <section className="mt-7">
@@ -350,9 +370,13 @@ function ResultsScreen() {
                         <p className="mt-2 text-xs leading-6 text-marino/70">
                           {nextStep(item.detail)}
                         </p>
-                        <span className="mt-3 inline-flex rounded-full bg-oro/20 px-2.5 py-1 text-[10px] font-semibold text-marino">
-                          Up to +{item.pointsGain} points
-                        </span>
+                        {/* Bank 4.0 lists every answer that lost points; where the public evidence already fills
+                            the category the score gains nothing, so no badge is shown. */}
+                        {item.pointsGain > 0 && (
+                          <span className="mt-3 inline-flex rounded-full bg-oro/20 px-2.5 py-1 text-[10px] font-semibold text-marino">
+                            Up to +{Math.round(item.pointsGain * 10) / 10} points
+                          </span>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -389,7 +413,9 @@ function ResultsScreen() {
               <span className="text-[10px] leading-5 text-marino/70">
                 Completed {completedOn(result.completedAt)}
                 <br />
-                {versionLine(result.bankVersion, result.scoringVersion)}
+                {isUnderwritingResult(result)
+                  ? versionLine(result.bankVersion, result.configVersion)
+                  : versionLine(result.bankVersion, result.scoringVersion)}
               </span>
               <Link
                 href="/quote"

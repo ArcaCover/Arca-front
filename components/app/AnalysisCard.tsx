@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { AnalysisView } from "@arca/contracts";
+import { isUnderwritingResult, type AnalysisView } from "@arca/contracts";
 
 import { ANSWERS_ONLY_LINE, answersOnly } from "@/components/assessment/result-notes";
 import { DomainBar, ScoreGauge, TierBadge } from "@/components/score";
@@ -10,14 +10,17 @@ type Bar = { key: string; name: string; score: number | null; max?: number; capt
 
 type Summary = { score: number | null; tier: TierName; bars: Bar[]; decisionWithheld: boolean; notRated: string | null };
 
-// With an assessment, the combined score and the six domains, as /assessment/results shows them. A scan claimed without
+// With an assessment, the combined score and its areas as /assessment/results shows them: bank 4.0's three categories,
+// or an older assessment's six domains. A scan claimed without
 // one keeps its Layer 1 score and four categories, as /score shows them.
 export function summary({ assessment, layer1, scanStatus }: AnalysisView): Summary {
   if (assessment) {
     return {
       score: assessment.compositeScore,
       tier: assessment.tier,
-      bars: assessment.domains.map(domain => ({
+      bars: isUnderwritingResult(assessment)
+        ? assessment.categories.map(category => ({ key: category.key, name: category.label, score: category.score, max: category.max }))
+        : assessment.domains.map(domain => ({
         key: domain.key,
         name: domain.label,
         score: domain.score,

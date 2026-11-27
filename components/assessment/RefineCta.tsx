@@ -76,8 +76,8 @@ export default function RefineCta({ scanId }: { scanId: string }) {
         There’s more to your story.
       </h2>
       <p className="mx-auto mt-3 max-w-[470px] text-sm leading-7 text-marino/70">
-        Tell us how your team actually works with AI. A short, adaptive
-        assessment brings six areas of governance into focus.
+        Tell us which tools your team uses and for what. A few short
+        questions turn this pre-score into your full score.
       </p>
       <button
         type="button"
@@ -103,10 +103,9 @@ export default function RefineCta({ scanId }: { scanId: string }) {
         </p>
       )}
       <p className="mt-4 text-xs leading-6 text-marino/70">
-        Demo business rules · 8 core questions plus relevant follow-ups
+        Provisional rules · at most 10 questions
         <br />
-        Illustrative scores only. No coverage, pricing, or underwriting
-        decision.
+        The pre-score is not a coverage decision.
       </p>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { DOMAIN_LABELS, DomainKey, type ActionItemView } from "@arca/contracts";
+import { ACTION_DOMAINS, DOMAIN_LABELS, DomainKey, type ActionItemView } from "@arca/contracts";
 
 import { useApp, useFailure } from "@/components/app/AppContext";
 import { Dialog, buttonClass, inputClass } from "@/components/app/ui";
@@ -97,7 +97,8 @@ function NewActionForm({
         <span className="font-semibold">Domain</span>
         <select value={domain} onChange={event => setDomain(event.target.value)} className={inputClass}>
           <option value={NO_DOMAIN}>No domain</option>
-          {DomainKey.options.map(key => (
+          {/* New actions take bank 4.0's three categories; older domains stay readable on existing actions. */}
+          {ACTION_DOMAINS.map(key => (
             <option key={key} value={key}>
               {DOMAIN_LABELS[key]}
             </option>

@@ -16,11 +16,17 @@ describe("adaptScore", () => {
     const view = adaptScore(fixtureResult(), "COMPLETED");
 
     expect(view.categories).toEqual([
-      { key: "aiGovernance", label: "AI Governance & Policy", score: 23, max: 35, status: "KNOWN" },
-      { key: "professionalStanding", label: "Professional Standing", score: 30, max: 30, status: "KNOWN" },
-      { key: "reputation", label: "Reputation", score: 14, max: 20, status: "KNOWN" },
-      { key: "firmMaturity", label: "Firm Maturity", score: 15, max: 15, status: "KNOWN" },
+      { key: "aiGovernance", label: "AI Governance & Policy", score: 23, max: 35, status: "KNOWN", scored: true },
+      { key: "professionalStanding", label: "Professional Standing", score: 30, max: 30, status: "KNOWN", scored: true },
+      { key: "reputation", label: "Reputation", score: 14, max: 20, status: "KNOWN", scored: true },
+      { key: "firmMaturity", label: "Firm Maturity", score: 15, max: 15, status: "KNOWN", scored: true },
     ]);
+  });
+
+  it("marks a category Layer 1 reports as context only, as bank 4.0 does with Reputation", () => {
+    const result = fixtureResult();
+    result.preScore.categories.reputation.scored = false;
+    expect(adaptScore(result, "COMPLETED").categories.find(c => c.key === "reputation")?.scored).toBe(false);
   });
 
   it("takes the tier from the payload instead of deriving it from the score", () => {
