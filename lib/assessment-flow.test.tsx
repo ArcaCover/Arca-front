@@ -58,7 +58,7 @@ function expectOneDisclosure(versionLine: string | null) {
   const notices = screen.getAllByRole("note", { name: "About this assessment" });
   expect(notices).toHaveLength(1);
   expect(notices[0].textContent).toMatch(/provisional/);
-  expect(notices[0].textContent).toMatch(/not an insurance offer, a price or an underwriting decision/);
+  expect(notices[0].textContent).toMatch(/indicative estimate, not an offer of insurance/);
   const page = document.body.cloneNode(true) as HTMLElement;
   page.querySelector('[aria-label="About this assessment"]')!.remove();
   const rest = page.textContent ?? "";
@@ -494,7 +494,7 @@ describe("assessment result recovery", () => {
     await screen.findByRole("alert");
     await userEvent.click(button("Try again"));
     await screen.findByRole("img", { name: "AI Governance Score: 70 out of 100" });
-    expect(screen.getByRole("note", { name: "About this assessment" }).textContent).toMatch(/not an insurance offer/);
+    expect(screen.getByRole("note", { name: "About this assessment" }).textContent).toMatch(/not an offer of insurance/);
     expect(screen.getByText("Document the policy")).toBeTruthy();
     expect(getAssessmentResult).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("button", { name: /buy|bind|quote|pay/i })).toBeNull();

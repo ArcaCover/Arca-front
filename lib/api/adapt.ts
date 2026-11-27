@@ -14,6 +14,8 @@ export type CategoryView = {
   max: number;
   /** KNOWN, PARTIAL or UNKNOWN. A partial category scored only the rules it could evaluate. */
   status: string;
+  /** false: shown as context and not part of the score. Since bank 4.0 (contracts 0.6.0) that is Reputation. */
+  scored: boolean;
 };
 
 /** Which of the three evidence cases /score tells the visitor about. `gaps` holds one plain
@@ -179,7 +181,7 @@ export function adaptScore(result: Layer1Result, status: "COMPLETED" | "PARTIAL"
     confidence: preScore.confidence,
     categories: CATEGORIES.map(({ key, label }) => {
       const category = preScore.categories[key];
-      return { key, label, score: category.score, max: category.max, status: category.status };
+      return { key, label, score: category.score, max: category.max, status: category.status, scored: category.scored !== false };
     }),
     signals: signalsToCards(result),
     evidence,

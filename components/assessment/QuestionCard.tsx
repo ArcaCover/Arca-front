@@ -347,6 +347,24 @@ export default function QuestionCard({
             </div>
           </div>
         )}
+        {/* Bank 4.0's one open question: kept word for word for an underwriter to read, never scored. */}
+        {question.type === "text" && (
+          <div className="rounded-2xl border border-marino/10 bg-bruma/25 p-5">
+            <label htmlFor="text-answer" className="mb-3 block text-sm text-marino/75">
+              In your own words. An underwriter reads this; it does not change your score.
+            </label>
+            <textarea
+              id="text-answer"
+              rows={4}
+              maxLength={question.textInput?.maxLength ?? 1000}
+              value={answer?.kind === "text" ? answer.value : ""}
+              onChange={(event) =>
+                onAnswer(event.target.value.trim() === "" ? undefined : { kind: "text", value: event.target.value })
+              }
+              className="w-full rounded-xl border border-marino/15 bg-white p-3 text-sm leading-6 text-marino focus:border-marino focus:outline-2 focus:outline-offset-2 focus:outline-marino"
+            />
+          </div>
+        )}
       </fieldset>
     </div>
   );

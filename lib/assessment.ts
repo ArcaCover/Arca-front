@@ -24,6 +24,7 @@ export function answerLabel(
       .join(", ");
   if (answer.kind === "number")
     return `${answer.value} ${question.number?.unit ?? ""}`.trim();
+  if (answer.kind === "text") return answer.value;
   if (answer.value === question.scale?.min)
     return `${answer.value} · ${question.scale.minLabel}`;
   if (answer.value === question.scale?.max)
