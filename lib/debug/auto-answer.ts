@@ -31,6 +31,8 @@ export function chooseAnswer(question: RenderedQuestion): AnswerValue {
     case "number":
       if (!question.number) throw unanswerable(question);
       return { kind: "number", value: question.number.min };
+    case "text":
+      return { kind: "text", value: "A filing deadline missed because of a wrong date." };
   }
 }
 

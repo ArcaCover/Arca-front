@@ -541,7 +541,7 @@ describe("the action plan by role", () => {
     signedIn(org());
     const created: ActionItemView = {
       key: "c.00000000-0000-4000-8000-000000000002", source: "custom", title: "Write a disclosure clause",
-      detail: "For the engagement letter.", domain: "training", pointsGain: null, status: "todo", assignee: null,
+      detail: "For the engagement letter.", domain: "firm_maturity", pointsGain: null, status: "todo", assignee: null,
       dueDate: null, updatedAt: "2026-11-05T10:00:00.000Z",
     };
     vi.mocked(getActionPlan).mockResolvedValueOnce(PLAN).mockResolvedValue(plan(POLICY, INCIDENT, created));
@@ -553,11 +553,11 @@ describe("the action plan by role", () => {
     const dialog = screen.getByRole("dialog", { name: "Add an action" });
     await user.type(within(dialog).getByRole("textbox", { name: "Title" }), "  Write a disclosure clause ");
     await user.type(within(dialog).getByRole("textbox", { name: /Details/ }), "For the engagement letter.");
-    await user.selectOptions(within(dialog).getByRole("combobox", { name: "Domain" }), "training");
+    await user.selectOptions(within(dialog).getByRole("combobox", { name: "Domain" }), "firm_maturity");
     await user.click(within(dialog).getByRole("button", { name: "Add action" }));
 
     expect(createAction).toHaveBeenCalledExactlyOnceWith("org_1", {
-      title: "Write a disclosure clause", detail: "For the engagement letter.", domain: "training",
+      title: "Write a disclosure clause", detail: "For the engagement letter.", domain: "firm_maturity",
     });
     expect(await screen.findByText("Action added to the plan.")).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
